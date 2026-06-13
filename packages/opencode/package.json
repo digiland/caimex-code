@@ -16,7 +16,7 @@
     "dev:temporary": "bun run --conditions=browser ./src/temporary.ts"
   },
   "bin": {
-    "opencode": "./bin/opencode"
+    "caimex": "./bin/opencode"
   },
   "exports": {
     "./*": "./src/*.ts"
