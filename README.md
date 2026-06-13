@@ -1,129 +1,154 @@
-<p align="center">
-  <a href="https://opencode.ai">
-    <picture>
-      <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
-      <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
-      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="OpenCode logo">
-    </picture>
-  </a>
-</p>
-<p align="center">The open source AI coding agent.</p>
-<p align="center">
-  <a href="https://opencode.ai/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
-  <a href="https://www.npmjs.com/package/opencode-ai"><img alt="npm" src="https://img.shields.io/npm/v/opencode-ai?style=flat-square" /></a>
-  <a href="https://github.com/anomalyco/opencode/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/anomalyco/opencode/publish.yml?style=flat-square&branch=dev" /></a>
-</p>
+# Caimex Code
 
-<p align="center">
-  <a href="README.md">English</a> |
-  <a href="README.zh.md">简体中文</a> |
-  <a href="README.zht.md">繁體中文</a> |
-  <a href="README.ko.md">한국어</a> |
-  <a href="README.de.md">Deutsch</a> |
-  <a href="README.es.md">Español</a> |
-  <a href="README.fr.md">Français</a> |
-  <a href="README.it.md">Italiano</a> |
-  <a href="README.da.md">Dansk</a> |
-  <a href="README.ja.md">日本語</a> |
-  <a href="README.pl.md">Polski</a> |
-  <a href="README.ru.md">Русский</a> |
-  <a href="README.bs.md">Bosanski</a> |
-  <a href="README.ar.md">العربية</a> |
-  <a href="README.no.md">Norsk</a> |
-  <a href="README.br.md">Português (Brasil)</a> |
-  <a href="README.th.md">ไทย</a> |
-  <a href="README.tr.md">Türkçe</a> |
-  <a href="README.uk.md">Українська</a> |
-  <a href="README.bn.md">বাংলা</a> |
-  <a href="README.gr.md">Ελληνικά</a> |
-  <a href="README.vi.md">Tiếng Việt</a>
-</p>
+A CLI coding agent that routes all LLM calls through the **Caimex gateway**.
 
-[![OpenCode Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://opencode.ai)
+Caimex Code is an internal fork of [OpenCode](https://github.com/anomalyco/opencode)
+(MIT). Instead of talking to model providers directly, it points at the Caimex
+gateway as a single OpenAI-compatible endpoint, so every request goes through the
+gateway's auth, model routing, rate limiting, budget enforcement, and usage
+tracking. See [`NOTICE.md`](./NOTICE.md) for attribution — this project is **not
+affiliated with or endorsed by the OpenCode team**.
+
+> Upstream's original README is preserved in git history and in the translated
+> `README.*.md` files.
 
 ---
 
-### Installation
+## Prerequisites
 
-```bash
-# YOLO
-curl -fsSL https://opencode.ai/install | bash
-
-# Package managers
-npm i -g opencode-ai@latest        # or bun/pnpm/yarn
-scoop install opencode             # Windows
-choco install opencode             # Windows
-brew install anomalyco/tap/opencode # macOS and Linux (recommended, always up to date)
-brew install opencode              # macOS and Linux (official brew formula, updated less)
-sudo pacman -S opencode            # Arch Linux (Stable)
-paru -S opencode-bin               # Arch Linux (Latest from AUR)
-mise use -g opencode               # Any OS
-nix run nixpkgs#opencode           # or github:anomalyco/opencode for latest dev branch
-```
-
-> [!TIP]
-> Remove versions older than 0.1.x before installing.
-
-### Desktop App (BETA)
-
-OpenCode is also available as a desktop application. Download directly from the [releases page](https://github.com/anomalyco/opencode/releases) or [opencode.ai/download](https://opencode.ai/download).
-
-| Platform              | Download                           |
-| --------------------- | ---------------------------------- |
-| macOS (Apple Silicon) | `opencode-desktop-mac-arm64.dmg`   |
-| macOS (Intel)         | `opencode-desktop-mac-x64.dmg`     |
-| Windows               | `opencode-desktop-windows-x64.exe` |
-| Linux                 | `.deb`, `.rpm`, or `.AppImage`     |
-
-```bash
-# macOS (Homebrew)
-brew install --cask opencode-desktop
-# Windows (Scoop)
-scoop bucket add extras; scoop install extras/opencode-desktop
-```
-
-#### Installation Directory
-
-The install script respects the following priority order for the installation path:
-
-1. `$OPENCODE_INSTALL_DIR` - Custom installation directory
-2. `$XDG_BIN_DIR` - XDG Base Directory Specification compliant path
-3. `$HOME/bin` - Standard user binary directory (if it exists or can be created)
-4. `$HOME/.opencode/bin` - Default fallback
-
-```bash
-# Examples
-OPENCODE_INSTALL_DIR=/usr/local/bin curl -fsSL https://opencode.ai/install | bash
-XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://opencode.ai/install | bash
-```
-
-### Agents
-
-OpenCode includes two built-in agents you can switch between with the `Tab` key.
-
-- **build** - Default, full-access agent for development work
-- **plan** - Read-only agent for analysis and code exploration
-  - Denies file edits by default
-  - Asks permission before running bash commands
-  - Ideal for exploring unfamiliar codebases or planning changes
-
-Also included is a **general** subagent for complex searches and multistep tasks.
-This is used internally and can be invoked using `@general` in messages.
-
-Learn more about [agents](https://opencode.ai/docs/agents).
-
-### Documentation
-
-For more info on how to configure OpenCode, [**head over to our docs**](https://opencode.ai/docs).
-
-### Contributing
-
-If you're interested in contributing to OpenCode, please read our [contributing docs](./CONTRIBUTING.md) before submitting a pull request.
-
-### Building on OpenCode
-
-If you are working on a project that's related to OpenCode and is using "opencode" as part of its name, for example "opencode-dashboard" or "opencode-mobile", please add a note to your README to clarify that it is not built by the OpenCode team and is not affiliated with us in any way.
+1. **Bun** (the runtime — this is a Bun/TypeScript monorepo):
+   ```bash
+   curl -fsSL https://bun.sh/install | bash
+   export PATH="$HOME/.bun/bin:$PATH"   # add to ~/.zshrc to persist
+   ```
+2. **The Caimex gateway running** (default `http://localhost:8240`). Check it:
+   ```bash
+   curl -s http://localhost:8240/health   # -> {"status":"ok",...}
+   ```
+3. **A gateway API key** (`sk-or-...`) — create one in the Caimex UI under
+   `/api-keys`.
 
 ---
 
-**Join our community** [Discord](https://discord.gg/opencode) | [X.com](https://x.com/opencode)
+## Install
+
+```bash
+git clone <your-private-repo> caimex-code   # or use this checkout
+cd caimex-code
+export PATH="$HOME/.bun/bin:$PATH"          # bun MUST be on PATH or native
+bun install                                 # build scripts fail with code 127
+```
+
+---
+
+## Configure
+
+Caimex Code reads its config from `~/.config/caimex-code/caimex.json`
+(`caimex.jsonc`, `opencode.json`, and `config.json` are also accepted). A
+gateway-pointed config ships in this repo at [`caimex.json`](./caimex.json) —
+copy it to the global location:
+
+```bash
+mkdir -p ~/.config/caimex-code
+cp caimex.json ~/.config/caimex-code/caimex.json
+export CAIMEX_API_KEY="sk-or-v1-..."        # add to ~/.zshrc to persist
+```
+
+The config defines a custom OpenAI-compatible provider named `caimex`:
+
+```jsonc
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "caimex": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Caimex Gateway",
+      "options": {
+        "baseURL": "http://localhost:8240/v1",
+        "apiKey": "{env:CAIMEX_API_KEY}"
+      },
+      "models": {
+        "Caimex/moonshotai/kimi-k2.6": { "name": "Kimi K2.6" },
+        "Qwen3.5-122b": { "name": "Qwen 3.5 122B" }
+      }
+    }
+  },
+  "model": "caimex/Caimex/moonshotai/kimi-k2.6"
+}
+```
+
+- **Model ids** under `models` must match what `GET /v1/models` returns from your
+  gateway. Reference a model as `caimex/<model-id>`.
+- Point `baseURL` at your deployed gateway if it isn't local.
+- Add or remove models to match your gateway catalog.
+
+---
+
+## Usage
+
+From the repo (dev mode, runs from source):
+
+```bash
+export PATH="$HOME/.bun/bin:$PATH"
+export CAIMEX_API_KEY="sk-or-v1-..."
+
+bun run dev                                   # interactive TUI
+bun run dev -- models                         # list available models
+bun run dev -- run "Explain this repo"        # non-interactive, prints answer
+bun run dev -- run "Fix the failing test" --model caimex/Qwen3.5-122b
+bun run dev -- --help                         # all commands
+```
+
+Once you build a standalone binary (below), the command is just `caimex`:
+
+```bash
+caimex                          # TUI
+caimex run "..."                # non-interactive
+caimex models
+```
+
+---
+
+## Build a standalone binary
+
+```bash
+cd packages/opencode
+bun run build --single          # current platform only; output in ./dist
+```
+
+Then symlink/copy the produced `caimex` binary onto your `PATH`.
+
+---
+
+## Updating from upstream OpenCode
+
+This fork keeps an `upstream` remote so you can pull improvements:
+
+```bash
+git fetch upstream
+git merge upstream/dev          # resolve conflicts in rebranded files
+```
+
+Rebranding was kept intentionally small (see [`CLAUDE.md`](./CLAUDE.md)) to make
+these merges easy.
+
+---
+
+## What's different from OpenCode
+
+| Area | OpenCode | Caimex Code |
+| --- | --- | --- |
+| LLM endpoint | provider-direct | Caimex gateway (`/v1`, OpenAI-compatible) |
+| Command / binary | `opencode` | `caimex` |
+| App id / config dir | `~/.config/opencode` | `~/.config/caimex-code` |
+| Config filenames | `opencode.json*` | `caimex.json*` (opencode names still accepted) |
+| Auth | provider API keys | `CAIMEX_API_KEY` (gateway key) |
+
+The VS Code extension (`sdks/vscode`) is **not** rebranded yet.
+
+---
+
+## License
+
+MIT — see [`LICENSE`](./LICENSE) (retained from upstream OpenCode) and
+[`NOTICE.md`](./NOTICE.md).
