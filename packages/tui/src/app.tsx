@@ -523,18 +523,21 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
     })
   })
 
+  const connected = useConnected()
+
   createEffect(
     on(
-      () => sync.status === "complete" && sync.data.provider.length === 0,
-      (isEmpty, wasEmpty) => {
-        // only trigger when we transition into an empty-provider state
-        if (!isEmpty || wasEmpty) return
+      () => sync.status === "complete" && !connected(),
+      (needsLogin, wasNeedingLogin) => {
+        // First-run / logged-out: no provider has real credentials yet (the
+        // pre-configured Caimex gateway doesn't count until it has a key), so
+        // drop the user straight into the connect/login flow. Only fire on the
+        // transition into that state so we don't reopen it repeatedly.
+        if (!needsLogin || wasNeedingLogin) return
         dialog.replace(() => <DialogProviderList />)
       },
     ),
   )
-
-  const connected = useConnected()
   const currentWorktreeWorkspace = createMemo(() => {
     const workspaceID = project.workspace.current()
     if (!workspaceID) return

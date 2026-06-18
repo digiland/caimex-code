@@ -1,0 +1,7 @@
+services:
+  caimex-dist:
+    build: .
+    image: caimex-dist:latest
+    ports:
+      - "8080:80"          # http://<server>:8080/install.sh
+    restart: unless-stopped

@@ -1,12 +1,12 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "enabled_providers": ["caimex", "opencode", "anthropic", "openai", "google", "github-copilot"],
   "provider": {
     "caimex": {
       "npm": "@ai-sdk/openai-compatible",
       "name": "Caimex Gateway",
       "options": {
-        "baseURL": "http://localhost:8240/v1",
-        "apiKey": "{env:CAIMEX_API_KEY}"
+        "baseURL": "http://localhost:8240/v1"
       },
       "models": {
         "Caimex/moonshotai/kimi-k2.6": { "name": "Kimi K2.6" },

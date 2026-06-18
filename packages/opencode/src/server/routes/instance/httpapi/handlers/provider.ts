@@ -51,10 +51,18 @@ export const providerHandlers = HttpApiBuilder.group(InstanceHttpApi, "provider"
         mapValues(filtered, (item) => Provider.fromModelsDevProvider(item)),
         connected,
       )
+      // A config-defined provider (e.g. the Caimex gateway) is always listed in
+      // `all` so it can be selected and connected — but it only counts as
+      // *connected* once it actually has a credential (an apiKey injected from
+      // stored auth / env / config). Built-in providers are already gated on
+      // having a key when they load, so they pass through unchanged.
+      const connectedKeys = Object.entries(connected)
+        .filter(([, info]) => info.source !== "config" || Boolean(info.options?.apiKey))
+        .map(([id]) => id)
       return {
         all: Object.values(providers).map(Provider.toPublicInfo),
         default: Provider.defaultModelIDs(providers),
-        connected: Object.keys(connected),
+        connected: connectedKeys,
       }
     })
 
