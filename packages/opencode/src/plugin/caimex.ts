@@ -1,5 +1,8 @@
 import type { Hooks, PluginInput } from "@opencode-ai/plugin"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
+import { readFileSync, writeFileSync, mkdirSync } from "fs"
+import os from "os"
+import path from "path"
 
 // Auth plugin for the Caimex gateway. Registers two ways to log in to the
 // `caimex` provider:
@@ -54,6 +57,76 @@ function authHeaders() {
     "Content-Type": "application/json",
     Accept: "application/json",
     "User-Agent": `caimex/${InstallationVersion}`,
+  }
+}
+
+// ── Live model pricing ──────────────────────────────────────────────────────
+// The gateway's GET /v1/models returns per-model pricing (`input_per_1m` /
+// `output_per_1m`, in dollars per 1M tokens — the exact unit opencode's
+// `model.cost` uses). We fetch it and inject `cost` into the configured caimex
+// models via the `config` hook, so the CLI's cost meter reflects real prices
+// instead of $0 — without hardcoding anything in caimex.json.
+//
+// That endpoint is slow (it probes providers), so we never block startup: we
+// inject from a local cache instantly and refresh the cache in the background.
+// First run after install shows $0; every run after uses cached prices.
+
+interface ModelPrice {
+  input: number
+  output: number
+}
+interface PricingCache {
+  at: number
+  pricing: Record<string, ModelPrice>
+}
+
+const PRICING_CACHE_FILE = path.join(
+  process.env.XDG_CACHE_HOME ?? path.join(os.homedir(), ".cache"),
+  "caimex-code",
+  "model-pricing.json",
+)
+const PRICING_TTL_MS = 6 * 60 * 60 * 1000 // refresh at most every 6h
+
+function readPricingCache(): PricingCache | undefined {
+  try {
+    const parsed = JSON.parse(readFileSync(PRICING_CACHE_FILE, "utf8")) as PricingCache
+    if (parsed && typeof parsed.at === "number" && parsed.pricing) return parsed
+  } catch {}
+  return undefined
+}
+
+function writePricingCache(pricing: Record<string, ModelPrice>): void {
+  try {
+    mkdirSync(path.dirname(PRICING_CACHE_FILE), { recursive: true })
+    writeFileSync(PRICING_CACHE_FILE, JSON.stringify({ at: Date.now(), pricing } satisfies PricingCache))
+  } catch {}
+}
+
+export async function fetchModelPricing(baseURL: string): Promise<Record<string, ModelPrice>> {
+  const url = `${baseURL.replace(/\/+$/, "")}/models`
+  const res = await fetch(url, { headers: { Accept: "application/json" } })
+  if (!res.ok) throw new Error(`Caimex /v1/models request failed (${res.status})`)
+  const body = (await res.json()) as {
+    data?: Array<{ id?: string; pricing?: { input_per_1m?: string | number; output_per_1m?: string | number } }>
+  }
+  const out: Record<string, ModelPrice> = {}
+  for (const m of body.data ?? []) {
+    if (!m.id) continue
+    const input = Number(m.pricing?.input_per_1m)
+    const output = Number(m.pricing?.output_per_1m)
+    if (!Number.isFinite(input) && !Number.isFinite(output)) continue
+    out[m.id] = { input: Number.isFinite(input) ? input : 0, output: Number.isFinite(output) ? output : 0 }
+  }
+  return out
+}
+
+// Overwrite each configured model's `cost` with live gateway pricing (matched by
+// model id). Leaves unmatched models untouched.
+function applyPricing(models: Record<string, any>, pricing: Record<string, ModelPrice>): void {
+  for (const [id, model] of Object.entries(models)) {
+    const price = pricing[id]
+    if (!price || !model || typeof model !== "object") continue
+    model.cost = { input: price.input, output: price.output, cache: { read: 0, write: 0 } }
   }
 }
 
@@ -204,6 +277,30 @@ export async function CaimexAuthPlugin(_input: PluginInput): Promise<Hooks> {
           label: "Paste a Caimex API key",
         },
       ],
+    },
+    // Inject live gateway pricing into the caimex models' `cost` so the cost
+    // meter is accurate. Reads from cache instantly; refreshes in the background
+    // (the gateway's /v1/models is slow, so we never block startup on it).
+    async config(input) {
+      try {
+        const provider = (input as any)?.provider?.[PROVIDER_ID]
+        const models = provider?.models
+        if (!models || typeof models !== "object") return
+
+        const cache = readPricingCache()
+        if (cache?.pricing) applyPricing(models, cache.pricing)
+
+        const baseURL: string = provider?.options?.baseURL ?? `${gatewayBase()}/v1`
+        const stale = !cache || Date.now() - cache.at > PRICING_TTL_MS
+        if (stale) {
+          // Fire-and-forget: populates the cache for the next start.
+          fetchModelPricing(baseURL)
+            .then((pricing) => {
+              if (Object.keys(pricing).length) writePricingCache(pricing)
+            })
+            .catch(() => {})
+        }
+      } catch {}
     },
   }
 }

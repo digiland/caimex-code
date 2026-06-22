@@ -9,10 +9,18 @@
         "baseURL": "http://localhost:8240/v1"
       },
       "models": {
-        "Caimex/moonshotai/kimi-k2.6": { "name": "Kimi K2.6" },
-        "Qwen3.5-122b": { "name": "Qwen 3.5 122B" }
+        "Caimex/moonshotai/kimi-k2.6": {
+          "name": "Kimi K2.6",
+          "limit": { "context": 262144, "input": 262144, "output": 32000 },
+          "cost": { "input": 12, "output": 15, "cache_read": 0, "cache_write": 0 }
+        },
+        "Qwen3.5-122b": {
+          "name": "Qwen 3.5 122B",
+          "limit": { "context": 131072, "input": 131072, "output": 32000 }
+        }
       }
     }
   },
+  "compaction": { "auto": true, "prune": true, "reserved": 160000 },
   "model": "caimex/Caimex/moonshotai/kimi-k2.6"
 }
