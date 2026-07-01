@@ -1,154 +1,93 @@
-# Caimex Code
+# caimex-code
 
-A CLI coding agent that routes all LLM calls through the **Caimex gateway**.
 
-Caimex Code is an internal fork of [OpenCode](https://github.com/anomalyco/opencode)
-(MIT). Instead of talking to model providers directly, it points at the Caimex
-gateway as a single OpenAI-compatible endpoint, so every request goes through the
-gateway's auth, model routing, rate limiting, budget enforcement, and usage
-tracking. See [`NOTICE.md`](./NOTICE.md) for attribution — this project is **not
-affiliated with or endorsed by the OpenCode team**.
 
-> Upstream's original README is preserved in git history and in the translated
-> `README.*.md` files.
+## Getting started
 
----
+To make it easy for you to get started with GitLab, here's a list of recommended next steps.
 
-## Prerequisites
+Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
 
-1. **Bun** (the runtime — this is a Bun/TypeScript monorepo):
-   ```bash
-   curl -fsSL https://bun.sh/install | bash
-   export PATH="$HOME/.bun/bin:$PATH"   # add to ~/.zshrc to persist
-   ```
-2. **The Caimex gateway running** (default `http://localhost:8240`). Check it:
-   ```bash
-   curl -s http://localhost:8240/health   # -> {"status":"ok",...}
-   ```
-3. **A gateway API key** (`sk-or-...`) — create one in the Caimex UI under
-   `/api-keys`.
+## Add your files
 
----
+- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
+- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
 
-## Install
-
-```bash
-git clone <your-private-repo> caimex-code   # or use this checkout
-cd caimex-code
-export PATH="$HOME/.bun/bin:$PATH"          # bun MUST be on PATH or native
-bun install                                 # build scripts fail with code 127
+```
+cd existing_repo
+git remote add origin http://gitlab-svr-1/artificial-intelligence/caimex-code.git
+git branch -M develop
+git push -uf origin develop
 ```
 
----
+## Integrate with your tools
 
-## Configure
+- [ ] [Set up project integrations](http://gitlab-svr-1/artificial-intelligence/caimex-code/-/settings/integrations)
 
-Caimex Code reads its config from `~/.config/caimex-code/caimex.json`
-(`caimex.jsonc`, `opencode.json`, and `config.json` are also accepted). A
-gateway-pointed config ships in this repo at [`caimex.json`](./caimex.json) —
-copy it to the global location:
+## Collaborate with your team
 
-```bash
-mkdir -p ~/.config/caimex-code
-cp caimex.json ~/.config/caimex-code/caimex.json
-export CAIMEX_API_KEY="sk-or-v1-..."        # add to ~/.zshrc to persist
-```
+- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
+- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
+- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
+- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
+- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
 
-The config defines a custom OpenAI-compatible provider named `caimex`:
+## Test and Deploy
 
-```jsonc
-{
-  "$schema": "https://opencode.ai/config.json",
-  "provider": {
-    "caimex": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "Caimex Gateway",
-      "options": {
-        "baseURL": "http://localhost:8240/v1",
-        "apiKey": "{env:CAIMEX_API_KEY}"
-      },
-      "models": {
-        "Caimex/moonshotai/kimi-k2.6": { "name": "Kimi K2.6" },
-        "Qwen3.5-122b": { "name": "Qwen 3.5 122B" }
-      }
-    }
-  },
-  "model": "caimex/Caimex/moonshotai/kimi-k2.6"
-}
-```
+Use the built-in continuous integration in GitLab.
 
-- **Model ids** under `models` must match what `GET /v1/models` returns from your
-  gateway. Reference a model as `caimex/<model-id>`.
-- Point `baseURL` at your deployed gateway if it isn't local.
-- Add or remove models to match your gateway catalog.
+- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
+- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
+- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
+- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
+- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
 
----
+***
+
+# Editing this README
+
+When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+
+## Suggestions for a good README
+
+Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+
+## Name
+Choose a self-explaining name for your project.
+
+## Description
+Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+
+## Badges
+On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+
+## Visuals
+Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+
+## Installation
+Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
 
 ## Usage
+Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
 
-From the repo (dev mode, runs from source):
+## Support
+Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
 
-```bash
-export PATH="$HOME/.bun/bin:$PATH"
-export CAIMEX_API_KEY="sk-or-v1-..."
+## Roadmap
+If you have ideas for releases in the future, it is a good idea to list them in the README.
 
-bun run dev                                   # interactive TUI
-bun run dev -- models                         # list available models
-bun run dev -- run "Explain this repo"        # non-interactive, prints answer
-bun run dev -- run "Fix the failing test" --model caimex/Qwen3.5-122b
-bun run dev -- --help                         # all commands
-```
+## Contributing
+State if you are open to contributions and what your requirements are for accepting them.
 
-Once you build a standalone binary (below), the command is just `caimex`:
+For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
 
-```bash
-caimex                          # TUI
-caimex run "..."                # non-interactive
-caimex models
-```
+You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
 
----
-
-## Build a standalone binary
-
-```bash
-cd packages/opencode
-bun run build --single          # current platform only; output in ./dist
-```
-
-Then symlink/copy the produced `caimex` binary onto your `PATH`.
-
----
-
-## Updating from upstream OpenCode
-
-This fork keeps an `upstream` remote so you can pull improvements:
-
-```bash
-git fetch upstream
-git merge upstream/dev          # resolve conflicts in rebranded files
-```
-
-Rebranding was kept intentionally small (see [`CLAUDE.md`](./CLAUDE.md)) to make
-these merges easy.
-
----
-
-## What's different from OpenCode
-
-| Area | OpenCode | Caimex Code |
-| --- | --- | --- |
-| LLM endpoint | provider-direct | Caimex gateway (`/v1`, OpenAI-compatible) |
-| Command / binary | `opencode` | `caimex` |
-| App id / config dir | `~/.config/opencode` | `~/.config/caimex-code` |
-| Config filenames | `opencode.json*` | `caimex.json*` (opencode names still accepted) |
-| Auth | provider API keys | `CAIMEX_API_KEY` (gateway key) |
-
-The VS Code extension (`sdks/vscode`) is **not** rebranded yet.
-
----
+## Authors and acknowledgment
+Show your appreciation to those who have contributed to the project.
 
 ## License
+For open source projects, say how it is licensed.
 
-MIT — see [`LICENSE`](./LICENSE) (retained from upstream OpenCode) and
-[`NOTICE.md`](./NOTICE.md).
+## Project status
+If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
