@@ -60,73 +60,149 @@ function authHeaders() {
   }
 }
 
-// ── Live model pricing ──────────────────────────────────────────────────────
-// The gateway's GET /v1/models returns per-model pricing (`input_per_1m` /
-// `output_per_1m`, in dollars per 1M tokens — the exact unit opencode's
-// `model.cost` uses). We fetch it and inject `cost` into the configured caimex
-// models via the `config` hook, so the CLI's cost meter reflects real prices
-// instead of $0 — without hardcoding anything in caimex.json.
+// ── Model auto-discovery + live pricing ─────────────────────────────────────
+// The gateway's GET /v1/models is the single source of truth for which models
+// exist. Each entry carries per-model pricing (`input_per_1m` / `output_per_1m`,
+// in dollars per 1M tokens — the exact unit opencode's `model.cost` uses) and,
+// where the gateway advertises them, context/output limits.
+//
+// From this we do two things in the `config` hook, both keyed by model id:
+//   1. Pricing — refresh the `cost` of every configured caimex model so the
+//      CLI's cost meter reflects real prices instead of $0.
+//   2. Discovery — register any gateway model NOT declared in caimex.json as a
+//      new model, so adding a model to the gateway makes it appear in the CLI
+//      with no client edit. Models explicitly configured in caimex.json keep
+//      their settings; discovery only ever ADDS, never overrides.
 //
 // That endpoint is slow (it probes providers), so we never block startup: we
 // inject from a local cache instantly and refresh the cache in the background.
-// First run after install shows $0; every run after uses cached prices.
+// First run after install has no discovered models / shows $0; every run after
+// uses the cached catalog. Set CAIMEX_DISABLE_MODEL_DISCOVERY=1 to keep pricing
+// but suppress auto-registration (pin the model list to caimex.json only).
 
-interface ModelPrice {
+type Modality = "text" | "audio" | "image" | "video" | "pdf"
+const KNOWN_MODALITIES: readonly Modality[] = ["text", "audio", "image", "video", "pdf"]
+
+interface DiscoveredModel {
   input: number
   output: number
-}
-interface PricingCache {
-  at: number
-  pricing: Record<string, ModelPrice>
+  context?: number
+  outputLimit?: number
+  inputModalities?: Modality[]
+  outputModalities?: Modality[]
 }
 
-const PRICING_CACHE_FILE = path.join(
+// Keep only modalities opencode's config schema understands; drop the rest.
+// Returns undefined when nothing usable is present so callers can fall back.
+function normalizeModalities(value: unknown): Modality[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  const out = value.filter((v): v is Modality => KNOWN_MODALITIES.includes(v as Modality))
+  return out.length ? Array.from(new Set(out)) : undefined
+}
+interface CatalogCache {
+  at: number
+  models: Record<string, DiscoveredModel>
+}
+
+const CATALOG_CACHE_FILE = path.join(
   process.env.XDG_CACHE_HOME ?? path.join(os.homedir(), ".cache"),
   "caimex-code",
-  "model-pricing.json",
+  "model-catalog.json",
 )
-const PRICING_TTL_MS = 6 * 60 * 60 * 1000 // refresh at most every 6h
+const CATALOG_TTL_MS = 6 * 60 * 60 * 1000 // refresh at most every 6h
 
-function readPricingCache(): PricingCache | undefined {
+// Fallback limits for a discovered model when the gateway's /v1/models entry
+// doesn't advertise its own context/output window. Override per deployment.
+const DISCOVERY_DEFAULT_CONTEXT = Number(process.env.CAIMEX_DISCOVERY_DEFAULT_CONTEXT) || 128_000
+const DISCOVERY_DEFAULT_OUTPUT = Number(process.env.CAIMEX_DISCOVERY_DEFAULT_OUTPUT) || 32_000
+
+function discoveryEnabled(): boolean {
+  const flag = process.env.CAIMEX_DISABLE_MODEL_DISCOVERY
+  return flag !== "1" && flag !== "true"
+}
+
+// First strictly-positive finite number among the candidates, else undefined.
+// Gateways spell the context window a dozen ways; try the common ones.
+function firstFinite(...vals: unknown[]): number | undefined {
+  for (const v of vals) {
+    const n = Number(v)
+    if (Number.isFinite(n) && n > 0) return n
+  }
+  return undefined
+}
+
+function readCatalogCache(): CatalogCache | undefined {
   try {
-    const parsed = JSON.parse(readFileSync(PRICING_CACHE_FILE, "utf8")) as PricingCache
-    if (parsed && typeof parsed.at === "number" && parsed.pricing) return parsed
+    const parsed = JSON.parse(readFileSync(CATALOG_CACHE_FILE, "utf8")) as CatalogCache
+    if (parsed && typeof parsed.at === "number" && parsed.models) return parsed
   } catch {}
   return undefined
 }
 
-function writePricingCache(pricing: Record<string, ModelPrice>): void {
+function writeCatalogCache(models: Record<string, DiscoveredModel>): void {
   try {
-    mkdirSync(path.dirname(PRICING_CACHE_FILE), { recursive: true })
-    writeFileSync(PRICING_CACHE_FILE, JSON.stringify({ at: Date.now(), pricing } satisfies PricingCache))
+    mkdirSync(path.dirname(CATALOG_CACHE_FILE), { recursive: true })
+    writeFileSync(CATALOG_CACHE_FILE, JSON.stringify({ at: Date.now(), models } satisfies CatalogCache))
   } catch {}
 }
 
-export async function fetchModelPricing(baseURL: string): Promise<Record<string, ModelPrice>> {
+export async function fetchModelCatalog(baseURL: string): Promise<Record<string, DiscoveredModel>> {
   const url = `${baseURL.replace(/\/+$/, "")}/models`
   const res = await fetch(url, { headers: { Accept: "application/json" } })
   if (!res.ok) throw new Error(`Caimex /v1/models request failed (${res.status})`)
-  const body = (await res.json()) as {
-    data?: Array<{ id?: string; pricing?: { input_per_1m?: string | number; output_per_1m?: string | number } }>
-  }
-  const out: Record<string, ModelPrice> = {}
+  const body = (await res.json()) as { data?: Array<Record<string, any>> }
+  const out: Record<string, DiscoveredModel> = {}
   for (const m of body.data ?? []) {
-    if (!m.id) continue
-    const input = Number(m.pricing?.input_per_1m)
-    const output = Number(m.pricing?.output_per_1m)
-    if (!Number.isFinite(input) && !Number.isFinite(output)) continue
-    out[m.id] = { input: Number.isFinite(input) ? input : 0, output: Number.isFinite(output) ? output : 0 }
+    const id = m?.id
+    if (!id || typeof id !== "string") continue
+    const input = Number(m?.pricing?.input_per_1m)
+    const output = Number(m?.pricing?.output_per_1m)
+    out[id] = {
+      input: Number.isFinite(input) ? input : 0,
+      output: Number.isFinite(output) ? output : 0,
+      context: firstFinite(
+        m?.context_length,
+        m?.context_window,
+        m?.max_context_length,
+        m?.max_context_tokens,
+        m?.limit?.context,
+      ),
+      outputLimit: firstFinite(m?.max_output_tokens, m?.max_tokens, m?.limit?.output),
+      inputModalities: normalizeModalities(m?.input_modalities ?? m?.modalities),
+      outputModalities: normalizeModalities(m?.output_modalities),
+    }
   }
   return out
 }
 
-// Overwrite each configured model's `cost` with live gateway pricing (matched by
-// model id). Leaves unmatched models untouched.
-function applyPricing(models: Record<string, any>, pricing: Record<string, ModelPrice>): void {
-  for (const [id, model] of Object.entries(models)) {
-    const price = pricing[id]
-    if (!price || !model || typeof model !== "object") continue
-    model.cost = { input: price.input, output: price.output, cache: { read: 0, write: 0 } }
+// Config-level cost shape: opencode's normalizer reads flat cache_read /
+// cache_write keys from config models (see provider.ts), so we write those.
+function costFrom(info: DiscoveredModel) {
+  return { input: info.input, output: info.output, cache_read: 0, cache_write: 0 }
+}
+
+// Merge the gateway catalog into the configured models map, in place:
+//   - configured model  → refresh live pricing only, leave the rest untouched
+//   - unknown model      → register it (discovery), unless discovery is disabled
+function applyCatalog(models: Record<string, any>, catalog: Record<string, DiscoveredModel>, discovery: boolean): void {
+  for (const [id, info] of Object.entries(catalog)) {
+    const existing = models[id]
+    if (existing && typeof existing === "object") {
+      existing.cost = costFrom(info)
+      continue
+    }
+    if (!discovery) continue
+    const context = info.context ?? DISCOVERY_DEFAULT_CONTEXT
+    const input = info.inputModalities?.length ? info.inputModalities : (["text"] as Modality[])
+    const output = info.outputModalities?.length ? info.outputModalities : (["text"] as Modality[])
+    models[id] = {
+      name: id,
+      limit: { context, input: context, output: info.outputLimit ?? DISCOVERY_DEFAULT_OUTPUT },
+      cost: costFrom(info),
+      modalities: { input, output },
+      // Non-text input implies the model accepts attachments (images/pdf/etc.).
+      attachment: input.some((m) => m !== "text"),
+    }
   }
 }
 
@@ -278,25 +354,29 @@ export async function CaimexAuthPlugin(_input: PluginInput): Promise<Hooks> {
         },
       ],
     },
-    // Inject live gateway pricing into the caimex models' `cost` so the cost
-    // meter is accurate. Reads from cache instantly; refreshes in the background
-    // (the gateway's /v1/models is slow, so we never block startup on it).
+    // Register gateway models (discovery) and inject live pricing into the
+    // caimex models' `cost`, both from GET /v1/models. Reads from cache
+    // instantly; refreshes in the background (the endpoint is slow, so we never
+    // block startup on it).
     async config(input) {
       try {
         const provider = (input as any)?.provider?.[PROVIDER_ID]
-        const models = provider?.models
-        if (!models || typeof models !== "object") return
+        if (!provider || typeof provider !== "object") return
+        // Ensure a models map exists so discovery can populate a provider that
+        // declares none in caimex.json.
+        let models = provider.models
+        if (!models || typeof models !== "object") models = provider.models = {}
 
-        const cache = readPricingCache()
-        if (cache?.pricing) applyPricing(models, cache.pricing)
+        const cache = readCatalogCache()
+        if (cache?.models) applyCatalog(models, cache.models, discoveryEnabled())
 
         const baseURL: string = provider?.options?.baseURL ?? `${gatewayBase()}/v1`
-        const stale = !cache || Date.now() - cache.at > PRICING_TTL_MS
+        const stale = !cache || Date.now() - cache.at > CATALOG_TTL_MS
         if (stale) {
           // Fire-and-forget: populates the cache for the next start.
-          fetchModelPricing(baseURL)
-            .then((pricing) => {
-              if (Object.keys(pricing).length) writePricingCache(pricing)
+          fetchModelCatalog(baseURL)
+            .then((catalog) => {
+              if (Object.keys(catalog).length) writeCatalogCache(catalog)
             })
             .catch(() => {})
         }
