@@ -42,7 +42,7 @@ You do **not** need to create an API key by hand — you log in from the CLI
 ```bash
 git clone http://gitlab-svr-1/artificial-intelligence/caimex-code.git caimex-code
 cd caimex-code
-git checkout caimex                         # the fork mainline
+git checkout develop                        # the fork mainline
 export PATH="$HOME/.bun/bin:$PATH"          # bun MUST be on PATH or native
 bun install                                 # build scripts fail with code 127
 ```
@@ -177,7 +177,7 @@ Environment toggles:
 
 ```bash
 cd caimex-code
-git pull origin caimex          # get the latest fork changes
+git pull origin develop         # get the latest fork changes
 bun install
 # re-run from source (bun run dev) or rebuild the binary (see above)
 ```
