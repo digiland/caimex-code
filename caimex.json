@@ -6,7 +6,7 @@
       "npm": "@ai-sdk/openai-compatible",
       "name": "Caimex Gateway",
       "options": {
-        "baseURL": "https://https://incmanagement.econet.co.zw:9051/v1"
+        "baseURL": "https://incmanagement.econet.co.zw:9051/v1"
       },
       "models": {
         "Caimex/moonshotai/kimi-k2.6": {
