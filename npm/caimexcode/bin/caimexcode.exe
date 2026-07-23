@@ -1,0 +1,4 @@
+#!/bin/sh
+echo "caimexcode: postinstall did not run (was npm invoked with --ignore-scripts?)." >&2
+echo "Run: node \"$(dirname "$0")/../install.mjs\" to fetch the binary." >&2
+exit 1

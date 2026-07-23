@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
 # install.sh — fetch and install CaimexCode
-# Hosted at, and served directly from, the rustfs bucket. Usage:
-#   curl -fsSL https://rustfs.internal:9000/caimex-code/install.sh | bash
+# Served from GitHub Releases. Usage:
+#   curl -fsSL https://github.com/digiland/caimex-code/releases/latest/download/install.sh | bash
 #
 # Version selection:
 #   CAIMEXCODE_CHANNEL=v1.4.0 curl -fsSL https://.../install.sh | bash
+#
+# Internal RustFS mirror (layout from upload-caimexcode.sh — ${BUCKET}/${VERSION}/):
+#   CAIMEXCODE_BASE_URL=http://192.168.189.32:8001/caimex-code curl -fsSL .../install.sh | bash
 set -euo pipefail
 
 NAME="caimexcode"
-# Matches upload-caimexcode.sh: RUSTFS_ENDPOINT + RUSTFS_BUCKET (default caimex-code)
-BASE_URL="${CAIMEXCODE_BASE_URL:-http://192.168.189.32:8001/caimex-code}"
+GITHUB_REPO="${CAIMEXCODE_GITHUB_REPO:-digiland/caimex-code}"
+BASE_URL="${CAIMEXCODE_BASE_URL:-}"            # set to install from a RustFS/S3 mirror instead of GitHub
 CHANNEL="${CAIMEXCODE_CHANNEL:-latest}"        # 'latest' or a specific version tag, e.g. v1.4.0
 INSTALL_DIR="${CAIMEXCODE_INSTALL_DIR:-$HOME/.local/bin}"
 
@@ -32,9 +35,15 @@ esac
 
 target="${plat}-${carch}"
 
-# NOTE: upload-caimexcode.sh publishes to ${BUCKET}/${VERSION}/ and
-# ${BUCKET}/latest/ directly (no /releases/ prefix) — matched here.
-release_url="${BASE_URL}/${CHANNEL}"
+if [ -n "$BASE_URL" ]; then
+  # RustFS/S3 mirror: upload-caimexcode.sh publishes to ${BUCKET}/${VERSION}/ and
+  # ${BUCKET}/latest/ directly (no /releases/ prefix) — matched here.
+  release_url="${BASE_URL}/${CHANNEL}"
+elif [ "$CHANNEL" = "latest" ]; then
+  release_url="https://github.com/${GITHUB_REPO}/releases/latest/download"
+else
+  release_url="https://github.com/${GITHUB_REPO}/releases/download/${CHANNEL}"
+fi
 
 # Archive naming based on platform
 if [ "$plat" = "linux" ]; then
