@@ -6,8 +6,8 @@
 # Version selection:
 #   CAIMEXCODE_CHANNEL=v1.4.0 curl -fsSL https://.../install.sh | bash
 #
-# Internal RustFS mirror (layout from upload-caimexcode.sh — ${BUCKET}/${VERSION}/):
-#   CAIMEXCODE_BASE_URL=http://192.168.189.32:8001/caimex-code curl -fsSL .../install.sh | bash
+# Custom mirror (S3-style layout: <base>/<version>/<archive> and <base>/latest/):
+#   CAIMEXCODE_BASE_URL=https://mirror.example.com/caimex-code curl -fsSL .../install.sh | bash
 set -euo pipefail
 
 NAME="caimexcode"

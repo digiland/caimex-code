@@ -130,6 +130,11 @@ const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProcess.Serv
       return "opencode"
     })
 
+    // Caimex Code self-upgrades from its own GitHub repo and npm package — never
+    // from upstream opencode, which would replace the gateway-routed build.
+    const CAIMEX_GITHUB_REPO = "digiland/caimex-code"
+    const CAIMEX_NPM_PACKAGE = "caimexcode"
+
     const upgradeFailure = (method: Method, result?: { code: number; stdout: string; stderr: string }) => {
       if (method === "choco") return "not running from an elevated command shell"
       if (result) return `Upgrade failed for ${method} (exit code ${result.code}).`
@@ -144,14 +149,16 @@ const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProcess.Serv
 
     const upgradeCurl = Effect.fnUntraced(
       function* (target: string) {
-        const response = yield* httpOk.execute(HttpClientRequest.get("https://opencode.ai/install"))
+        const response = yield* httpOk.execute(
+          HttpClientRequest.get(`https://github.com/${CAIMEX_GITHUB_REPO}/releases/latest/download/install.sh`),
+        )
         const body = yield* response.text
         const bodyBytes = new TextEncoder().encode(body)
         const shell = yield* upgradeScriptShell()
         const result = yield* appProcess.run(
           ChildProcess.make(shell, [], {
             stdin: Stream.make(bodyBytes),
-            env: { VERSION: target },
+            env: { CAIMEXCODE_CHANNEL: target === "latest" ? "latest" : `v${target}` },
             extendEnv: true,
           }),
         )
@@ -197,7 +204,9 @@ const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProcess.Serv
         for (const check of checks) {
           const output = yield* check.command()
           const installedName =
-            check.name === "brew" || check.name === "choco" || check.name === "scoop" ? "opencode" : "opencode-ai"
+            check.name === "brew" || check.name === "choco" || check.name === "scoop"
+              ? "opencode"
+              : CAIMEX_NPM_PACKAGE
           if (output.includes(installedName)) {
             return check.name
           }
@@ -227,7 +236,7 @@ const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProcess.Serv
         if (detectedMethod === "npm" || detectedMethod === "bun" || detectedMethod === "pnpm") {
           const response = yield* httpOk.execute(
             HttpClientRequest.get(
-              `${yield* NpmConfig.registry(process.cwd())}/opencode-ai/${InstallationChannel}`,
+              `${yield* NpmConfig.registry(process.cwd())}/${CAIMEX_NPM_PACKAGE}/${InstallationChannel}`,
             ).pipe(HttpClientRequest.acceptJson),
           )
           const data = yield* HttpClientResponse.schemaBodyJson(NpmPackage)(response)
@@ -255,7 +264,7 @@ const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProcess.Serv
         }
 
         const response = yield* httpOk.execute(
-          HttpClientRequest.get("https://api.github.com/repos/anomalyco/opencode/releases/latest").pipe(
+          HttpClientRequest.get(`https://api.github.com/repos/${CAIMEX_GITHUB_REPO}/releases/latest`).pipe(
             HttpClientRequest.acceptJson,
           ),
         )
@@ -269,13 +278,13 @@ const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProcess.Serv
             upgradeResult = yield* upgradeCurl(target)
             break
           case "npm":
-            upgradeResult = yield* run(["npm", "install", "-g", `opencode-ai@${target}`])
+            upgradeResult = yield* run(["npm", "install", "-g", `${CAIMEX_NPM_PACKAGE}@${target}`])
             break
           case "pnpm":
-            upgradeResult = yield* run(["pnpm", "install", "-g", `opencode-ai@${target}`])
+            upgradeResult = yield* run(["pnpm", "install", "-g", `${CAIMEX_NPM_PACKAGE}@${target}`])
             break
           case "bun":
-            upgradeResult = yield* run(["bun", "install", "-g", `opencode-ai@${target}`])
+            upgradeResult = yield* run(["bun", "install", "-g", `${CAIMEX_NPM_PACKAGE}@${target}`])
             break
           case "brew": {
             const formula = yield* getBrewFormula()

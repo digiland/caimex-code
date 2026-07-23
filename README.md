@@ -2,50 +2,34 @@
 
 A CLI coding agent that routes all LLM calls through the **Caimex gateway**.
 
-Caimex Code is an internal fork of [OpenCode](https://github.com/anomalyco/opencode)
-(MIT). Instead of talking to model providers directly, it points at the Caimex
-gateway as a single OpenAI-compatible endpoint, so every request goes through the
+Caimex Code is a fork of [OpenCode](https://github.com/anomalyco/opencode) (MIT).
+Instead of talking to model providers directly, it points at the Caimex gateway
+as a single OpenAI-compatible endpoint, so every request goes through the
 gateway's auth, model routing, rate limiting, budget enforcement, and usage
 tracking. See [`NOTICE.md`](./NOTICE.md) for attribution — this project is **not
 affiliated with or endorsed by the OpenCode team**.
-
-> Upstream's original README is preserved in git history and in the translated
-> `README.*.md` files.
-
----
-
-## Prerequisites
-
-1. **Corporate VPN.** Everything lives on the internal network — connect to the
-   VPN (Cisco AnyConnect) before anything below.
-2. **Bun** (the runtime — this is a Bun/TypeScript monorepo):
-   ```bash
-   curl -fsSL https://bun.sh/install | bash
-   export PATH="$HOME/.bun/bin:$PATH"   # add to ~/.zshrc to persist
-   ```
-3. **The Caimex gateway reachable.** The deployed gateway is at
-   `http://192.168.127.203:8002` (OpenAI-compatible under `/v1`). Check it:
-   ```bash
-   curl -s http://192.168.127.203:8002/health      # -> {"status":"ok",...}
-   curl -s http://192.168.127.203:8002/v1/models   # -> {"data":[ ...models... ]}
-   ```
-   > `http://localhost:8240` is only for local gateway development — use the
-   > `192.168.127.203:8002` address for testing.
-
-You do **not** need to create an API key by hand — you log in from the CLI
-(below), which fetches a gateway key for you.
 
 ---
 
 ## Install
 
+**macOS / Linux (recommended):**
+
 ```bash
-git clone http://gitlab-svr-1/artificial-intelligence/caimex-code.git caimex-code
-cd caimex-code
-git checkout develop                        # the fork mainline
-export PATH="$HOME/.bun/bin:$PATH"          # bun MUST be on PATH or native
-bun install                                 # build scripts fail with code 127
+curl -fsSL https://github.com/digiland/caimex-code/releases/latest/download/install.sh | bash
 ```
+
+Installs to `~/.local/bin/caimexcode`. Pin a version with
+`CAIMEXCODE_CHANNEL=v1.0.0`, change the location with `CAIMEXCODE_INSTALL_DIR`.
+
+**npm (any platform):**
+
+```bash
+npm install -g caimexcode
+```
+
+**Manual:** grab an archive for your platform from the
+[releases page](https://github.com/digiland/caimex-code/releases).
 
 ---
 
@@ -53,14 +37,14 @@ bun install                                 # build scripts fail with code 127
 
 Caimex Code reads its config from `~/.config/caimex-code/caimex.json`
 (`caimex.jsonc`, `opencode.json`, and `config.json` are also accepted). A
-gateway-pointed config ships in this repo at [`caimex.json`](./caimex.json) —
-copy it to the global location and point `baseURL` at the deployed gateway:
+starter config ships in this repo at [`caimex.json`](./caimex.json) — copy it
+and point `baseURL` at your Caimex gateway:
 
 ```bash
 mkdir -p ~/.config/caimex-code
 cp caimex.json ~/.config/caimex-code/caimex.json
-# edit ~/.config/caimex-code/caimex.json → set the caimex provider baseURL to:
-#   "baseURL": "http://192.168.127.203:8002/v1"
+# edit ~/.config/caimex-code/caimex.json → set the caimex provider baseURL to
+# your gateway's /v1 endpoint
 ```
 
 The config defines a custom OpenAI-compatible provider named `caimex`:
@@ -73,7 +57,7 @@ The config defines a custom OpenAI-compatible provider named `caimex`:
       "npm": "@ai-sdk/openai-compatible",
       "name": "Caimex Gateway",
       "options": {
-        "baseURL": "http://192.168.127.203:8002/v1"
+        "baseURL": "http://localhost:8240/v1" // ← your gateway
       }
     }
   },
@@ -81,139 +65,70 @@ The config defines a custom OpenAI-compatible provider named `caimex`:
 }
 ```
 
-- You no longer need to hand-list models — Caimex Code **auto-discovers** them
-  from the gateway's `GET /v1/models` (see [Model auto-discovery](#model-auto-discovery)).
-  You may still declare models under `"models"` to override names/limits/cost.
+- Models are **auto-discovered** from the gateway's `GET /v1/models`; you may
+  still declare models under `"models"` to override names/limits/cost.
 - Reference a model as `caimex/<model-id>` (ids match the gateway's `/v1/models`).
-- Point `baseURL` at whichever gateway you're testing against.
-- The API key is supplied by `caimex auth login` below (no `apiKey` needed in
-  config; a `CAIMEX_API_KEY` env var still works as a fallback).
-
----
+- The API key is supplied by `caimexcode auth login` (no `apiKey` needed in
+  config; a `CAIMEX_API_KEY` env var works as a fallback).
 
 ## Log in
 
-Authenticate the CLI to the gateway once — this stores a gateway key locally so
-you don't manage API keys by hand:
-
 ```bash
-bun run dev -- auth login          # pick the "caimex" provider
+caimexcode auth login          # pick the "caimex" provider
 ```
 
 Choose **"Login with Caimex (opens browser)"** — the CLI prints a short code and
-opens the login page (`http://192.168.127.203:4200`); approve it there and the
-CLI receives a key. (Or choose **"Paste a Caimex API key"** if you already have
-one.)
-
----
+opens your gateway's login page; approve it there and the CLI receives a key.
+(Or choose **"Paste a Caimex API key"** if you already have one.)
 
 ## Usage
 
-From the repo (dev mode, runs from source):
-
 ```bash
-export PATH="$HOME/.bun/bin:$PATH"
-
-bun run dev                                   # interactive TUI
-bun run dev -- models                         # list available models
-bun run dev -- run "Explain this repo"        # non-interactive, prints answer
-bun run dev -- run "Fix the failing test" --model caimex/Qwen3.5-122b
-bun run dev -- --help                         # all commands
-```
-
-Once you build a standalone binary (below), the command is just `caimex`:
-
-```bash
-caimex                          # TUI
-caimex run "..."                # non-interactive
-caimex models
+caimexcode                          # interactive TUI
+caimexcode models                   # list available models
+caimexcode run "Explain this repo"  # non-interactive, prints answer
+caimexcode upgrade                  # self-update from GitHub Releases
+caimexcode --help                   # all commands
 ```
 
 ---
 
-## Build a standalone binary
+## Development
+
+This is a Bun/TypeScript monorepo.
 
 ```bash
-cd packages/opencode
-bun run build --single          # current platform only; output in ./dist
-```
-
-Then symlink/copy the produced `caimex` binary onto your `PATH`.
-
----
-
-## Model auto-discovery
-
-Caimex Code reads the gateway's `GET /v1/models` and **registers every model it
-returns** — including pricing and modalities (text/image/pdf/…). Add a model to
-the gateway and it shows up in the CLI with no config change.
-
-- Models you explicitly list under `provider.caimex.models` in `caimex.json` are
-  preserved as-is (only their live pricing is refreshed); discovery only *adds*
-  models you haven't declared.
-- The catalog is cached at `~/.cache/caimex-code/model-catalog.json` and
-  refreshed in the background (the endpoint is slow, so startup never blocks).
-  The long-running **TUI** warms this cache; the first run may not show
-  discovered models until the cache is populated, after which `models` / `run`
-  see them too.
-
-Environment toggles:
-
-| Variable | Effect |
-| --- | --- |
-| `CAIMEX_GATEWAY_URL` | Gateway base (default `http://localhost:8240`); used to derive login + fallback model endpoints. Set to `http://192.168.127.203:8002` for the deployed gateway. |
-| `CAIMEX_DISABLE_MODEL_DISCOVERY=1` | Keep pricing, but don't auto-register models — pin the list to `caimex.json`. |
-| `CAIMEX_DISCOVERY_DEFAULT_CONTEXT` | Context window for a discovered model when the gateway doesn't advertise one (default `128000`). |
-| `CAIMEX_DISCOVERY_DEFAULT_OUTPUT` | Max output tokens fallback (default `32000`). |
-
----
-
-## Updating
-
-> **Auto-update is not wired to GitLab yet.** The upstream OpenCode updater
-> (`caimex upgrade`) points at OpenCode's public infrastructure and will not work
-> against our internal GitLab. Until the GitLab release pipeline is in place,
-> update manually:
-
-```bash
-cd caimex-code
-git pull origin develop         # get the latest fork changes
+curl -fsSL https://bun.sh/install | bash    # if you don't have bun
 bun install
-# re-run from source (bun run dev) or rebuild the binary (see above)
+bun run dev                                 # run the TUI from source
+bun run dev -- run "hello"                  # any CLI command from source
 ```
 
----
-
-## Updating from upstream OpenCode
-
-This fork keeps an `upstream` remote so you can pull improvements:
+### Build standalone binaries
 
 ```bash
-git fetch upstream
-git merge upstream/dev          # resolve conflicts in rebranded files
+./build-caimexcode.sh --single     # current platform only
+./build-caimexcode.sh              # all platforms (linux/darwin/windows, x64/arm64)
 ```
 
-Rebranding was kept intentionally small (see [`CLAUDE.md`](./CLAUDE.md)) to make
-these merges easy.
+Archives land in `packages/caimexcode/` as `caimexcode-<os>-<arch>.{tar.gz,zip}`
+with SHA256 checksums.
 
----
+### Release
 
-## What's different from OpenCode
+Push a tag and CI does the rest — builds all targets, creates the GitHub
+Release with archives + `install.sh`, and publishes `caimexcode` to npm (when
+the `NPM_TOKEN` secret is configured):
 
-| Area | OpenCode | Caimex Code |
-| --- | --- | --- |
-| LLM endpoint | provider-direct | Caimex gateway (`/v1`, OpenAI-compatible) |
-| Command / binary | `opencode` | `caimex` |
-| App id / config dir | `~/.config/opencode` | `~/.config/caimex-code` |
-| Config filenames | `opencode.json*` | `caimex.json*` (opencode names still accepted) |
-| Auth | provider API keys | `caimex auth login` (device login) or `CAIMEX_API_KEY` |
-| Models | hand-listed in config | auto-discovered from the gateway's `/v1/models` |
+```bash
+git tag v1.0.0 && git push origin v1.0.0
+```
 
-The VS Code extension (`sdks/vscode`) is **not** rebranded yet.
-
----
+Upstream's original README is preserved in git history and in the translated
+`README.*.md` files. Upstream OpenCode workflows are parked in
+`.github/workflows-upstream/`.
 
 ## License
 
-MIT — see [`LICENSE`](./LICENSE) (retained from upstream OpenCode) and
-[`NOTICE.md`](./NOTICE.md).
+MIT — original code Copyright (c) 2025 opencode; modifications Copyright (c)
+2026 Caimex. See [LICENSE](./LICENSE) and [NOTICE.md](./NOTICE.md).

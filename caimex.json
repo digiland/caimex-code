@@ -1,26 +1,50 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "enabled_providers": ["caimex", "opencode", "anthropic", "openai", "google", "github-copilot"],
+  "enabled_providers": [
+    "caimex",
+    "opencode",
+    "anthropic",
+    "openai",
+    "google",
+    "github-copilot"
+  ],
   "provider": {
     "caimex": {
       "npm": "@ai-sdk/openai-compatible",
       "name": "Caimex Gateway",
       "options": {
-        "baseURL": "https://incmanagement.econet.co.zw:9051/v1"
+        "baseURL": "http://localhost:8240/v1"
       },
       "models": {
         "Caimex/moonshotai/kimi-k2.6": {
           "name": "Kimi K2.6",
-          "limit": { "context": 262144, "input": 262144, "output": 32000 },
-          "cost": { "input": 12, "output": 15, "cache_read": 0, "cache_write": 0 }
+          "limit": {
+            "context": 262144,
+            "input": 262144,
+            "output": 32000
+          },
+          "cost": {
+            "input": 12,
+            "output": 15,
+            "cache_read": 0,
+            "cache_write": 0
+          }
         },
         "Qwen3.5-122b": {
           "name": "Qwen 3.5 122B",
-          "limit": { "context": 131072, "input": 131072, "output": 32000 }
+          "limit": {
+            "context": 131072,
+            "input": 131072,
+            "output": 32000
+          }
         }
       }
     }
   },
-  "compaction": { "auto": true, "prune": true, "reserved": 160000 },
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "reserved": 160000
+  },
   "model": "caimex/Caimex/moonshotai/kimi-k2.6"
 }
