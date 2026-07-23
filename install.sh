@@ -106,8 +106,11 @@ install -m 0755 "$extracted_bin" "${INSTALL_DIR}/${NAME}"
 echo "Installed to ${INSTALL_DIR}/${NAME}"
 
 # --- PATH check --------------------------------------------------------
+run_hint="${INSTALL_DIR}/${NAME}"
 case ":$PATH:" in
-  *":$INSTALL_DIR:"*) ;;
+  *":$INSTALL_DIR:"*)
+    run_hint="${NAME}"
+    ;;
   *)
     echo
     echo "Note: ${INSTALL_DIR} is not on your PATH."
@@ -120,4 +123,4 @@ echo
 "${INSTALL_DIR}/${NAME}" --version 2>/dev/null || true
 
 echo
-echo "Done! Run '${INSTALL_DIR}/${NAME}' to start."
+echo "Done! Run '${run_hint}' to start."
