@@ -20,7 +20,7 @@ import path from "path"
 // a fallback if set, since config options deep-merge over the loader).
 //
 // The gateway must implement the two endpoints described in
-// deploy/GATEWAY-AUTH-CONTRACT.md. Their location is derived from the gateway
+// docs/GATEWAY-AUTH-CONTRACT.md. Their location is derived from the gateway
 // base URL; override per deployment with the env vars below.
 
 const PROVIDER_ID = "caimex"
