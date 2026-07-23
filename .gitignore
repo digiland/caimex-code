@@ -33,3 +33,6 @@ UPCOMING_CHANGELOG.md
 logs/
 *.bun-build
 tsconfig.tsbuildinfo
+
+# Internal-only notes — never commit (public repo)
+docs/internal/
