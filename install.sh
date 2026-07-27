@@ -3,6 +3,10 @@
 # Served from GitHub Releases. Usage:
 #   curl -fsSL https://github.com/digiland/caimex-code/releases/latest/download/install.sh | bash
 #
+# A Caimex deployment can front this with its own host — the gateway's nginx
+# 302s /install.sh here, so the branded one-liner runs this same script:
+#   curl -fsSL https://<your-caimex-host>/install.sh | bash
+#
 # Version selection:
 #   CAIMEXCODE_CHANNEL=v1.4.0 curl -fsSL https://.../install.sh | bash
 #

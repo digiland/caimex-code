@@ -22,6 +22,13 @@ curl -fsSL https://github.com/digiland/caimex-code/releases/latest/download/inst
 Installs to `~/.local/bin/caimex`. Pin a version with
 `CAIMEXCODE_CHANNEL=v1.0.0`, change the location with `CAIMEXCODE_INSTALL_DIR`.
 
+If your Caimex deployment fronts the installer, the same script is reachable
+under your own host — the gateway's nginx 302s `/install.sh` to the release:
+
+```bash
+curl -fsSL https://your-caimex-host/install.sh | bash
+```
+
 **npm (any platform):**
 
 ```bash
