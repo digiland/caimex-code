@@ -25,7 +25,7 @@ a.out
 target
 .scripts
 .direnv/
-packages/caimexcode
+packages/caimex
 
 # Local dev files
 opencode-dev

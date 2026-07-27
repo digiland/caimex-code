@@ -313,7 +313,9 @@ it.effect("creates global jsonc config with schema when no global configs exist"
     Effect.gen(function* () {
       yield* Config.use.get().pipe(provideInstanceEffect(dir))
 
-      const content = yield* FSUtil.use.readFileString(path.join(dir, "opencode.jsonc"))
+      // Caimex fork: globalConfigFile() prefers the caimex-branded filenames, so
+      // the seeded global config lands at caimex.jsonc, not opencode.jsonc.
+      const content = yield* FSUtil.use.readFileString(path.join(dir, "caimex.jsonc"))
       expect(content).toContain('"$schema": "https://opencode.ai/config.json"')
     }).pipe(Effect.provide(testInstanceStoreLayer), Effect.provide(LayerNode.compile(CrossSpawnSpawner.node))),
   ),

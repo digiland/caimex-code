@@ -19,13 +19,13 @@ affiliated with or endorsed by the OpenCode team**.
 curl -fsSL https://github.com/digiland/caimex-code/releases/latest/download/install.sh | bash
 ```
 
-Installs to `~/.local/bin/caimexcode`. Pin a version with
+Installs to `~/.local/bin/caimex`. Pin a version with
 `CAIMEXCODE_CHANNEL=v1.0.0`, change the location with `CAIMEXCODE_INSTALL_DIR`.
 
 **npm (any platform):**
 
 ```bash
-npm install -g caimexcode
+npm install -g caimex
 ```
 
 **Manual:** grab an archive for your platform from the
@@ -35,19 +35,25 @@ npm install -g caimexcode
 
 ## Configure
 
-Caimex Code reads its config from `~/.config/caimex-code/caimex.json`
-(`caimex.jsonc`, `opencode.json`, and `config.json` are also accepted). A
-starter config ships in this repo at [`caimex.json`](./caimex.json) — copy it
-and point `baseURL` at your Caimex gateway:
+**Nothing to configure by default.** Caimex Code ships pointing at the Caimex
+gateway out of the box:
+
+| | |
+|---|---|
+| Login (device auth) | `https://incmanagement.econet.co.zw:9050` |
+| API (`/v1`)         | `https://incmanagement.econet.co.zw:9051/v1` |
+
+Override either without touching a config file:
 
 ```bash
-mkdir -p ~/.config/caimex-code
-cp caimex.json ~/.config/caimex-code/caimex.json
-# edit ~/.config/caimex-code/caimex.json → set the caimex provider baseURL to
-# your gateway's /v1 endpoint
+export CAIMEX_GATEWAY_URL=http://localhost:8240        # login / device-auth host
+export CAIMEX_API_BASE_URL=http://localhost:8240/v1    # OpenAI-compatible API
 ```
 
-The config defines a custom OpenAI-compatible provider named `caimex`:
+For anything else, drop a config at `~/.config/caimex-code/caimex.json`
+(`caimex.jsonc`, `opencode.json`, and `config.json` are also accepted). It
+merges *over* the built-in defaults, so you only specify what differs. A full
+starter config ships in this repo at [`caimex.json`](./caimex.json):
 
 ```jsonc
 {
@@ -57,7 +63,7 @@ The config defines a custom OpenAI-compatible provider named `caimex`:
       "npm": "@ai-sdk/openai-compatible",
       "name": "Caimex Gateway",
       "options": {
-        "baseURL": "http://localhost:8240/v1" // ← your gateway
+        "baseURL": "https://incmanagement.econet.co.zw:9051/v1" // ← your gateway
       }
     }
   },
@@ -68,27 +74,44 @@ The config defines a custom OpenAI-compatible provider named `caimex`:
 - Models are **auto-discovered** from the gateway's `GET /v1/models`; you may
   still declare models under `"models"` to override names/limits/cost.
 - Reference a model as `caimex/<model-id>` (ids match the gateway's `/v1/models`).
-- The API key is supplied by `caimexcode auth login` (no `apiKey` needed in
+- The API key is supplied by `caimex auth login` (no `apiKey` needed in
   config; a `CAIMEX_API_KEY` env var works as a fallback).
 
 ## Log in
 
 ```bash
-caimexcode auth login          # pick the "caimex" provider
+caimex auth login          # pick the "caimex" provider
 ```
 
 Choose **"Login with Caimex (opens browser)"** — the CLI prints a short code and
 opens your gateway's login page; approve it there and the CLI receives a key.
 (Or choose **"Paste a Caimex API key"** if you already have one.)
 
+### Troubleshooting: `unable to verify the first certificate`
+
+The gateway is currently serving only its leaf certificate, without the
+`DigiCert Global G2 TLS RSA SHA256 2020 CA1` intermediate. `curl` hides this
+(macOS completes the chain from its own store) but Bun/Node cannot, so requests
+fail with `unable to verify the first certificate`.
+
+The fix belongs on the server — point nginx's `ssl_certificate` at the
+**fullchain** PEM (leaf + intermediate) rather than the leaf alone. Until then,
+trust the intermediate locally:
+
+```bash
+curl -fsSL http://cacerts.digicert.com/DigiCertGlobalG2TLSRSASHA2562020CA1-1.crt -o /tmp/digicert-g2.crt
+openssl x509 -inform DER -in /tmp/digicert-g2.crt -out ~/.config/caimex-code/gateway-ca.pem
+export NODE_EXTRA_CA_CERTS=~/.config/caimex-code/gateway-ca.pem   # add to your shell profile
+```
+
 ## Usage
 
 ```bash
-caimexcode                          # interactive TUI
-caimexcode models                   # list available models
-caimexcode run "Explain this repo"  # non-interactive, prints answer
-caimexcode upgrade                  # self-update from GitHub Releases
-caimexcode --help                   # all commands
+caimex                          # interactive TUI
+caimex models                   # list available models
+caimex run "Explain this repo"  # non-interactive, prints answer
+caimex upgrade                  # self-update from GitHub Releases
+caimex --help                   # all commands
 ```
 
 ---
@@ -107,17 +130,17 @@ bun run dev -- run "hello"                  # any CLI command from source
 ### Build standalone binaries
 
 ```bash
-./build-caimexcode.sh --single     # current platform only
-./build-caimexcode.sh              # all platforms (linux/darwin/windows, x64/arm64)
+./build-caimex.sh --single     # current platform only
+./build-caimex.sh              # all platforms (linux/darwin/windows, x64/arm64)
 ```
 
-Archives land in `packages/caimexcode/` as `caimexcode-<os>-<arch>.{tar.gz,zip}`
+Archives land in `packages/caimex/` as `caimex-<os>-<arch>.{tar.gz,zip}`
 with SHA256 checksums.
 
 ### Release
 
 Push a tag and CI does the rest — builds all targets, creates the GitHub
-Release with archives + `install.sh`, and publishes `caimexcode` to npm (when
+Release with archives + `install.sh`, and publishes `caimex` to npm (when
 the `NPM_TOKEN` secret is configured):
 
 ```bash

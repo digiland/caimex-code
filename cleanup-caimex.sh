@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# cleanup-caimexcode.sh — remove all local caimexcode build artifacts
+# cleanup-caimex.sh — remove all local caimex build artifacts
 
 set -eu
 
-CAIMEXCODE_DIR="packages/caimexcode"
+CAIMEXCODE_DIR="packages/caimex"
 
 if [ -d "$CAIMEXCODE_DIR" ]; then
   echo "Cleaning up $CAIMEXCODE_DIR..."

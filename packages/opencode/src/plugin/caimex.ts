@@ -25,9 +25,14 @@ import path from "path"
 
 const PROVIDER_ID = "caimex"
 
-// Where the device-auth endpoints live. Default to the local gateway; override
-// to point at a deployed gateway. CAIMEX_DEVICE_*_URL win over CAIMEX_GATEWAY_URL.
-const DEFAULT_GATEWAY_URL = "http://localhost:8240"
+// Where the device-auth endpoints live. Defaults to the Caimex deployment;
+// override with CAIMEX_GATEWAY_URL to point at a different gateway (e.g.
+// http://localhost:8240 for local dev). CAIMEX_DEVICE_*_URL win over it.
+//
+// Login (device auth) and the OpenAI-compatible API are served on different
+// ports: :9050 fronts the sign-in / activation UI, :9051 serves /v1.
+const DEFAULT_GATEWAY_URL = "https://incmanagement.econet.co.zw:9050"
+const DEFAULT_API_BASE_URL = "https://incmanagement.econet.co.zw:9051/v1"
 const DEVICE_CODE_GRANT_TYPE = "urn:ietf:params:oauth:grant-type:device_code"
 const CLIENT_ID = "caimex-code"
 const SCOPE = "gateway"
@@ -42,6 +47,13 @@ const OAUTH_POLLING_SAFETY_MARGIN_MS = 3_000
 
 function gatewayBase(): string {
   return (process.env.CAIMEX_GATEWAY_URL ?? DEFAULT_GATEWAY_URL).replace(/\/+$/, "")
+}
+
+// The OpenAI-compatible API root (…/v1). Independent of the login host, since
+// the two live on different ports. Overridable with CAIMEX_BASE_URL; a baseURL
+// declared in caimex.json still wins over both (config deep-merges last).
+function apiBase(): string {
+  return (process.env.CAIMEX_API_BASE_URL ?? DEFAULT_API_BASE_URL).replace(/\/+$/, "")
 }
 
 function deviceCodeUrl(): string {
@@ -360,8 +372,21 @@ export async function CaimexAuthPlugin(_input: PluginInput): Promise<Hooks> {
     // block startup on it).
     async config(input) {
       try {
-        const provider = (input as any)?.provider?.[PROVIDER_ID]
-        if (!provider || typeof provider !== "object") return
+        const config = input as any
+        if (!config || typeof config !== "object") return
+        // Seed the provider when no config declares it, so a bare install talks
+        // to the default gateway without the user hand-writing a caimex.json.
+        if (!config.provider || typeof config.provider !== "object") config.provider = {}
+        let provider = config.provider[PROVIDER_ID]
+        if (!provider || typeof provider !== "object") {
+          provider = config.provider[PROVIDER_ID] = {
+            npm: "@ai-sdk/openai-compatible",
+            name: "Caimex Gateway",
+            options: {},
+          }
+        }
+        if (!provider.options || typeof provider.options !== "object") provider.options = {}
+        if (!provider.options.baseURL) provider.options.baseURL = apiBase()
         // Ensure a models map exists so discovery can populate a provider that
         // declares none in caimex.json.
         let models = provider.models
@@ -370,7 +395,7 @@ export async function CaimexAuthPlugin(_input: PluginInput): Promise<Hooks> {
         const cache = readCatalogCache()
         if (cache?.models) applyCatalog(models, cache.models, discoveryEnabled())
 
-        const baseURL: string = provider?.options?.baseURL ?? `${gatewayBase()}/v1`
+        const baseURL: string = provider.options.baseURL
         const stale = !cache || Date.now() - cache.at > CATALOG_TTL_MS
         if (stale) {
           // Fire-and-forget: populates the cache for the next start.

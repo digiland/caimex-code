@@ -136,6 +136,45 @@ export class Service extends Context.Service<Service, Interface>()("@opencode/Co
 
 export const use = serviceUse(Service)
 
+// Built-in Caimex defaults, merged underneath every config file so a fresh
+// install talks to the gateway without the user hand-writing a caimex.json.
+// Every user-level file (config.json, opencode.json, caimex.json, project
+// config, …) merges over this, so any of these values stay overridable.
+//
+// Login (device auth) lives on :9050 and is resolved separately by the caimex
+// auth plugin; :9051 serves the OpenAI-compatible API.
+const CAIMEX_DEFAULT_API_BASE_URL = process.env["CAIMEX_API_BASE_URL"] ?? "https://incmanagement.econet.co.zw:9051/v1"
+
+function caimexDefaults(): Info {
+  return {
+    provider: {
+      caimex: {
+        npm: "@ai-sdk/openai-compatible",
+        name: "Caimex Gateway",
+        options: { baseURL: CAIMEX_DEFAULT_API_BASE_URL },
+        // Seed models so the very first run (before the gateway catalog is
+        // cached) still has something selectable; the caimex plugin discovers
+        // the rest from GET /v1/models and refreshes pricing.
+        models: {
+          "Caimex/moonshotai/kimi-k2.6": {
+            name: "Kimi K2.6",
+            limit: { context: 262144, output: 32000 },
+          },
+          "Qwen3.5-122b": {
+            name: "Qwen 3.5 122B",
+            limit: { context: 131072, output: 32000 },
+          },
+        },
+      },
+    },
+    // Deliberately no default `model` here: an explicit model short-circuits
+    // availability checks, so a baked-in "caimex/…" would still resolve for a
+    // user who disabled the caimex provider. Leaving it unset lets model
+    // selection fall through to the first available model, which on a stock
+    // install is a caimex one anyway.
+  } as Info
+}
+
 function globalConfigFile() {
   const candidates = ["caimex.jsonc", "caimex.json", "opencode.jsonc", "opencode.json", "config.json"].map((file) =>
     path.join(Global.Path.config, file),
@@ -244,7 +283,7 @@ const layer = Layer.effect(
     })
 
     const loadGlobal = Effect.fnUntraced(function* (env?: Record<string, string>) {
-      let result: Info = {}
+      let result: Info = caimexDefaults()
       // Seed the default global config with the schema for editor completion, but avoid writing when the user
       // explicitly routes config through env-provided paths or content.
       if (!Flag.OPENCODE_CONFIG && !Flag.OPENCODE_CONFIG_DIR && !Flag.OPENCODE_CONFIG_CONTENT) {

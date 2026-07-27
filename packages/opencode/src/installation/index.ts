@@ -133,7 +133,7 @@ const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProcess.Serv
     // Caimex Code self-upgrades from its own GitHub repo and npm package — never
     // from upstream opencode, which would replace the gateway-routed build.
     const CAIMEX_GITHUB_REPO = "digiland/caimex-code"
-    const CAIMEX_NPM_PACKAGE = "caimexcode"
+    const CAIMEX_NPM_PACKAGE = "caimex"
 
     const upgradeFailure = (method: Method, result?: { code: number; stdout: string; stderr: string }) => {
       if (method === "choco") return "not running from an elevated command shell"

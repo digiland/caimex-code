@@ -1,5 +1,5 @@
 {
-  "name": "caimexcode",
+  "name": "caimex",
   "version": "0.0.0",
   "description": "Caimex Code \u2014 AI coding agent for your terminal, powered by the Caimex gateway. Fork of OpenCode (MIT).",
   "license": "MIT",
@@ -17,7 +17,8 @@
     "x64"
   ],
   "bin": {
-    "caimexcode": "bin/caimexcode.exe"
+    "caimex": "bin/caimex.exe",
+    "caimexcode": "bin/caimex.exe"
   },
   "scripts": {
     "postinstall": "node install.mjs"

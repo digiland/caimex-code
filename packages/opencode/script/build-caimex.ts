@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
-// build-caimexcode.ts — build caimexcode release archives from the upstream build.
+// build-caimex.ts — build caimex release archives from the upstream build.
 //
 // Runs upstream script/build.ts (untouched, so upstream merges stay clean), then
-// repackages dist/opencode-* outputs as caimexcode-<os>-<arch>[-variant] archives
-// with the binary renamed to `caimexcode`, plus .sha256 sidecars, into
-// packages/caimexcode/ at the repo root — the layout upload-caimexcode.sh and
+// repackages dist/opencode-* outputs as caimex-<os>-<arch>[-variant] archives
+// with the binary renamed to `caimex`, plus .sha256 sidecars, into
+// packages/caimex/ at the repo root — the layout upload-caimex.sh and
 // install.sh expect (linux → .tar.gz, darwin/windows → .zip, binary at archive root).
 //
 // Flags are passed through to build.ts (e.g. --single for a native-only build).
@@ -25,7 +25,7 @@ delete env.OPENCODE_RELEASE
 
 await $`bun run ./script/build.ts ${passthrough}`.env(env)
 
-const outDir = path.resolve(dir, "../caimexcode")
+const outDir = path.resolve(dir, "../caimex")
 await $`rm -rf ${outDir}`
 await $`mkdir -p ${outDir}`
 
@@ -45,7 +45,7 @@ for (const name of distDirs) {
   const isWindows = target.startsWith("windows")
 
   const src = path.join(binDir, isWindows ? "opencode.exe" : "opencode")
-  const dest = path.join(binDir, isWindows ? "caimexcode.exe" : "caimexcode")
+  const dest = path.join(binDir, isWindows ? "caimex.exe" : "caimex")
   if (!fs.existsSync(src)) {
     if (!fs.existsSync(dest)) {
       console.error(`missing binary for ${name}: ${src}`)
@@ -56,7 +56,7 @@ for (const name of distDirs) {
   }
 
   const ext = target.startsWith("linux") ? "tar.gz" : "zip"
-  const archive = `caimexcode-${target}.${ext}`
+  const archive = `caimex-${target}.${ext}`
   const archivePath = path.join(outDir, archive)
 
   console.log(`packaging ${archive}`)

@@ -1,6 +1,6 @@
-# Builds caimexcode binaries for all platforms and publishes them to a GitHub
+# Builds caimex binaries for all platforms and publishes them to a GitHub
 # Release (plus install.sh, so the curl one-liner works via
-# releases/latest/download/install.sh). Optionally publishes the `caimexcode`
+# releases/latest/download/install.sh). Optionally publishes the `caimex`
 # npm package when an NPM_TOKEN secret is configured.
 #
 # Trigger: push a tag like v1.0.0, or run manually with a version input.
@@ -21,7 +21,7 @@ on:
 permissions:
   contents: write
 
-concurrency: release-caimexcode
+concurrency: release-caimex
 
 jobs:
   release:
@@ -50,7 +50,7 @@ jobs:
         env:
           OPENCODE_VERSION: ${{ steps.version.outputs.version }}
           OPENCODE_CHANNEL: latest
-        run: ./build-caimexcode.sh
+        run: ./build-caimex.sh
 
       - name: Create release and upload artifacts
         env:
@@ -59,13 +59,18 @@ jobs:
           TAG="v${{ steps.version.outputs.version }}"
           gh release create "$TAG" \
             --title "Caimex Code $TAG" \
-            --notes "Install: \`curl -fsSL https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/install.sh | bash\` or \`npm i -g caimexcode\`" \
+            --notes "Install: \`curl -fsSL https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/install.sh | bash\` or \`npm i -g caimex\`" \
             || echo "release $TAG already exists, uploading assets"
-          gh release upload "$TAG" packages/caimexcode/* install.sh --clobber
+          gh release upload "$TAG" packages/caimex/* install.sh --clobber
 
   publish-npm:
     needs: release
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Lets npm mint a signed provenance attestation for the published tarball,
+      # so consumers can verify it was built by this workflow from this repo.
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
@@ -74,14 +79,16 @@ jobs:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
 
-      - name: Publish caimexcode to npm
+      - name: Publish caimex to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        working-directory: npm/caimexcode
+        working-directory: npm/caimex
         run: |
           if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "NPM_TOKEN secret not set — skipping npm publish"
-            exit 0
+            echo "::error::NPM_TOKEN secret is not set — cannot publish to npm."
+            echo "Add it under Settings → Secrets and variables → Actions as a"
+            echo "granular npm access token scoped to the 'caimex' package only."
+            exit 1
           fi
           npm version "${{ needs.release.outputs.version }}" --no-git-tag-version
-          npm publish --access public
+          npm publish --access public --provenance

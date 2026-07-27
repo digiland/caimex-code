@@ -10,7 +10,8 @@
 #   CAIMEXCODE_BASE_URL=https://mirror.example.com/caimex-code curl -fsSL .../install.sh | bash
 set -euo pipefail
 
-NAME="caimexcode"
+NAME="caimex"
+LEGACY_NAME="caimexcode"   # pre-rename command, kept as an alias so old installs keep upgrading
 GITHUB_REPO="${CAIMEXCODE_GITHUB_REPO:-digiland/caimex-code}"
 BASE_URL="${CAIMEXCODE_BASE_URL:-}"            # set to install from a RustFS/S3 mirror instead of GitHub
 CHANNEL="${CAIMEXCODE_CHANNEL:-latest}"        # 'latest' or a specific version tag, e.g. v1.4.0
@@ -102,6 +103,12 @@ fi
 
 mkdir -p "$INSTALL_DIR"
 install -m 0755 "$extracted_bin" "${INSTALL_DIR}/${NAME}"
+
+# The command is `caimex`; keep `caimexcode` pointing at it so anyone who
+# installed before the rename still resolves (and their `upgrade` still works).
+# Symlink where we can, fall back to a copy on filesystems without symlinks.
+ln -sf "${NAME}" "${INSTALL_DIR}/${LEGACY_NAME}" 2>/dev/null \
+  || install -m 0755 "$extracted_bin" "${INSTALL_DIR}/${LEGACY_NAME}"
 
 echo "Installed to ${INSTALL_DIR}/${NAME}"
 
