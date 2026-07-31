@@ -141,9 +141,9 @@ export const use = serviceUse(Service)
 // Every user-level file (config.json, opencode.json, caimex.json, project
 // config, …) merges over this, so any of these values stay overridable.
 //
-// Login (device auth) lives on :9050 and is resolved separately by the caimex
-// auth plugin; :9051 serves the OpenAI-compatible API.
-const CAIMEX_DEFAULT_API_BASE_URL = process.env["CAIMEX_API_BASE_URL"] ?? "https://incmanagement.econet.co.zw:9051/v1"
+// Login (device auth) is resolved separately by the caimex auth plugin, against
+// the same gateway root (:2052) that serves the OpenAI-compatible API.
+const CAIMEX_DEFAULT_API_BASE_URL = process.env["CAIMEX_API_BASE_URL"] ?? "https://caimex.econetai.co.zw:2052/v1"
 
 function caimexDefaults(): Info {
   return {

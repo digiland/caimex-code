@@ -29,10 +29,12 @@ const PROVIDER_ID = "caimex"
 // override with CAIMEX_GATEWAY_URL to point at a different gateway (e.g.
 // http://localhost:8240 for local dev). CAIMEX_DEVICE_*_URL win over it.
 //
-// Login (device auth) and the OpenAI-compatible API are served on different
-// ports: :9050 fronts the sign-in / activation UI, :9051 serves /v1.
-const DEFAULT_GATEWAY_URL = "https://incmanagement.econet.co.zw:9050"
-const DEFAULT_API_BASE_URL = "https://incmanagement.econet.co.zw:9051/v1"
+// The gateway root serves both the device-auth endpoints (/api/auth/device/*)
+// and the OpenAI-compatible API (/v1) on :2052. The sign-in / activation UI is
+// a separate origin (:2082); the CLI never calls it directly — it opens the
+// `verification_uri` the gateway returns from the device-code call.
+const DEFAULT_GATEWAY_URL = "https://caimex.econetai.co.zw:2052"
+const DEFAULT_API_BASE_URL = "https://caimex.econetai.co.zw:2052/v1"
 const DEVICE_CODE_GRANT_TYPE = "urn:ietf:params:oauth:grant-type:device_code"
 const CLIENT_ID = "caimex-code"
 const SCOPE = "gateway"

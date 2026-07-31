@@ -66,15 +66,31 @@ echo "Installing ${NAME} (${CHANNEL}, ${target})"
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
 
+# --- checksum helper ---------------------------------------------------
+# Linux ships sha256sum; macOS ships shasum. Resolve once, up front — piping a
+# missing command into awk yields an empty string with a zero exit status, so a
+# `cmd | awk || fallback` chain silently produces no hash instead of falling back.
+if command -v sha256sum >/dev/null 2>&1; then
+  sha256_of() { sha256sum "$1" | awk '{print $1}'; }
+elif command -v shasum >/dev/null 2>&1; then
+  sha256_of() { shasum -a 256 "$1" | awk '{print $1}'; }
+else
+  sha256_of() { return 1; }
+fi
+
 # --- download archive + checksums --------------------------------------
-echo "Downloading ${archive_name}..."
-curl -fsSL "$archive_url" -o "${tmp_dir}/${archive_name}"
+# The binary is ~45 MB. Show curl's progress bar (-#) rather than -s, so a slow
+# link reads as "downloading" instead of "hung".
+echo "Downloading ${archive_name} (~45 MB)..."
+curl -fL# "$archive_url" -o "${tmp_dir}/${archive_name}"
 
 if curl -fsSL "$sums_url" -o "${tmp_dir}/SHA256SUMS" 2>/dev/null; then
   expected="$(grep "$archive_name" "${tmp_dir}/SHA256SUMS" | awk '{print $1}')"
   if [ -n "$expected" ]; then
-    actual="$(sha256sum "${tmp_dir}/${archive_name}" 2>/dev/null | awk '{print $1}' \
-              || shasum -a 256 "${tmp_dir}/${archive_name}" | awk '{print $1}')"
+    if ! actual="$(sha256_of "${tmp_dir}/${archive_name}")"; then
+      echo "warning: no sha256sum or shasum available, skipping verification"
+      actual="$expected"
+    fi
     if [ "$expected" != "$actual" ]; then
       echo "Checksum mismatch!"
       echo "  Expected: $expected"

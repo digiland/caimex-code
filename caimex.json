@@ -13,7 +13,7 @@
       "npm": "@ai-sdk/openai-compatible",
       "name": "Caimex Gateway",
       "options": {
-        "baseURL": "https://incmanagement.econet.co.zw:9051/v1"
+        "baseURL": "https://caimex.econetai.co.zw:2052/v1"
       },
       "models": {
         "Caimex/moonshotai/kimi-k2.6": {
@@ -28,14 +28,6 @@
             "output": 15,
             "cache_read": 0,
             "cache_write": 0
-          }
-        },
-        "Qwen3.5-122b": {
-          "name": "Qwen 3.5 122B",
-          "limit": {
-            "context": 131072,
-            "input": 131072,
-            "output": 32000
           }
         }
       }

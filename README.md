@@ -47,8 +47,12 @@ gateway out of the box:
 
 | | |
 |---|---|
-| Login (device auth) | `https://incmanagement.econet.co.zw:9050` |
-| API (`/v1`)         | `https://incmanagement.econet.co.zw:9051/v1` |
+| Login (device auth) | `https://caimex.econetai.co.zw:2052` |
+| API (`/v1`)         | `https://caimex.econetai.co.zw:2052/v1` |
+
+Both live on the gateway root. The sign-in page you land on during login is the
+web UI at `https://caimex.econetai.co.zw:2082` — the gateway hands that URL back,
+so there is nothing to configure for it in the CLI.
 
 Override either without touching a config file:
 
@@ -70,7 +74,7 @@ starter config ships in this repo at [`caimex.json`](./caimex.json):
       "npm": "@ai-sdk/openai-compatible",
       "name": "Caimex Gateway",
       "options": {
-        "baseURL": "https://incmanagement.econet.co.zw:9051/v1" // ← your gateway
+        "baseURL": "https://caimex.econetai.co.zw:2052/v1" // ← your gateway
       }
     }
   },
