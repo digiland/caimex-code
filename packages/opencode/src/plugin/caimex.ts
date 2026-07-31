@@ -66,11 +66,17 @@ function deviceTokenUrl(): string {
   return process.env.CAIMEX_DEVICE_TOKEN_URL ?? `${gatewayBase()}/api/auth/device/token`
 }
 
+// Identifies this client to the gateway. The `caimex-code` token is what the
+// gateway matches on — both to attribute usage to the Caimex Code app and to
+// decide which models an admin has enabled for the CLI surface — so it must
+// stay in the UA even if the command itself is named `caimex`.
+const USER_AGENT = `caimex-code/${InstallationVersion}`
+
 function authHeaders() {
   return {
     "Content-Type": "application/json",
     Accept: "application/json",
-    "User-Agent": `caimex/${InstallationVersion}`,
+    "User-Agent": USER_AGENT,
   }
 }
 
@@ -162,7 +168,10 @@ function writeCatalogCache(models: Record<string, DiscoveredModel>): void {
 
 export async function fetchModelCatalog(baseURL: string): Promise<Record<string, DiscoveredModel>> {
   const url = `${baseURL.replace(/\/+$/, "")}/models`
-  const res = await fetch(url, { headers: { Accept: "application/json" } })
+  // Send the CLI User-Agent: the gateway filters this catalog down to the
+  // models an admin has enabled for Caimex Code, so an unidentified fetch would
+  // list models the request path then refuses.
+  const res = await fetch(url, { headers: { Accept: "application/json", "User-Agent": USER_AGENT } })
   if (!res.ok) throw new Error(`Caimex /v1/models request failed (${res.status})`)
   const body = (await res.json()) as { data?: Array<Record<string, any>> }
   const out: Record<string, DiscoveredModel> = {}
