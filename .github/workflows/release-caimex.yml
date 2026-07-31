@@ -79,16 +79,23 @@ jobs:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
 
+      # Trusted publishing needs npm >= 11.5.1; Node 22 still ships npm 10.x.
+      - name: Use an npm that speaks OIDC
+        run: npm install -g npm@latest
+
+      # No token. npm verifies this workflow's OIDC identity against the trusted
+      # publisher configured on the package (npmjs.com → caimex → Settings →
+      # Trusted publisher: digiland/caimex-code, release-caimex.yml), and mints
+      # provenance from the same exchange.
+      #
+      # npm deprecated 2FA-bypass access tokens for CI in July 2026 — direct
+      # publishing from them is removed around January 2027 — so a token here
+      # would be a credential to leak, rotate, and eventually replace anyway.
       - name: Publish caimex to npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         working-directory: npm/caimex
         run: |
-          if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "::error::NPM_TOKEN secret is not set — cannot publish to npm."
-            echo "Add it under Settings → Secrets and variables → Actions as a"
-            echo "granular npm access token scoped to the 'caimex' package only."
-            exit 1
-          fi
-          npm version "${{ needs.release.outputs.version }}" --no-git-tag-version
-          npm publish --access public --provenance
+          # `npm pkg set`, not `npm version` — the latter errors with "Version
+          # not changed" when re-running a release whose version is already in
+          # package.json, which would fail the job for no reason.
+          npm pkg set version="${{ needs.release.outputs.version }}"
+          npm publish --access public

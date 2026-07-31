@@ -1,7 +1,7 @@
 {
   "name": "caimex",
   "version": "0.0.0",
-  "description": "Caimex Code \u2014 AI coding agent for your terminal, powered by the Caimex gateway. Fork of OpenCode (MIT).",
+  "description": "Caimex Code — AI coding agent for your terminal, powered by the Caimex gateway. Fork of OpenCode (MIT).",
   "license": "MIT",
   "repository": {
     "type": "git",
