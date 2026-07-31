@@ -20,6 +20,9 @@ import { Effect, Option } from "effect"
 
 type PluginAuth = NonNullable<Hooks["auth"]>
 
+// Kept in sync with PROVIDER_ID in src/plugin/caimex.ts.
+const CAIMEX_PROVIDER_ID = "caimex"
+
 const promptValue = <Value>(value: Option.Option<Value>) => {
   if (Option.isNone(value)) return Effect.die(new UI.CancelledError())
   return Effect.succeed(value.value)
@@ -396,7 +399,6 @@ export const ProvidersLoginCommand = effectCmd({
           label: x.name,
           value: x.id,
           hint: {
-            opencode: "recommended",
             openai: "ChatGPT Plus/Pro or API key",
           }[x.id],
         })),
@@ -404,9 +406,16 @@ export const ProvidersLoginCommand = effectCmd({
       ...pluginProviders.map((x) => ({
         label: x.name,
         value: x.id,
-        hint: "plugin",
+        hint: x.id === CAIMEX_PROVIDER_ID ? "recommended" : "plugin",
       })),
     ]
+
+    // The Caimex gateway is what this build ships pointed at, so it leads the
+    // list. It cannot be ordered through `priority` above: it is contributed by
+    // the caimex plugin's auth hook, and plugin providers are appended after
+    // every upstream provider — which buried the one option most users want.
+    const caimexIndex = options.findIndex((x) => x.value === CAIMEX_PROVIDER_ID)
+    if (caimexIndex > 0) options.unshift(...options.splice(caimexIndex, 1))
 
     let provider: string
     if (args.provider) {
