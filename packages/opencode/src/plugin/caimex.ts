@@ -121,6 +121,11 @@ function normalizeModalities(value: unknown): Modality[] | undefined {
 }
 interface CatalogCache {
   at: number
+  // Which gateway produced this catalog. A cache written against a different
+  // baseURL is discarded rather than merged: pointing the CLI at a new gateway
+  // used to leave the old gateway's models in the picker indefinitely, because
+  // discovery only ever ADDS entries and nothing expired the stale ones.
+  baseURL?: string
   models: Record<string, DiscoveredModel>
 }
 
@@ -130,6 +135,10 @@ const CATALOG_CACHE_FILE = path.join(
   "model-catalog.json",
 )
 const CATALOG_TTL_MS = 6 * 60 * 60 * 1000 // refresh at most every 6h
+// How long the very first fetch (no cache for this gateway) may delay startup.
+// /v1/models probes providers and can be slow, so this is a ceiling, not a
+// wait: whatever has not arrived by then is picked up on the next run.
+const CATALOG_FIRST_FETCH_TIMEOUT_MS = Number(process.env.CAIMEX_CATALOG_FETCH_TIMEOUT_MS) || 5_000
 
 // Fallback limits for a discovered model when the gateway's /v1/models entry
 // doesn't advertise its own context/output window. Override per deployment.
@@ -151,18 +160,26 @@ function firstFinite(...vals: unknown[]): number | undefined {
   return undefined
 }
 
-function readCatalogCache(): CatalogCache | undefined {
+// Reads the cache only if it was written against `baseURL`. A cache from a
+// different gateway is treated as absent: discovery only ever ADDS models, so a
+// retained one would keep offering the previous deployment's models forever,
+// with no way for the user to tell where they came from.
+//
+// Entries written before this field existed carry no baseURL and are discarded
+// on first run after upgrading — one refetch, rather than trusting a catalog we
+// cannot attribute to a gateway.
+function readCatalogCache(baseURL: string): CatalogCache | undefined {
   try {
     const parsed = JSON.parse(readFileSync(CATALOG_CACHE_FILE, "utf8")) as CatalogCache
-    if (parsed && typeof parsed.at === "number" && parsed.models) return parsed
+    if (parsed && typeof parsed.at === "number" && parsed.models && parsed.baseURL === baseURL) return parsed
   } catch {}
   return undefined
 }
 
-function writeCatalogCache(models: Record<string, DiscoveredModel>): void {
+function writeCatalogCache(baseURL: string, models: Record<string, DiscoveredModel>): void {
   try {
     mkdirSync(path.dirname(CATALOG_CACHE_FILE), { recursive: true })
-    writeFileSync(CATALOG_CACHE_FILE, JSON.stringify({ at: Date.now(), models } satisfies CatalogCache))
+    writeFileSync(CATALOG_CACHE_FILE, JSON.stringify({ at: Date.now(), baseURL, models } satisfies CatalogCache))
   } catch {}
 }
 
@@ -403,18 +420,31 @@ export async function CaimexAuthPlugin(_input: PluginInput): Promise<Hooks> {
         let models = provider.models
         if (!models || typeof models !== "object") models = provider.models = {}
 
-        const cache = readCatalogCache()
+        const baseURL: string = provider.options.baseURL
+        const cache = readCatalogCache(baseURL)
         if (cache?.models) applyCatalog(models, cache.models, discoveryEnabled())
 
-        const baseURL: string = provider.options.baseURL
-        const stale = !cache || Date.now() - cache.at > CATALOG_TTL_MS
-        if (stale) {
-          // Fire-and-forget: populates the cache for the next start.
+        const refresh = () =>
           fetchModelCatalog(baseURL)
             .then((catalog) => {
-              if (Object.keys(catalog).length) writeCatalogCache(catalog)
+              if (Object.keys(catalog).length) {
+                writeCatalogCache(baseURL, catalog)
+                applyCatalog(models, catalog, discoveryEnabled())
+              }
             })
             .catch(() => {})
+
+        if (!cache) {
+          // Nothing usable cached — first run, or the gateway changed. Await the
+          // fetch, bounded, instead of firing and forgetting: short-lived
+          // commands (`caimex run`, `caimex models`) exit before a detached
+          // promise resolves, so the cache was never written and discovery
+          // never happened for anyone not running a long TUI session.
+          await Promise.race([refresh(), new Promise((r) => setTimeout(r, CATALOG_FIRST_FETCH_TIMEOUT_MS))])
+        } else if (Date.now() - cache.at > CATALOG_TTL_MS) {
+          // We already have a usable catalog for this gateway, so never block on
+          // refreshing it — a slow /v1/models must not delay startup.
+          void refresh()
         }
       } catch {}
     },
