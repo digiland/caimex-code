@@ -1064,10 +1064,19 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
     const result = await sdk.client.global.upgrade({ target: version })
 
     if (result.error || !result.data?.success) {
+      // The server explains itself — "Unknown installation method" when the
+      // binary sits somewhere no package manager owns, or the upgrade command's
+      // own failure. Swallowing that left users with a dead end.
+      const reason =
+        result.data && !result.data.success
+          ? result.data.error
+          : result.error
+            ? errorMessage(result.error)
+            : undefined
       toast.show({
         variant: "error",
         title: "Update Failed",
-        message: "Update failed",
+        message: reason || "Update failed",
         duration: 10000,
       })
       return
