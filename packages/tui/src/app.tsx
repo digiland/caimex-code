@@ -86,6 +86,7 @@ import * as TuiAudio from "./audio"
 import { win32DisableProcessedInput, win32FlushInputBuffer } from "./terminal-win32"
 import { destroyRenderer } from "./util/renderer"
 import { cliErrorMessage, errorFormat } from "./util/error"
+import { isVersionGreater, UPDATE_AVAILABLE_KEY, UPDATE_INSTALLED_KEY } from "./util/version"
 
 registerOpencodeSpinner()
 
@@ -166,22 +167,6 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error)
 }
 
-function isVersionGreater(left: string, right: string) {
-  const parse = (value: string) => {
-    const [core, prerelease] = value.replace(/^v/, "").split("-", 2)
-    return { core: core.split(".").map((part) => Number.parseInt(part, 10) || 0), prerelease }
-  }
-  const a = parse(left)
-  const b = parse(right)
-  for (let index = 0; index < Math.max(a.core.length, b.core.length); index++) {
-    const difference = (a.core[index] ?? 0) - (b.core[index] ?? 0)
-    if (difference) return difference > 0
-  }
-  if (a.prerelease === b.prerelease) return false
-  if (!a.prerelease) return true
-  if (!b.prerelease) return false
-  return a.prerelease.localeCompare(b.prerelease, undefined, { numeric: true }) > 0
-}
 
 export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
   const global = yield* Global.Service
@@ -454,14 +439,14 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
     if (!terminalTitleEnabled() || Flag.OPENCODE_DISABLE_TERMINAL_TITLE) return
 
     if (route.data.type === "home") {
-      renderer.setTerminalTitle("OpenCode")
+      renderer.setTerminalTitle("Caimex Code")
       return
     }
 
     if (route.data.type === "session") {
       const session = sync.session.get(route.data.sessionID)
       if (!session || isDefaultTitle(session.title)) {
-        renderer.setTerminalTitle("OpenCode")
+        renderer.setTerminalTitle("Caimex Code")
         return
       }
 
@@ -1031,9 +1016,27 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
     })
   })
 
+  // A silent patch auto-update swaps the binary on disk but leaves this process
+  // on the old build, so surface it instead of letting it pass unannounced.
+  event.on("installation.updated", (evt) => {
+    const version = evt.properties.version
+    kv.set(UPDATE_INSTALLED_KEY, version)
+    kv.set(UPDATE_AVAILABLE_KEY, undefined)
+    toast.show({
+      variant: "info",
+      title: "Caimex Code updated",
+      message: `v${version} installed — restart to apply.`,
+      duration: 10000,
+    })
+  })
+
   event.on("installation.update-available", async (evt) => {
     console.log("installation.update-available", evt)
     const version = evt.properties.version
+
+    // Recorded regardless of what the user does with the prompt below, so the
+    // sidebar keeps advertising the update after a dismissal or a skip.
+    kv.set(UPDATE_AVAILABLE_KEY, version)
 
     const skipped = kv.get("skipped_version")
     if (skipped && !isVersionGreater(version, skipped)) return
@@ -1070,10 +1073,13 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
       return
     }
 
+    kv.set(UPDATE_INSTALLED_KEY, result.data.version)
+    kv.set(UPDATE_AVAILABLE_KEY, undefined)
+
     await DialogAlert.show(
       dialog,
       "Update Complete",
-      `Successfully updated to OpenCode v${result.data.version}. Please restart the application.`,
+      `Successfully updated to Caimex Code v${result.data.version}. Please restart the application.`,
     )
 
     void exit()
