@@ -233,7 +233,7 @@ const TIPS: Tip[] = [
   "Tool definitions can invoke scripts written in Python, Go, etc",
   "Add {highlight}.ts{/highlight} files to {highlight}.opencode/plugins/{/highlight} for event hooks",
   "Use plugins to send OS notifications when sessions complete",
-  "Create a plugin to prevent OpenCode from reading sensitive files",
+  "Create a plugin to prevent Caimex Code from reading sensitive files",
   "Use {highlight}caimex run{/highlight} for non-interactive scripting",
   "Use {highlight}caimex --continue{/highlight} to resume the last session",
   "Use {highlight}caimex run -f file.ts{/highlight} to attach files via CLI",
