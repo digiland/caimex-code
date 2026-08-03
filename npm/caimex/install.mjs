@@ -28,7 +28,55 @@ const url = `https://github.com/${repo}/releases/download/v${pkg.version}/${arch
 const binDir = path.join(pkgDir, "bin")
 const binName = plat === "windows" ? "caimex.exe" : "caimex"
 
-console.log(`caimex: downloading ${url}`)
+const mib = (n) => `${(n / 1024 / 1024).toFixed(1)} MiB`
+
+// Progress goes to stderr so it never contaminates stdout, and is throttled so a
+// non-TTY log (CI, `npm i` with captured script output) gets a handful of lines
+// rather than thousands. npm hides postinstall output by default — run with
+// `npm i -g caimex --foreground-scripts` to watch it live.
+function reporter(total) {
+  const tty = process.stderr.isTTY
+  // cmd.exe still defaults to codepage 437/850, where box-drawing glyphs come out
+  // as mojibake. Windows Terminal handles UTF-8, but we can't tell them apart.
+  const [full, empty] = process.platform === "win32" ? ["#", "-"] : ["█", "░"]
+  let last = 0
+  let lastPct = -1
+  return {
+    update(received) {
+      const now = performance.now()
+      if (tty) {
+        if (now - last < 100) return
+        last = now
+        if (total) {
+          const pct = Math.floor((received / total) * 100)
+          const filled = Math.round((received / total) * 24)
+          const bar = full.repeat(filled) + empty.repeat(24 - filled)
+          process.stderr.write(`\rcaimex: downloading [${bar}] ${pct}%  ${mib(received)} / ${mib(total)}`)
+        } else {
+          process.stderr.write(`\rcaimex: downloading ${mib(received)}`)
+        }
+        return
+      }
+      // No TTY: one line per 10%, or every 5s when the size is unknown.
+      if (total) {
+        const pct = Math.floor((received / total) * 10) * 10
+        if (pct === lastPct) return
+        lastPct = pct
+        process.stderr.write(`caimex: downloading ${pct}%  ${mib(received)} / ${mib(total)}\n`)
+      } else {
+        if (now - last < 5000) return
+        last = now
+        process.stderr.write(`caimex: downloading ${mib(received)}\n`)
+      }
+    },
+    done(received) {
+      if (tty) process.stderr.write(`\rcaimex: downloaded ${mib(received)}${" ".repeat(24)}\n`)
+      else process.stderr.write(`caimex: downloaded ${mib(received)}\n`)
+    },
+  }
+}
+
+console.error(`caimex: fetching ${url}`)
 const res = await fetch(url, { redirect: "follow" })
 if (!res.ok) {
   console.error(`caimex: download failed (HTTP ${res.status}) — ${url}`)
@@ -38,12 +86,32 @@ if (!res.ok) {
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "caimex-"))
 try {
   const archivePath = path.join(tmp, archive)
-  const bytes = Buffer.from(await res.arrayBuffer())
+
+  // Streamed rather than res.arrayBuffer() so the download can be reported as it
+  // arrives; the archive is small enough to keep in memory for the hash below.
+  const total = Number(res.headers.get("content-length")) || 0
+  const progress = reporter(total)
+  const chunks = []
+  let received = 0
+  for await (const chunk of res.body) {
+    chunks.push(chunk)
+    received += chunk.length
+    progress.update(received)
+  }
+  progress.done(received)
+  const bytes = Buffer.concat(chunks)
+
+  if (total && received !== total) {
+    console.error(`caimex: truncated download — expected ${total} bytes, got ${received}`)
+    process.exit(1)
+  }
+
   fs.writeFileSync(archivePath, bytes)
 
   // Verify against the release's SHA256SUMS before we execute anything from the
   // archive. The sums file is published by the same release job that builds the
   // binaries, so a tampered asset fails here rather than landing on PATH.
+  console.error("caimex: verifying checksum")
   const sumsUrl = `https://github.com/${repo}/releases/download/v${pkg.version}/SHA256SUMS`
   const sumsRes = await fetch(sumsUrl, { redirect: "follow" })
   if (!sumsRes.ok) {
@@ -64,6 +132,7 @@ try {
     process.exit(1)
   }
 
+  console.error("caimex: extracting")
   if (ext === "tar.gz") {
     execFileSync("tar", ["-xzf", archivePath, "-C", tmp])
   } else if (plat === "windows") {
@@ -84,7 +153,7 @@ try {
   const dest = path.join(binDir, "caimex.exe")
   fs.copyFileSync(extracted, dest)
   fs.chmodSync(dest, 0o755)
-  console.log("caimex: installed")
+  console.error(`caimex: installed ${target} v${pkg.version}`)
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true })
 }
