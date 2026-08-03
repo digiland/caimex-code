@@ -86,6 +86,10 @@ describe("installation", () => {
         }),
     )
 
+    // Package-manager installs must resolve the `caimex` package, never
+    // upstream's `opencode-ai` — that would upgrade a user off this fork.
+    const registry = `https://registry.npmjs.org/caimex/${InstallationChannel}`
+
     const npmCalls: string[] = []
     testEffect(
       testLayer((request) => {
@@ -96,7 +100,7 @@ describe("installation", () => {
       Effect.gen(function* () {
         const result = yield* Installation.use.latest("npm")
         expect(result).toBe("1.5.0")
-        expect(npmCalls).toContain(`https://registry.npmjs.org/opencode-ai/${InstallationChannel}`)
+        expect(npmCalls).toContain(registry)
       }),
     )
 
@@ -110,7 +114,7 @@ describe("installation", () => {
       Effect.gen(function* () {
         const result = yield* Installation.use.latest("bun")
         expect(result).toBe("1.6.0")
-        expect(bunCalls).toContain(`https://registry.npmjs.org/opencode-ai/${InstallationChannel}`)
+        expect(bunCalls).toContain(registry)
       }),
     )
 
@@ -124,61 +128,42 @@ describe("installation", () => {
       Effect.gen(function* () {
         const result = yield* Installation.use.latest("pnpm")
         expect(result).toBe("1.7.0")
-        expect(pnpmCalls).toContain(`https://registry.npmjs.org/opencode-ai/${InstallationChannel}`)
+        expect(pnpmCalls).toContain(registry)
       }),
     )
 
-    testEffect(testLayer(() => jsonResponse({ version: "2.3.4" }))).effect("reads scoop manifest versions", () =>
+    const yarnCalls: string[] = []
+    testEffect(
+      testLayer((request) => {
+        yarnCalls.push(request.url)
+        return jsonResponse({ version: "1.8.0" })
+      }),
+    ).effect("reads yarn versions via registry", () =>
       Effect.gen(function* () {
-        const result = yield* Installation.use.latest("scoop")
-        expect(result).toBe("2.3.4")
+        const result = yield* Installation.use.latest("yarn")
+        expect(result).toBe("1.8.0")
+        expect(yarnCalls).toContain(registry)
       }),
     )
 
-    testEffect(testLayer(() => jsonResponse({ d: { results: [{ Version: "3.4.5" }] } }))).effect(
-      "reads chocolatey feed versions",
-      () =>
-        Effect.gen(function* () {
-          const result = yield* Installation.use.latest("choco")
-          expect(result).toBe("3.4.5")
+    // Homebrew, Scoop and Chocolatey are upstream opencode's channels. Caimex
+    // Code never reads their manifests — it falls back to its own GitHub
+    // Releases so a stray detection can't hand back an upstream version.
+    for (const method of ["brew", "scoop", "choco"] as const) {
+      const calls: string[] = []
+      testEffect(
+        testLayer((request) => {
+          calls.push(request.url)
+          return jsonResponse({ tag_name: "v5.6.7" })
         }),
-    )
-
-    testEffect(
-      testLayer(
-        () => jsonResponse({ versions: { stable: "2.0.0" } }),
-        (cmd, args) => {
-          // getBrewFormula: return core formula (no tap)
-          if (cmd === "brew" && args.includes("--formula") && args.includes("anomalyco/tap/opencode")) return ""
-          if (cmd === "brew" && args.includes("--formula") && args.includes("opencode")) return "opencode"
-          return ""
-        },
-      ),
-    ).effect("reads brew formulae API versions", () =>
-      Effect.gen(function* () {
-        const result = yield* Installation.use.latest("brew")
-        expect(result).toBe("2.0.0")
-      }),
-    )
-
-    const brewInfoJson = JSON.stringify({
-      formulae: [{ versions: { stable: "2.1.0" } }],
-    })
-    testEffect(
-      testLayer(
-        () => jsonResponse({}), // HTTP not used for tap formula
-        (cmd, args) => {
-          if (cmd === "brew" && args.includes("anomalyco/tap/opencode") && args.includes("--formula")) return "opencode"
-          if (cmd === "brew" && args.includes("--json=v2")) return brewInfoJson
-          return ""
-        },
-      ),
-    ).effect("reads brew tap info JSON via CLI", () =>
-      Effect.gen(function* () {
-        const result = yield* Installation.use.latest("brew")
-        expect(result).toBe("2.1.0")
-      }),
-    )
+      ).effect(`ignores upstream ${method} manifests and reads GitHub releases`, () =>
+        Effect.gen(function* () {
+          const result = yield* Installation.use.latest(method)
+          expect(result).toBe("5.6.7")
+          expect(calls).toContain("https://api.github.com/repos/digiland/caimex-code/releases/latest")
+        }),
+      )
+    }
   })
 
   describe("upgrade", () => {
@@ -236,5 +221,52 @@ describe("installation", () => {
         yield* Installation.use.upgrade("curl", "9.9.9")
       }),
     )
+
+    const packageManagerUpgrades: Array<{ method: "npm" | "pnpm" | "bun" | "yarn"; args: string[] }> = [
+      { method: "npm", args: ["install", "-g", "caimex@9.9.9"] },
+      { method: "pnpm", args: ["install", "-g", "caimex@9.9.9"] },
+      { method: "bun", args: ["install", "-g", "caimex@9.9.9"] },
+      { method: "yarn", args: ["global", "add", "caimex@9.9.9"] },
+    ]
+    for (const { method, args: expected } of packageManagerUpgrades) {
+      const invocations: Array<{ cmd: string; args: readonly string[] }> = []
+      testEffect(
+        testLayer(
+          () => jsonResponse({}),
+          (cmd, args) => {
+            invocations.push({ cmd, args })
+            return ""
+          },
+        ),
+      ).effect(`installs the caimex package via ${method}`, () =>
+        Effect.gen(function* () {
+          yield* Installation.use.upgrade(method, "9.9.9")
+          expect(invocations).toContainEqual({ cmd: method, args: expected })
+        }),
+      )
+    }
+
+    // Upgrading through an upstream channel would replace Caimex Code with
+    // opencode, so it fails loudly with reinstall instructions instead.
+    for (const method of ["brew", "scoop", "choco"] as const) {
+      const invocations: string[] = []
+      testEffect(
+        testLayer(
+          () => jsonResponse({}),
+          (cmd) => {
+            invocations.push(cmd)
+            return ""
+          },
+        ),
+      ).effect(`refuses to upgrade via ${method}`, () =>
+        Effect.gen(function* () {
+          const error = yield* Effect.flip(Installation.use.upgrade(method, "9.9.9"))
+          expect(error).toBeInstanceOf(Installation.UpgradeFailedError)
+          expect(error.stderr).toContain(`not distributed via ${method}`)
+          expect(error.stderr).toContain("npm i -g caimex")
+          expect(invocations).not.toContain(method)
+        }),
+      )
+    }
   })
 })

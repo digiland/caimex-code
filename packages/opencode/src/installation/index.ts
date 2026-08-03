@@ -60,17 +60,11 @@ export class UpgradeFailedError extends Schema.TaggedErrorClass<UpgradeFailedErr
   }
 }
 
-// Response schemas for external version APIs
+// Response schemas for external version APIs. Caimex Code only reads its own
+// GitHub Releases and the `caimex` npm package — upstream's brew/scoop/choco
+// manifest schemas are gone along with those channels.
 const GitHubRelease = Schema.Struct({ tag_name: Schema.String })
 const NpmPackage = Schema.Struct({ version: Schema.String })
-const BrewFormula = Schema.Struct({ versions: Schema.Struct({ stable: Schema.String }) })
-const BrewInfoV2 = Schema.Struct({
-  formulae: Schema.Array(Schema.Struct({ versions: Schema.Struct({ stable: Schema.String }) })),
-})
-const ChocoPackage = Schema.Struct({
-  d: Schema.Struct({ results: Schema.Array(Schema.Struct({ Version: Schema.String })) }),
-})
-const ScoopManifest = NpmPackage
 
 export interface Interface {
   readonly info: () => Effect.Effect<Info>
@@ -122,21 +116,20 @@ const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProcess.Serv
       Effect.catch((err) => Effect.succeed({ code: 1, stdout: "", stderr: errorMessage(err) })),
     )
 
-    const getBrewFormula = Effect.fnUntraced(function* () {
-      const tapFormula = yield* text(["brew", "list", "--formula", "anomalyco/tap/opencode"])
-      if (tapFormula.includes("opencode")) return "anomalyco/tap/opencode"
-      const coreFormula = yield* text(["brew", "list", "--formula", "opencode"])
-      if (coreFormula.includes("opencode")) return "opencode"
-      return "opencode"
-    })
-
     // Caimex Code self-upgrades from its own GitHub repo and npm package — never
     // from upstream opencode, which would replace the gateway-routed build.
     const CAIMEX_GITHUB_REPO = "digiland/caimex-code"
     const CAIMEX_NPM_PACKAGE = "caimex"
 
+    // Caimex Code ships two channels only: the curl installer (GitHub Releases)
+    // and the `caimex` npm package. Homebrew, Scoop and Chocolatey are upstream
+    // opencode's channels — resolving a "latest" from them would upgrade a user
+    // straight off this fork, so they are never detected and never upgraded.
+    const UNSUPPORTED_METHODS = new Set<Method>(["brew", "scoop", "choco"])
+
     const upgradeFailure = (method: Method, result?: { code: number; stdout: string; stderr: string }) => {
-      if (method === "choco") return "not running from an elevated command shell"
+      if (UNSUPPORTED_METHODS.has(method))
+        return `Caimex Code is not distributed via ${method}. Reinstall with \`npm i -g ${CAIMEX_NPM_PACKAGE}\` or \`curl -fsSL https://github.com/${CAIMEX_GITHUB_REPO}/releases/latest/download/install.sh | bash\`.`
       if (result) return `Upgrade failed for ${method} (exit code ${result.code}).`
       return `Upgrade failed for ${method}.`
     }
@@ -179,18 +172,18 @@ const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProcess.Serv
         }
       }),
       method: Effect.fn("Installation.method")(function* () {
+        // install.sh drops the binary in ~/.local/bin (and ~/.opencode/bin for
+        // installs that predate the rename), so an exec path there means curl.
         if (process.execPath.includes(path.join(".opencode", "bin"))) return "curl" as Method
         if (process.execPath.includes(path.join(".local", "bin"))) return "curl" as Method
         const exec = process.execPath.toLowerCase()
 
+        // Only the package managers that can actually install `caimex`.
         const checks: Array<{ name: Method; command: () => Effect.Effect<string> }> = [
           { name: "npm", command: () => text(["npm", "list", "-g", "--depth=0"]) },
           { name: "yarn", command: () => text(["yarn", "global", "list"]) },
           { name: "pnpm", command: () => text(["pnpm", "list", "-g", "--depth=0"]) },
           { name: "bun", command: () => text(["bun", "pm", "ls", "-g"]) },
-          { name: "brew", command: () => text(["brew", "list", "--formula", "opencode"]) },
-          { name: "scoop", command: () => text(["scoop", "list", "opencode"]) },
-          { name: "choco", command: () => text(["choco", "list", "--limit-output", "opencode"]) },
         ]
 
         checks.sort((a, b) => {
@@ -203,11 +196,7 @@ const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProcess.Serv
 
         for (const check of checks) {
           const output = yield* check.command()
-          const installedName =
-            check.name === "brew" || check.name === "choco" || check.name === "scoop"
-              ? "opencode"
-              : CAIMEX_NPM_PACKAGE
-          if (output.includes(installedName)) {
+          if (output.includes(CAIMEX_NPM_PACKAGE)) {
             return check.name
           }
         }
@@ -217,23 +206,14 @@ const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProcess.Serv
       latest: Effect.fn("Installation.latest")(function* (installMethod?: Method) {
         const detectedMethod = installMethod || (yield* result.method())
 
-        if (detectedMethod === "brew") {
-          const formula = yield* getBrewFormula()
-          if (formula.includes("/")) {
-            const infoJson = yield* text(["brew", "info", "--json=v2", formula])
-            const info = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(BrewInfoV2))(infoJson)
-            return info.formulae[0].versions.stable
-          }
-          const response = yield* httpOk.execute(
-            HttpClientRequest.get("https://formulae.brew.sh/api/formula/opencode.json").pipe(
-              HttpClientRequest.acceptJson,
-            ),
-          )
-          const data = yield* HttpClientResponse.schemaBodyJson(BrewFormula)(response)
-          return data.versions.stable
-        }
-
-        if (detectedMethod === "npm" || detectedMethod === "bun" || detectedMethod === "pnpm") {
+        // Package-manager installs read the `caimex` package off the configured
+        // registry, honouring the channel (latest / preview) baked into the build.
+        if (
+          detectedMethod === "npm" ||
+          detectedMethod === "bun" ||
+          detectedMethod === "pnpm" ||
+          detectedMethod === "yarn"
+        ) {
           const response = yield* httpOk.execute(
             HttpClientRequest.get(
               `${yield* NpmConfig.registry(process.cwd())}/${CAIMEX_NPM_PACKAGE}/${InstallationChannel}`,
@@ -243,26 +223,7 @@ const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProcess.Serv
           return data.version
         }
 
-        if (detectedMethod === "choco") {
-          const response = yield* httpOk.execute(
-            HttpClientRequest.get(
-              "https://community.chocolatey.org/api/v2/Packages?$filter=Id%20eq%20%27opencode%27%20and%20IsLatestVersion&$select=Version",
-            ).pipe(HttpClientRequest.setHeaders({ Accept: "application/json;odata=verbose" })),
-          )
-          const data = yield* HttpClientResponse.schemaBodyJson(ChocoPackage)(response)
-          return data.d.results[0].Version
-        }
-
-        if (detectedMethod === "scoop") {
-          const response = yield* httpOk.execute(
-            HttpClientRequest.get(
-              "https://raw.githubusercontent.com/ScoopInstaller/Main/master/bucket/opencode.json",
-            ).pipe(HttpClientRequest.setHeaders({ Accept: "application/json" })),
-          )
-          const data = yield* HttpClientResponse.schemaBodyJson(ScoopManifest)(response)
-          return data.version
-        }
-
+        // curl installs (and anything unrecognised) track the GitHub Release tag.
         const response = yield* httpOk.execute(
           HttpClientRequest.get(`https://api.github.com/repos/${CAIMEX_GITHUB_REPO}/releases/latest`).pipe(
             HttpClientRequest.acceptJson,
@@ -286,34 +247,13 @@ const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProcess.Serv
           case "bun":
             upgradeResult = yield* run(["bun", "install", "-g", `${CAIMEX_NPM_PACKAGE}@${target}`])
             break
-          case "brew": {
-            const formula = yield* getBrewFormula()
-            const env = { HOMEBREW_NO_AUTO_UPDATE: "1" }
-            if (formula.includes("/")) {
-              const tap = yield* run(["brew", "tap", "anomalyco/tap"], { env })
-              if (tap.code !== 0) {
-                upgradeResult = tap
-                break
-              }
-              const repo = yield* text(["brew", "--repo", "anomalyco/tap"])
-              const dir = repo.trim()
-              if (dir) {
-                const pull = yield* run(["git", "pull", "--ff-only"], { cwd: dir, env })
-                if (pull.code !== 0) {
-                  upgradeResult = pull
-                  break
-                }
-              }
-            }
-            upgradeResult = yield* run(["brew", "upgrade", formula], { env })
+          case "yarn":
+            upgradeResult = yield* run(["yarn", "global", "add", `${CAIMEX_NPM_PACKAGE}@${target}`])
             break
-          }
+          case "brew":
           case "choco":
-            upgradeResult = yield* run(["choco", "upgrade", "opencode", `--version=${target}`, "-y"])
-            break
           case "scoop":
-            upgradeResult = yield* run(["scoop", "install", `opencode@${target}`])
-            break
+            return yield* new UpgradeFailedError({ stderr: upgradeFailure(m) })
           default:
             return yield* new UpgradeFailedError({ stderr: `Unknown installation method: ${m}` })
         }
