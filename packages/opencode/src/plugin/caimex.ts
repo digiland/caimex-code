@@ -1,6 +1,7 @@
 import type { Hooks, PluginInput } from "@opencode-ai/plugin"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { readFileSync, writeFileSync, mkdirSync } from "fs"
+import open from "open"
 import os from "os"
 import path from "path"
 
@@ -49,6 +50,16 @@ const OAUTH_POLLING_SAFETY_MARGIN_MS = 3_000
 
 function gatewayBase(): string {
   return (process.env.CAIMEX_GATEWAY_URL ?? DEFAULT_GATEWAY_URL).replace(/\/+$/, "")
+}
+
+// Device auth is designed to work headless, so opening a browser is a
+// convenience rather than a step in the flow: the verification URI and user
+// code are always printed, and the poll loop does not care where the user
+// authorizes. Set CAIMEX_NO_BROWSER=1 to keep it purely manual — useful over
+// SSH, where `open` may launch something on the wrong machine.
+function browserDisabled(): boolean {
+  const flag = process.env.CAIMEX_NO_BROWSER
+  return flag === "1" || flag === "true"
 }
 
 // The OpenAI-compatible API root (…/v1). Independent of the login host, since
@@ -372,10 +383,26 @@ export async function CaimexAuthPlugin(_input: PluginInput): Promise<Hooks> {
           label: "Login with Caimex (opens browser)",
           authorize: async () => {
             const device = await requestDeviceCode()
+            // Prefer the …_complete form for the browser: it embeds the user
+            // code, so an auto-opened tab needs no typing. The instructions
+            // still quote the bare URI and the code, which is what someone
+            // authorizing from a phone — or on a box where the open below
+            // silently fails — actually needs.
             const browserUrl = device.verification_uri_complete ?? device.verification_uri
+            // Best-effort: a failure here (headless, no xdg-open, no DISPLAY)
+            // must not break login, since the manual path below still works.
+            const opened = browserDisabled() ? false : await open(browserUrl).then(
+              () => true,
+              () => false,
+            )
             return {
               url: browserUrl,
-              instructions: `Open ${device.verification_uri} on any device and enter code: ${device.user_code}`,
+              // `open` resolves once the launcher is spawned, not once a browser
+              // is actually up, so the opened copy still tells the user where to
+              // go if no tab appears.
+              instructions: opened
+                ? `Opening your browser. If nothing opens, go to ${device.verification_uri} on any device. Code: ${device.user_code}`
+                : `Open ${device.verification_uri} on any device and enter code: ${device.user_code}`,
               method: "auto" as const,
               callback: async () => {
                 try {
