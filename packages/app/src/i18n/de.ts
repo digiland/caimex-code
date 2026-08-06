@@ -1169,4 +1169,12 @@ export const dict = {
   "help.tabs.persistence": "Wenn Sie die App erneut öffnen, sind Ihre Tabs weiterhin geöffnet.",
   "help.tabs.worktrees":
     "Das neue Design unterstützt Git-Worktrees noch nicht. Diese Funktion folgt in Kürze. Wenn Sie das bisherige Layout vorerst weiterverwenden möchten, können Sie in den Einstellungen zwischen den Layouts wechseln. Beachten Sie jedoch, dass das neue Layout in einigen Wochen dauerhaft verwendet wird.",
+  "command.session.export": "Sitzung exportieren",
+  "command.session.export.description": "Das vollständige Sitzungsprotokoll als JSON exportieren",
+  "context.export.session": "Sitzung exportieren",
+  "toast.session.export.success.title": "Sitzung exportiert",
+  "toast.session.export.success.description": "Sitzung in {{filename}} gespeichert",
+  "toast.session.export.failed.title": "Sitzung konnte nicht exportiert werden",
+  "toast.session.export.failed.description": "Beim Exportieren der Sitzung ist ein Fehler aufgetreten",
+  "common.export": "Exportieren",
 } satisfies Partial<Record<Keys, string>>

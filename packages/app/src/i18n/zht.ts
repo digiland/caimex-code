@@ -1207,4 +1207,12 @@ export const dict = {
   "error.childStore.persistedProjectIconCreateFailed": "建立持續性專案圖示失敗",
   "error.childStore.storeCreateFailed": "建立儲存區失敗",
   "terminal.connectionLost.abnormalClose": "WebSocket 異常關閉：{{code}}",
+  "command.session.export": "匯出工作階段",
+  "command.session.export.description": "將完整的工作階段記錄匯出為 JSON",
+  "context.export.session": "匯出工作階段",
+  "toast.session.export.success.title": "工作階段已匯出",
+  "toast.session.export.success.description": "工作階段已儲存至 {{filename}}",
+  "toast.session.export.failed.title": "匯出工作階段失敗",
+  "toast.session.export.failed.description": "匯出工作階段時發生錯誤",
+  "common.export": "匯出",
 } satisfies Partial<Record<Keys, string>>

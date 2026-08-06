@@ -1165,4 +1165,12 @@ export const dict = {
   "error.childStore.persistedProjectIconCreateFailed": "Falha ao criar ícone de projeto persistente",
   "error.childStore.storeCreateFailed": "Falha ao criar armazenamento",
   "terminal.connectionLost.abnormalClose": "WebSocket fechado anormalmente: {{code}}",
+  "command.session.export": "Exportar sessão",
+  "command.session.export.description": "Exportar a transcrição completa da sessão como JSON",
+  "context.export.session": "Exportar sessão",
+  "toast.session.export.success.title": "Sessão exportada",
+  "toast.session.export.success.description": "Sessão salva em {{filename}}",
+  "toast.session.export.failed.title": "Falha ao exportar a sessão",
+  "toast.session.export.failed.description": "Ocorreu um erro ao exportar a sessão",
+  "common.export": "Exportar",
 }

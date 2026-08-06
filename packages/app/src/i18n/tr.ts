@@ -1244,4 +1244,12 @@ export const dict = {
   "error.childStore.persistedProjectIconCreateFailed": "Kalıcı proje simgesi oluşturulamadı",
   "error.childStore.storeCreateFailed": "Depo oluşturulamadı",
   "terminal.connectionLost.abnormalClose": "WebSocket anormal şekilde kapandı: {{code}}",
+  "command.session.export": "Oturumu dışa aktar",
+  "command.session.export.description": "Oturumun tam dökümünü JSON olarak dışa aktar",
+  "context.export.session": "Oturumu dışa aktar",
+  "toast.session.export.success.title": "Oturum dışa aktarıldı",
+  "toast.session.export.success.description": "Oturum {{filename}} dosyasına kaydedildi",
+  "toast.session.export.failed.title": "Oturum dışa aktarılamadı",
+  "toast.session.export.failed.description": "Oturum dışa aktarılırken bir hata oluştu",
+  "common.export": "Dışa aktar",
 } satisfies Partial<Record<Keys, string>>

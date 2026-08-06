@@ -1153,4 +1153,12 @@ export const dict = {
   "workspace.reset.archived.one": "1 phiên sẽ được lưu trữ.",
   "workspace.reset.archived.many": "{{count}} phiên sẽ được lưu trữ.",
   "workspace.reset.note": "Điều này sẽ thiết lập lại không gian làm việc để phù hợp với nhánh mặc định.",
+  "command.session.export": "Xuất phiên",
+  "command.session.export.description": "Xuất toàn bộ bản ghi phiên dưới dạng JSON",
+  "context.export.session": "Xuất phiên",
+  "toast.session.export.success.title": "Đã xuất phiên",
+  "toast.session.export.success.description": "Đã lưu phiên vào {{filename}}",
+  "toast.session.export.failed.title": "Không thể xuất phiên",
+  "toast.session.export.failed.description": "Đã xảy ra lỗi khi xuất phiên",
+  "common.export": "Xuất",
 }

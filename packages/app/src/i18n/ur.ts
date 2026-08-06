@@ -1148,4 +1148,12 @@ export const dict = {
   "workspace.reset.archived.one": "1 سیشن آرکائیو کیا جائے گا۔",
   "workspace.reset.archived.many": "{{count}} سیشنز آرکائیو کیے جائیں گے۔",
   "workspace.reset.note": "یہ ڈیفالٹ برانچ سے ملنے کے لیے ورک اسپیس کو دوبارہ ترتیب دے گا۔",
+  "command.session.export": "سیشن برآمد کریں",
+  "command.session.export.description": "مکمل سیشن ٹرانسکرپٹ کو JSON کے طور پر برآمد کریں",
+  "context.export.session": "سیشن برآمد کریں",
+  "toast.session.export.success.title": "سیشن برآمد ہو گیا",
+  "toast.session.export.success.description": "سیشن {{filename}} میں محفوظ ہو گیا",
+  "toast.session.export.failed.title": "سیشن برآمد کرنے میں ناکام",
+  "toast.session.export.failed.description": "سیشن برآمد کرتے وقت ایک خرابی پیش آئی",
+  "common.export": "برآمد کریں",
 }

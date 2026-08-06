@@ -1160,4 +1160,12 @@ export const dict = {
   "desktop.wsl.error.failedPort": "Impossibile ottenere la porta",
   "desktop.picker.error.notSelected": "Il file non è stato selezionato nella finestra di selezione",
   "desktop.picker.error.sizeLimit": "Gli allegati selezionati superano il limite di {{limit}} MB",
+  "command.session.export": "Esporta sessione",
+  "command.session.export.description": "Esporta la trascrizione completa della sessione come JSON",
+  "context.export.session": "Esporta sessione",
+  "toast.session.export.success.title": "Sessione esportata",
+  "toast.session.export.success.description": "Sessione salvata in {{filename}}",
+  "toast.session.export.failed.title": "Impossibile esportare la sessione",
+  "toast.session.export.failed.description": "Si è verificato un errore durante l'esportazione della sessione",
+  "common.export": "Esporta",
 }

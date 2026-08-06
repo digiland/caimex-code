@@ -1241,4 +1241,12 @@ export const dict = {
   "error.childStore.persistedProjectIconCreateFailed": "Nije uspjelo kreiranje trajne ikone projekta",
   "error.childStore.storeCreateFailed": "Nije uspjelo kreiranje skladišta",
   "terminal.connectionLost.abnormalClose": "WebSocket zatvoren nenormalno: {{code}}",
+  "command.session.export": "Izvezi sesiju",
+  "command.session.export.description": "Izvezi cijeli transkript sesije kao JSON",
+  "context.export.session": "Izvezi sesiju",
+  "toast.session.export.success.title": "Sesija izvezena",
+  "toast.session.export.success.description": "Sesija sačuvana u {{filename}}",
+  "toast.session.export.failed.title": "Izvoz sesije nije uspio",
+  "toast.session.export.failed.description": "Došlo je do greške prilikom izvoza sesije",
+  "common.export": "Izvezi",
 }

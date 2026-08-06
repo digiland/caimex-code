@@ -1251,4 +1251,12 @@ export const dict = {
   "settings.general.row.pinchZoom.description": "Tillat knipebevegelser på styreflaten og Ctrl-rulling for å zoome",
   "settings.updates.action.downloading": "Laster ned...",
   "settings.updates.action.installing": "Installerer...",
+  "command.session.export": "Eksporter sesjon",
+  "command.session.export.description": "Eksporter hele sesjonsutskriften som JSON",
+  "context.export.session": "Eksporter sesjon",
+  "toast.session.export.success.title": "Sesjon eksportert",
+  "toast.session.export.success.description": "Sesjon lagret i {{filename}}",
+  "toast.session.export.failed.title": "Kunne ikke eksportere sesjonen",
+  "toast.session.export.failed.description": "Det oppsto en feil under eksport av sesjonen",
+  "common.export": "Eksporter",
 } satisfies Partial<Record<Keys, string>>

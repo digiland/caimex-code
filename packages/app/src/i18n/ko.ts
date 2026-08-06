@@ -1151,4 +1151,12 @@ export const dict = {
 
   "desktop.picker.error.notSelected": "선택기에서 파일을 선택하지 않았습니다",
   "desktop.picker.error.sizeLimit": "선택한 첨부 파일이 {{limit}} MB 제한을 초과합니다",
+  "command.session.export": "세션 내보내기",
+  "command.session.export.description": "전체 세션 기록을 JSON으로 내보내기",
+  "context.export.session": "세션 내보내기",
+  "toast.session.export.success.title": "세션을 내보냈습니다",
+  "toast.session.export.success.description": "세션을 {{filename}}에 저장했습니다",
+  "toast.session.export.failed.title": "세션을 내보내지 못했습니다",
+  "toast.session.export.failed.description": "세션을 내보내는 중 오류가 발생했습니다",
+  "common.export": "내보내기",
 }

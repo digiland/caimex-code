@@ -1183,4 +1183,12 @@ export const dict = {
 
   "titlebar.update": "Mettre à jour",
   "titlebar.updateVersion": "Mettre à jour {{version}}",
+  "command.session.export": "Exporter la session",
+  "command.session.export.description": "Exporter la transcription complète de la session au format JSON",
+  "context.export.session": "Exporter la session",
+  "toast.session.export.success.title": "Session exportée",
+  "toast.session.export.success.description": "Session enregistrée dans {{filename}}",
+  "toast.session.export.failed.title": "Échec de l'export de la session",
+  "toast.session.export.failed.description": "Une erreur s'est produite lors de l'export de la session",
+  "common.export": "Exporter",
 }

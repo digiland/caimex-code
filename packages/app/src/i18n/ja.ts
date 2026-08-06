@@ -1153,4 +1153,12 @@ export const dict = {
 
   "titlebar.update": "アップデート",
   "titlebar.updateVersion": "アップデート {{version}}",
+  "command.session.export": "セッションをエクスポート",
+  "command.session.export.description": "セッションの全文をJSONとしてエクスポート",
+  "context.export.session": "セッションをエクスポート",
+  "toast.session.export.success.title": "セッションをエクスポートしました",
+  "toast.session.export.success.description": "セッションを {{filename}} に保存しました",
+  "toast.session.export.failed.title": "セッションのエクスポートに失敗しました",
+  "toast.session.export.failed.description": "セッションのエクスポート中にエラーが発生しました",
+  "common.export": "エクスポート",
 }

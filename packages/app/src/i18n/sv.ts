@@ -1144,4 +1144,12 @@ export const dict = {
   "workspace.reset.archived.one": "1 session kommer att arkiveras.",
   "workspace.reset.archived.many": "{{count}} sessioner kommer att arkiveras.",
   "workspace.reset.note": "Detta kommer att återställa arbetsytan så att den matchar standardgrenen.",
+  "command.session.export": "Exportera session",
+  "command.session.export.description": "Exportera hela sessionsutskriften som JSON",
+  "context.export.session": "Exportera session",
+  "toast.session.export.success.title": "Session exporterad",
+  "toast.session.export.success.description": "Session sparad till {{filename}}",
+  "toast.session.export.failed.title": "Det gick inte att exportera sessionen",
+  "toast.session.export.failed.description": "Ett fel uppstod när sessionen exporterades",
+  "common.export": "Exportera",
 }

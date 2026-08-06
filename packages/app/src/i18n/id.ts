@@ -1234,4 +1234,12 @@ export const dict = {
   "workspace.reset.archived.one": "1 sesi akan diarsipkan.",
   "workspace.reset.archived.many": "{{count}} sesi akan diarsipkan.",
   "workspace.reset.note": "Ini akan mengatur ulang ruang kerja agar cocok dengan cabang bawaan.",
+  "command.session.export": "Ekspor sesi",
+  "command.session.export.description": "Ekspor transkrip sesi lengkap sebagai JSON",
+  "context.export.session": "Ekspor sesi",
+  "toast.session.export.success.title": "Sesi diekspor",
+  "toast.session.export.success.description": "Sesi disimpan ke {{filename}}",
+  "toast.session.export.failed.title": "Gagal mengekspor sesi",
+  "toast.session.export.failed.description": "Terjadi kesalahan saat mengekspor sesi",
+  "common.export": "Ekspor",
 }

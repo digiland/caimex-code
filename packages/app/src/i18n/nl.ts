@@ -1155,4 +1155,12 @@ export const dict = {
   "workspace.reset.archived.many": "{{count}} sessies worden gearchiveerd.",
   "workspace.reset.note":
     "Hierdoor wordt de werkruimte opnieuw ingesteld zodat deze overeenkomt met de standaardbranch.",
+  "command.session.export": "Sessie exporteren",
+  "command.session.export.description": "De volledige sessietranscriptie als JSON exporteren",
+  "context.export.session": "Sessie exporteren",
+  "toast.session.export.success.title": "Sessie geëxporteerd",
+  "toast.session.export.success.description": "Sessie opgeslagen in {{filename}}",
+  "toast.session.export.failed.title": "Kan sessie niet exporteren",
+  "toast.session.export.failed.description": "Er is een fout opgetreden bij het exporteren van de sessie",
+  "common.export": "Exporteren",
 }

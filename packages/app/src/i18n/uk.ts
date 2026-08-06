@@ -1251,4 +1251,12 @@ export const dict = {
   "workspace.reset.archived.one": "1 сесію буде заархівовано.",
   "workspace.reset.archived.many": "{{count}} сесій буде заархівовано.",
   "workspace.reset.note": "Це скине робочу область, щоб вона відповідала гілці за замовчуванням.",
+  "command.session.export": "Експортувати сесію",
+  "command.session.export.description": "Експортувати повний запис сесії у форматі JSON",
+  "context.export.session": "Експортувати сесію",
+  "toast.session.export.success.title": "Сесію експортовано",
+  "toast.session.export.success.description": "Сесію збережено у {{filename}}",
+  "toast.session.export.failed.title": "Не вдалося експортувати сесію",
+  "toast.session.export.failed.description": "Під час експорту сесії сталася помилка",
+  "common.export": "Експорт",
 }

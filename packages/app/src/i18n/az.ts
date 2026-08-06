@@ -1152,4 +1152,12 @@ export const dict = {
   "workspace.reset.archived.one": "1 sessiya arxivlənəcək.",
   "workspace.reset.archived.many": "{{count}} sessiya arxivlənəcək.",
   "workspace.reset.note": "Bu iş sahəsini standart branch ilə uyğunlaşdırmaq üçün sıfırlayacaq.",
+  "command.session.export": "Sessiyanı ixrac et",
+  "command.session.export.description": "Tam sessiya transkriptini JSON kimi ixrac et",
+  "context.export.session": "Sessiyanı ixrac et",
+  "toast.session.export.success.title": "Sessiya ixrac edildi",
+  "toast.session.export.success.description": "Sessiya {{filename}} faylına yadda saxlanıldı",
+  "toast.session.export.failed.title": "Sessiyanı ixrac etmək mümkün olmadı",
+  "toast.session.export.failed.description": "Sessiya ixrac edilərkən xəta baş verdi",
+  "common.export": "İxrac et",
 }

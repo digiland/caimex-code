@@ -1211,4 +1211,12 @@ export const dict = {
   "error.childStore.persistedProjectIconCreateFailed": "创建持久化项目图标失败",
   "error.childStore.storeCreateFailed": "创建存储失败",
   "terminal.connectionLost.abnormalClose": "WebSocket 异常关闭：{{code}}",
+  "command.session.export": "导出会话",
+  "command.session.export.description": "将完整的会话记录导出为 JSON",
+  "context.export.session": "导出会话",
+  "toast.session.export.success.title": "会话已导出",
+  "toast.session.export.success.description": "会话已保存至 {{filename}}",
+  "toast.session.export.failed.title": "导出会话失败",
+  "toast.session.export.failed.description": "导出会话时发生错误",
+  "common.export": "导出",
 } satisfies Partial<Record<Keys, string>>

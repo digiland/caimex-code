@@ -1155,4 +1155,12 @@ export const dict = {
   "error.childStore.persistedProjectIconCreateFailed": "فشل إنشاء أيقونة المشروع الدائمة",
   "error.childStore.storeCreateFailed": "فشل إنشاء المخزن",
   "terminal.connectionLost.abnormalClose": "تم إغلاق WebSocket بشكل غير طبيعي: {{code}}",
+  "command.session.export": "تصدير الجلسة",
+  "command.session.export.description": "تصدير نص الجلسة الكامل بصيغة JSON",
+  "context.export.session": "تصدير الجلسة",
+  "toast.session.export.success.title": "تم تصدير الجلسة",
+  "toast.session.export.success.description": "تم حفظ الجلسة في {{filename}}",
+  "toast.session.export.failed.title": "فشل تصدير الجلسة",
+  "toast.session.export.failed.description": "حدث خطأ أثناء تصدير الجلسة",
+  "common.export": "تصدير",
 }

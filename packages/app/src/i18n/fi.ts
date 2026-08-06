@@ -1152,4 +1152,12 @@ export const dict = {
   "help.tabs.persistence": "Kun avaat sovelluksen uudelleen, välilehtesi ovat yhä avoinna.",
   "help.tabs.worktrees":
     "Uusi ulkoasu ei vielä tue Git-työpuita, mutta tuki on tulossa pian. Jos haluat jatkaa aiemman ulkoasun käyttöä, voit vaihtaa ulkoasua asetuksissa. Huomaa kuitenkin, että uudesta ulkoasusta tulee pysyvä muutaman viikon kuluttua.",
+  "command.session.export": "Vie istunto",
+  "command.session.export.description": "Vie koko istunnon tekstitallenne JSON-muodossa",
+  "context.export.session": "Vie istunto",
+  "toast.session.export.success.title": "Istunto viety",
+  "toast.session.export.success.description": "Istunto tallennettu tiedostoon {{filename}}",
+  "toast.session.export.failed.title": "Istunnon vienti epäonnistui",
+  "toast.session.export.failed.description": "Istunnon viennin aikana tapahtui virhe",
+  "common.export": "Vie",
 }
