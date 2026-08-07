@@ -95,9 +95,11 @@ describe("HttpApi compression", () => {
     })
 
     test("when the response body is below the 1024-byte threshold", async () => {
-      // A bare config produces a tiny response (~few hundred bytes).
+      // Upstream used a bare /config here, but Caimex merges its gateway provider
+      // defaults into every config, so even an empty one echoes back ~6 KB and is
+      // always over the threshold. /path returns a few hundred bytes instead.
       await using tmp = await tmpdir({ config: { formatter: false, lsp: false } })
-      const response = await app().request("/config", {
+      const response = await app().request("/path", {
         headers: { "x-opencode-directory": tmp.path, "accept-encoding": "gzip" },
       })
       expect(response.status).toBe(200)

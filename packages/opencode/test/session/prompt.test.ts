@@ -258,7 +258,12 @@ const unixNoLLMServer = process.platform !== "win32" ? noLLMServer.instance : no
 
 // Config that registers a custom "test" provider with a "test-model" model
 // so provider model lookup succeeds inside the loop.
+//
+// The default model is pinned because Caimex merges its gateway provider into
+// every config. Calls that omit a model fall through to "first available", which
+// would otherwise resolve to a caimex model rather than the test one below.
 const cfg = {
+  model: "test/test-model",
   provider: {
     test: {
       name: "Test",

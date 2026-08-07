@@ -1,7 +1,13 @@
-import { describe, expect, test, mock, beforeEach } from "bun:test"
+import { describe, expect, test, mock, beforeEach, afterEach, afterAll } from "bun:test"
 
 const opened: string[] = []
-mock.module("open", () => ({ default: async (url: string) => { opened.push(url); return {} as any } }))
+const openMock = () => ({ default: async (url: string) => { opened.push(url); return {} as any } })
+mock.module("open", openMock)
+
+// Bun runs every test file in one process, so anything installed on globalThis here
+// leaks into all files that run after this one. Restore both the fetch stub and the
+// "open" mock below, or later suites get this device-code response for every request.
+const originalFetch = globalThis.fetch
 
 const { CaimexAuthPlugin } = await import("../src/plugin/caimex")
 
@@ -18,6 +24,17 @@ beforeEach(() => {
   globalThis.fetch = (async () => new Response(JSON.stringify(DEVICE), {
     status: 200, headers: { "content-type": "application/json" },
   })) as any
+})
+
+afterEach(() => {
+  globalThis.fetch = originalFetch
+  // The last test swaps in a throwing "open"; put the recording one back.
+  mock.module("open", openMock)
+})
+
+afterAll(() => {
+  globalThis.fetch = originalFetch
+  mock.restore()
 })
 
 async function authorize() {
