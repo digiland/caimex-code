@@ -209,7 +209,9 @@ describe("Config", () => {
     ),
   )
 
-  it.live("does not load legacy config.json files", () =>
+  // Upstream treats config.json as legacy and ignores it. Caimex lists it in the
+  // discovery names (see Config's `names`), so it is loaded like any other config.
+  it.live("loads config.json files", () =>
     Effect.acquireRelease(
       Effect.promise(() => tmpdir()),
       (tmp) => Effect.promise(() => tmp[Symbol.asyncDispose]()),
@@ -224,7 +226,7 @@ describe("Config", () => {
             const config = yield* Config.Service
             const documents = (yield* config.entries()).filter((entry) => entry.type === "document")
 
-            expect(documents).toHaveLength(0)
+            expect(documents).toHaveLength(1)
           }).pipe(Effect.provide(testLayer(tmp.path)))
         }),
       ),

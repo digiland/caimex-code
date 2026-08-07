@@ -6,7 +6,8 @@ import { Global } from "@opencode-ai/core/global"
 
 describe("global paths", () => {
   test("tmp path is under the system temp directory", () => {
-    expect(Global.Path.tmp).toBe(path.join(os.tmpdir(), "opencode"))
+    // Caimex renames the app dir from "opencode" (see Global's `app` constant).
+    expect(Global.Path.tmp).toBe(path.join(os.tmpdir(), "caimex-code"))
     expect(Global.make().tmp).toBe(Global.Path.tmp)
   })
 

@@ -1,10 +1,19 @@
-import { expect, test } from "bun:test"
+import { afterAll, expect, test } from "bun:test"
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import { Deferred, Effect, Latch, Option, Schema, Stream } from "effect"
 import type { OpenCodeEvent } from "../src"
+
+// The database layer is a process-global node that caches its path on first use, so
+// every test in this file ends up on the first test's file. Removing a directory while
+// the process still holds that database open makes later tests fail with SQLITE_CANTOPEN,
+// so directories are collected here and cleaned up once the whole file is done.
+const directories: string[] = []
+afterAll(async () => {
+  await Promise.all(directories.map((directory) => rm(directory, { recursive: true, force: true })))
+})
 
 test("embedded client uses the real router and handlers", async () => {
   const directory = await mkdtemp(join(tmpdir(), "opencode-embedded-"))
@@ -100,7 +109,7 @@ test("embedded client uses the real router and handlers", async () => {
     await Effect.runPromise(Effect.scoped(program))
   } finally {
     Flag.OPENCODE_DB = database
-    await rm(directory, { recursive: true, force: true })
+    directories.push(directory)
   }
 })
 
@@ -139,7 +148,7 @@ test("Location-owned runner events reach the ready global client", async () => {
     await Effect.runPromise(Effect.scoped(program))
   } finally {
     Flag.OPENCODE_DB = database
-    await rm(directory, { recursive: true, force: true })
+    directories.push(directory)
   }
 }, 10_000)
 
@@ -182,7 +191,7 @@ test("independent embedded hosts do not share live notifications", async () => {
     await Effect.runPromise(Effect.scoped(program))
   } finally {
     Flag.OPENCODE_DB = database
-    await rm(directory, { recursive: true, force: true })
+    directories.push(directory)
   }
 }, 10_000)
 
@@ -207,6 +216,6 @@ test("embedded client is available as a Layer service", async () => {
     expect(created.id).toBe(sessionID)
   } finally {
     Flag.OPENCODE_DB = database
-    await rm(directory, { recursive: true, force: true })
+    directories.push(directory)
   }
 })
