@@ -2,12 +2,15 @@ import { EOL } from "os"
 import { Schema } from "effect"
 import { logo as glyphs } from "./logo"
 
-const wordmark = [
-  `⠀                                ▄     `,
-  `█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█`,
-  `█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀`,
-  `▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀`,
-]
+// Plain-text fallback drawn when neither stream is a TTY. Derived from the same
+// glyphs the colour path below draws, so the two wordmarks cannot drift apart —
+// the hardcoded copy this replaced still spelled "opencode" long after the TUI
+// logo was rebranded. `_` and `^` mark cells the colour path fills with a
+// background rather than a character; without colour they collapse to the
+// nearest literal block.
+const wordmark = glyphs.left.map((row, index) =>
+  `${row} ${glyphs.right[index] ?? ""}`.replaceAll("_", " ").replaceAll("^", "▀").replaceAll("~", "▀").trimEnd(),
+)
 
 export class CancelledError extends Schema.TaggedErrorClass<CancelledError>()("UICancelledError", {}) {}
 

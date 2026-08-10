@@ -1,10 +1,10 @@
 // Bun Snapshot v1, https://bun.sh/docs/test/snapshots
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode acp --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex acp
 
@@ -28,10 +28,10 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode mcp --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex mcp
 
@@ -54,10 +54,10 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode attach --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex attach <url>
 
@@ -86,14 +86,14 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode run --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex run [message..]
 
-run opencode with a message
+run caimex with a message
 
 Positionals:
   message  message to send                                                     [array] [default: []]
@@ -115,7 +115,7 @@ Options:
                                           [string] [choices: "default", "json"] [default: "default"]
   -f, --file         file(s) to attach to message                                            [array]
       --title        title for the session (uses truncated prompt if no value provided)     [string]
-      --attach       attach to a running opencode server (e.g., http://localhost:4096)      [string]
+      --attach       attach to a running caimex server (e.g., http://localhost:4096)        [string]
   -p, --password     basic auth password (defaults to OPENCODE_SERVER_PASSWORD)             [string]
   -u, --username     basic auth username (defaults to OPENCODE_SERVER_USERNAME or 'opencode')
                                                                                             [string]
@@ -132,10 +132,10 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode debug --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex debug
 
@@ -166,10 +166,10 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode providers --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex providers
 
@@ -190,10 +190,10 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode agent --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex agent
 
@@ -213,10 +213,10 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode upgrade --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex upgrade [target]
 
@@ -237,10 +237,10 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode uninstall --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex uninstall
 
@@ -260,10 +260,10 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode serve --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex serve
 
@@ -286,10 +286,10 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode web --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex web
 
@@ -312,10 +312,10 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode models --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex models [provider]
 
@@ -336,10 +336,10 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode stats --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex stats
 
@@ -360,10 +360,10 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode export --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex export [sessionID]
 
@@ -383,10 +383,10 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode import --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex import <file>
 
@@ -405,10 +405,10 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode github --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex github
 
@@ -428,10 +428,10 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode pr --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex pr <number>
 
@@ -450,10 +450,10 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode session --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex session
 
@@ -473,10 +473,10 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode plugin --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex plugin <module>
 
@@ -497,10 +497,10 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode db --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex db
 
@@ -524,10 +524,10 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode mcp list --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex mcp list
 
@@ -543,10 +543,10 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode mcp add --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex mcp add [name]
 
@@ -568,10 +568,10 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode mcp auth --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex mcp auth [name]
 
@@ -593,10 +593,10 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode mcp logout --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex mcp logout [name]
 
@@ -615,10 +615,10 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode providers list --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex providers list
 
@@ -634,10 +634,10 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode providers login --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex providers login [url]
 
@@ -658,10 +658,10 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode providers logout --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex providers logout [provider]
 
@@ -680,10 +680,10 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode agent create --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex agent create
 
@@ -706,10 +706,10 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode agent list --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex agent list
 
@@ -725,10 +725,10 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode session list --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex session list
 
@@ -746,10 +746,10 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode session delete --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex session delete <sessionID>
 
@@ -768,10 +768,10 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode github install --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex github install
 
@@ -787,10 +787,10 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode github run --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex github run
 
@@ -808,10 +808,10 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode db path --help 1`] = `
-"⠀                                ▄     
-█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
-█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
-▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+"                                          ▄
+█▀▀▀  ██  ██ █▀█▀█ █▀▀█ █  █ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█    █▄▄█ ██ █ █ █ █▀▀▀  ██  █    █  █ █  █ █▀▀▀
+▀▀▀▀ ▀  ▀ ▀▀ ▀ ▀ ▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
 
 caimex db path
 
