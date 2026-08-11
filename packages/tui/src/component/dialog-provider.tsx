@@ -15,6 +15,8 @@ import { isConsoleManagedProvider } from "../util/provider-origin"
 import { useConnected } from "./use-connected"
 import { useBindings } from "../keymap"
 import { useClipboard } from "../context/clipboard"
+import { useBackend } from "../context/backend"
+import { createDialogIntegrationOptions } from "./dialog-integration"
 
 const PROVIDER_PRIORITY: Record<string, number> = {
   opencode: 0,
@@ -83,7 +85,17 @@ export function normalizeCustomProviderID(value: string) {
   return providerID
 }
 
+// Both /connect and the model dialog's "connect another provider" list build on
+// this. v2 keeps credentials on integrations rather than providers and serves an
+// entirely different route set, so it gets its own builder rather than a branch
+// threaded through the v1 one — delegating here fixes every call site at once.
 export function createDialogProviderOptions() {
+  const backend = useBackend()
+  if (backend.integrations) return createDialogIntegrationOptions()
+  return createDialogProviderOptionsV1()
+}
+
+function createDialogProviderOptionsV1() {
   const sync = useSync()
   const dialog = useDialog()
   const sdk = useSDK()

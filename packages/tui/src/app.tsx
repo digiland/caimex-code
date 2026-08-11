@@ -66,6 +66,7 @@ import { ArgsProvider, useArgs, type Args } from "./context/args"
 import open from "open"
 import { PromptRefProvider, usePromptRef } from "./context/prompt"
 import { TuiConfigProvider, useTuiConfig, type TuiConfig } from "./config"
+import { BackendProvider, type Backend } from "./context/backend"
 import { createTuiApiAdapters } from "./plugin/adapters"
 import { createTuiApi } from "./plugin/api"
 import { createPluginRuntime, PluginRuntimeProvider, usePluginRuntime, type TuiPluginHost } from "./plugin/runtime"
@@ -150,6 +151,8 @@ export type TuiInput = {
   headers?: RequestInit["headers"]
   events?: EventSource
   pluginHost: TuiPluginHost
+  /** Which server this TUI is talking to; see context/backend. Defaults to v1. */
+  backend?: Backend
 }
 
 function errorMessage(error: unknown) {
@@ -278,6 +281,7 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                                         : undefined
                                     }
                                   >
+                                    <BackendProvider integrations={input.backend?.integrations ?? false}>
                                     <TuiConfigProvider config={input.config}>
                                       <PluginRuntimeProvider value={pluginRuntime}>
                                         <SDKProvider
@@ -320,6 +324,7 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                                         </SDKProvider>
                                       </PluginRuntimeProvider>
                                     </TuiConfigProvider>
+                                    </BackendProvider>
                                   </RouteProvider>
                                 </ToastProvider>
                               </KVProvider>

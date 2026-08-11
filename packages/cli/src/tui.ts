@@ -10,6 +10,9 @@ export function runTui(transport: { url: string; headers: RequestInit["headers"]
     ...transport,
     args: {},
     config,
+    // This server serves the integration API, not v1's per-provider auth routes
+    // — which is also why gracefulFetch below has to stub the v1 ones out.
+    backend: { integrations: true },
     fetch: gracefulFetch,
     pluginHost: {
       async start() {},
