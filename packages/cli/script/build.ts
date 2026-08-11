@@ -9,7 +9,11 @@ import pkg from "../package.json"
 import { modelsData } from "./generate"
 
 const dir = path.resolve(import.meta.dirname, "..")
-const binary = "lildax"
+// Names both the artifact and the command the CLI prints in its own help (it is
+// compiled in as OPENCODE_CLI_NAME). Overridable so the fork can build a
+// Caimex-branded v2 binary — `OPENCODE_CLI_BINARY=caimex2 bun run build` —
+// without diverging this script while v2 is still upstream's beta.
+const binary = process.env["OPENCODE_CLI_BINARY"] ?? "lildax"
 process.chdir(dir)
 
 await rm("dist", { recursive: true, force: true })

@@ -2,6 +2,7 @@ import { AlibabaPlugin } from "./provider/alibaba"
 import { AmazonBedrockPlugin } from "./provider/amazon-bedrock"
 import { AnthropicPlugin } from "./provider/anthropic"
 import { AzureCognitiveServicesPlugin, AzurePlugin } from "./provider/azure"
+import { CaimexPlugin } from "./provider/caimex"
 import { CerebrasPlugin } from "./provider/cerebras"
 import { CloudflareAIGatewayPlugin } from "./provider/cloudflare-ai-gateway"
 import { CloudflareWorkersAIPlugin } from "./provider/cloudflare-workers-ai"
@@ -39,6 +40,7 @@ export const ProviderPlugins: PluginInternal.Plugin<PluginInternal.Requirements 
   AnthropicPlugin,
   AzureCognitiveServicesPlugin,
   AzurePlugin,
+  CaimexPlugin,
   CerebrasPlugin,
   CloudflareAIGatewayPlugin,
   CloudflareWorkersAIPlugin,
