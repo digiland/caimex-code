@@ -142,7 +142,11 @@ function IntegrationOAuthMethod(props: OAuthProps) {
     // on as a providerID to preselect that provider's models: the two are
     // separate namespaces, but every integration in the catalog today names its
     // provider after itself, and a miss only costs the preselection.
-    await data.location.integration.refresh()
+    await Promise.all([
+      data.location.integration.refresh(),
+      data.location.model.refresh(),
+      data.location.provider.refresh(),
+    ])
     dialog.replace(() => <DialogModel providerID={props.integrationID} />)
   }
 

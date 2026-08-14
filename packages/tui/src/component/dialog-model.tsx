@@ -8,17 +8,29 @@ import { DialogVariant } from "./dialog-variant"
 import * as fuzzysort from "fuzzysort"
 import { useConnected } from "./use-connected"
 import { useSync } from "../context/sync"
+import { useBackend } from "../context/backend"
+import { useData } from "../context/data"
+import type { Provider } from "@opencode-ai/sdk/v2"
 
 export function DialogModel(props: { providerID?: string }) {
   const local = useLocal()
   const sync = useSync()
   const dialog = useDialog()
+  const data = useData()
+  const backend = useBackend()
   const [query, setQuery] = createSignal("")
 
   const connected = useConnected()
   const providers = createDialogProviderOptions()
 
   const showExtra = createMemo(() => connected() && !props.providerID)
+
+  // v2 keeps catalog data in the data context; v1 in sync. The v2 CLI shims the
+  // v1 routes empty, so reading v1 here would make the model dialog blank.
+  const catalogOptions = (favorites: Favorite[], connected: boolean): CatalogOption[] =>
+    backend.integrations
+      ? v2CatalogOptions(data, props.providerID, onSelect)
+      : v1CatalogOptions(sync.data.provider, props.providerID, { favorites, connected }, onSelect)
 
   const options = createMemo(() => {
     const needle = query().trim()
@@ -59,50 +71,16 @@ export function DialogModel(props: { providerID?: string }) {
     )
 
     const providerOptions = pipe(
-      sync.data.provider,
-      sortBy(
-        (provider) => provider.id !== "opencode",
-        (provider) => provider.name,
-      ),
-      flatMap((provider) =>
-        pipe(
-          provider.models,
-          entries(),
-          filter(([_, info]) => info.status !== "deprecated"),
-          filter(([_, info]) => (props.providerID ? info.providerID === props.providerID : true)),
-          map(([model, info]) => ({
-            value: { providerID: provider.id, modelID: model },
-            title: info.name ?? model,
-            releaseDate: info.release_date,
-            description: favorites.some((item) => item.providerID === provider.id && item.modelID === model)
-              ? "(Favorite)"
-              : undefined,
-            category: connected() ? provider.name : undefined,
-            disabled: provider.id === "opencode" && model.includes("-nano"),
-            footer: info.cost?.input === 0 && provider.id === "opencode" ? "Free" : undefined,
-            onSelect() {
-              onSelect(provider.id, model)
-            },
-          })),
-          filter((option) => {
-            if (!showSections) return true
-            if (
-              favorites.some(
-                (item) => item.providerID === option.value.providerID && item.modelID === option.value.modelID,
-              )
-            )
-              return false
-            if (
-              recents.some(
-                (item) => item.providerID === option.value.providerID && item.modelID === option.value.modelID,
-              )
-            )
-              return false
-            return true
-          }),
-          (options) => sortModelOptions(options, props.providerID !== undefined),
-        ),
-      ),
+      catalogOptions(favorites, connected()),
+      filter((option) => {
+        if (!showSections) return true
+        if (favorites.some((item) => item.providerID === option.value.providerID && item.modelID === option.value.modelID))
+          return false
+        if (recents.some((item) => item.providerID === option.value.providerID && item.modelID === option.value.modelID))
+          return false
+        return true
+      }),
+      (options) => sortModelOptions(options, props.providerID !== undefined),
     )
 
     const popularProviders = !connected()
@@ -130,7 +108,11 @@ export function DialogModel(props: { providerID?: string }) {
   })
 
   const provider = createMemo(() =>
-    props.providerID ? sync.data.provider.find((item) => item.id === props.providerID) : null,
+    props.providerID
+      ? backend.integrations
+        ? data.location.provider.list()?.find((item) => item.id === props.providerID)
+        : sync.data.provider.find((item) => item.id === props.providerID)
+      : null,
   )
 
   const title = createMemo(() => {
@@ -193,5 +175,79 @@ export function sortModelOptions<T extends { footer?: string; releaseDate: strin
     (option) => option.footer !== "Free",
     [(option) => option.releaseDate, "desc"],
     (option) => option.title,
+  )
+}
+
+interface CatalogOption {
+  value: { providerID: string; modelID: string }
+  title: string
+  releaseDate: string | number
+  description?: string
+  category?: string
+  disabled?: boolean
+  footer?: string
+  onSelect(): void
+}
+
+type Favorite = { providerID: string; modelID: string }
+
+function v1CatalogOptions(
+  providers: readonly Provider[],
+  providerID: string | undefined,
+  opts: { favorites: Favorite[]; connected: boolean },
+  onSelect: (providerID: string, modelID: string) => void,
+): CatalogOption[] {
+  return pipe(
+    providers,
+    sortBy(
+      (provider) => provider.id !== "opencode",
+      (provider) => provider.name,
+    ),
+    flatMap((provider) =>
+      pipe(
+        provider.models,
+        entries(),
+        filter(([_, info]) => info.status !== "deprecated"),
+        filter(([_, info]) => (providerID ? info.providerID === providerID : true)),
+        map(([model, info]) => ({
+          value: { providerID: provider.id, modelID: model },
+          title: info.name ?? model,
+          releaseDate: info.release_date ?? 0,
+          description: opts.favorites.some((item) => item.providerID === provider.id && item.modelID === model)
+            ? "(Favorite)"
+            : undefined,
+          category: opts.connected ? provider.name : undefined,
+          disabled: provider.id === "opencode" && model.includes("-nano"),
+          footer: info.cost?.input === 0 && provider.id === "opencode" ? "Free" : undefined,
+          onSelect: () => onSelect(provider.id, model),
+        })),
+      ),
+    ),
+  )
+}
+
+function v2CatalogOptions(
+  data: ReturnType<typeof useData>,
+  providerID: string | undefined,
+  onSelect: (providerID: string, modelID: string) => void,
+): CatalogOption[] {
+  const providers = new Map((data.location.provider.list() ?? []).map((provider) => [provider.id, provider]))
+  return pipe(
+    data.location.model.list() ?? [],
+    filter((info) => info.status !== "deprecated"),
+    filter((info) => (providerID ? info.providerID === providerID : true)),
+    sortBy((info) => providers.get(info.providerID)?.name ?? info.providerID),
+    map((info) => {
+      const provider = providers.get(info.providerID)
+      return {
+        value: { providerID: info.providerID, modelID: info.id },
+        title: info.name,
+        releaseDate: info.time.released ?? 0,
+        category: provider?.name,
+        disabled: info.providerID === "opencode" && info.id.includes("-nano"),
+        footer: info.cost?.[0]?.input === 0 && info.providerID === "opencode" ? "Free" : undefined,
+        onSelect: () => onSelect(info.providerID, info.id),
+      }
+    }),
   )
 }
