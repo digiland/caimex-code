@@ -32,7 +32,7 @@ const PROVIDER_ID = "caimex"
 //
 // The gateway root serves both the device-auth endpoints (/api/auth/device/*)
 // and the OpenAI-compatible API (/v1) on :2052. The sign-in / activation UI is
-// a separate origin (:2082); the CLI never calls it directly — it opens the
+// a separate origin; the CLI never calls it directly — it opens the
 // `verification_uri` the gateway returns from the device-code call.
 const DEFAULT_GATEWAY_URL = "https://caimex.econetai.co.zw:2052"
 const DEFAULT_API_BASE_URL = "https://caimex.econetai.co.zw:2052/v1"
@@ -50,6 +50,39 @@ const OAUTH_POLLING_SAFETY_MARGIN_MS = 3_000
 
 function gatewayBase(): string {
   return (process.env.CAIMEX_GATEWAY_URL ?? DEFAULT_GATEWAY_URL).replace(/\/+$/, "")
+}
+
+// Where the sign-in UI actually answers. It now serves on the canonical origin
+// (443), but the gateway still advertises the retired :2082 in the
+// `verification_uri` it returns, so the browser URL is pinned back to this one.
+// Point CAIMEX_LOGIN_URL at a different deployment to move it.
+const DEFAULT_LOGIN_URL = "https://caimex.econetai.co.zw"
+const DEFAULT_LOGIN_HOSTNAME = "caimex.econetai.co.zw"
+
+// Rewrites the origin only, keeping the path and query the gateway chose.
+//
+// Without an explicit override this touches *only* the one origin known to be
+// stale — the production host still handing back the retired port. A gateway
+// anywhere else (localhost for dev, another deployment) is left alone, since
+// rewriting it would send a developer's login at production instead.
+//
+// `hostname` and `port` are assigned separately because setting `host` to a
+// portless value leaves any existing port in place, which is the exact thing
+// being dropped here. An unparseable URI passes through untouched: a login that
+// would otherwise work must not fail over cosmetics.
+function normalizeLoginUrl(uri: string): string {
+  const override = process.env.CAIMEX_LOGIN_URL
+  try {
+    const url = new URL(uri)
+    if (!override && url.hostname !== DEFAULT_LOGIN_HOSTNAME) return uri
+    const base = new URL((override ?? DEFAULT_LOGIN_URL).replace(/\/+$/, ""))
+    url.protocol = base.protocol
+    url.hostname = base.hostname
+    url.port = base.port
+    return url.toString()
+  } catch {
+    return uri
+  }
 }
 
 // Device auth is designed to work headless, so opening a browser is a
@@ -388,7 +421,10 @@ export async function CaimexAuthPlugin(_input: PluginInput): Promise<Hooks> {
             // still quote the bare URI and the code, which is what someone
             // authorizing from a phone — or on a box where the open below
             // silently fails — actually needs.
-            const browserUrl = device.verification_uri_complete ?? device.verification_uri
+            const browserUrl = normalizeLoginUrl(device.verification_uri_complete ?? device.verification_uri)
+            // Normalized too, so the URL a user types by hand matches the one we
+            // open rather than sending them to the retired port.
+            const manualUrl = normalizeLoginUrl(device.verification_uri)
             // Best-effort: a failure here (headless, no xdg-open, no DISPLAY)
             // must not break login, since the manual path below still works.
             const opened = browserDisabled() ? false : await open(browserUrl).then(
@@ -401,8 +437,8 @@ export async function CaimexAuthPlugin(_input: PluginInput): Promise<Hooks> {
               // is actually up, so the opened copy still tells the user where to
               // go if no tab appears.
               instructions: opened
-                ? `Opening your browser. If nothing opens, go to ${device.verification_uri} on any device. Code: ${device.user_code}`
-                : `Open ${device.verification_uri} on any device and enter code: ${device.user_code}`,
+                ? `Opening your browser. If nothing opens, go to ${manualUrl} on any device. Code: ${device.user_code}`
+                : `Open ${manualUrl} on any device and enter code: ${device.user_code}`,
               method: "auto" as const,
               callback: async () => {
                 try {

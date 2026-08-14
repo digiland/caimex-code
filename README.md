@@ -49,16 +49,23 @@ gateway out of the box:
 |---|---|
 | Login (device auth) | `https://caimex.econetai.co.zw:2052` |
 | API (`/v1`)         | `https://caimex.econetai.co.zw:2052/v1` |
+| Sign-in page        | `https://caimex.econetai.co.zw` |
 
-Both live on the gateway root. The sign-in page you land on during login is the
-web UI at `https://caimex.econetai.co.zw:2082` — the gateway hands that URL back,
-so there is nothing to configure for it in the CLI.
+The first two live on the gateway root. The sign-in page you land on during
+login is the web UI, which now answers on the canonical origin — no port.
 
-Override either without touching a config file:
+> The gateway still advertises the retired `:2082` in the `verification_uri` it
+> returns from the device-code call, so the CLI rewrites that URL's origin onto
+> the sign-in host above before opening it. Once the gateway returns the
+> portless URL the rewrite becomes a no-op. Set `CAIMEX_LOGIN_URL` to point at a
+> different sign-in deployment.
+
+Override any of them without touching a config file:
 
 ```bash
 export CAIMEX_GATEWAY_URL=http://localhost:8240        # login / device-auth host
 export CAIMEX_API_BASE_URL=http://localhost:8240/v1    # OpenAI-compatible API
+export CAIMEX_LOGIN_URL=http://localhost:8240          # sign-in page the browser opens
 ```
 
 For anything else, drop a config at `~/.config/caimex-code/caimex.json`

@@ -24,11 +24,40 @@ const PROVIDER_ID = ProviderV2.ID.make("caimex")
 const INTEGRATION_ID = Integration.ID.make("caimex")
 const METHOD_ID = Integration.MethodID.make("device")
 
+// The sign-in UI serves on the canonical origin (443), but the gateway still
+// advertises the retired :2082 in `verification_uri`, so the browser URL is
+// pinned to this origin — keeping the gateway's path and query. Kept in step
+// with v1's normalizeLoginUrl; CAIMEX_LOGIN_URL overrides both.
+const DEFAULT_LOGIN_URL = "https://caimex.econetai.co.zw"
+const DEFAULT_LOGIN_HOSTNAME = "caimex.econetai.co.zw"
+
 const stripSlash = (value: string) => value.replace(/\/+$/, "")
 const gatewayBase = () => stripSlash(process.env["CAIMEX_GATEWAY_URL"] ?? DEFAULT_GATEWAY_URL)
 const apiBase = () => stripSlash(process.env["CAIMEX_API_BASE_URL"] ?? DEFAULT_API_BASE_URL)
 const deviceCodeUrl = () => process.env["CAIMEX_DEVICE_CODE_URL"] ?? `${gatewayBase()}/api/auth/device/code`
 const deviceTokenUrl = () => process.env["CAIMEX_DEVICE_TOKEN_URL"] ?? `${gatewayBase()}/api/auth/device/token`
+
+// Origin-only rewrite, keeping the gateway's path and query. Without an
+// explicit override only the one stale origin is touched, so pointing the
+// gateway at localhost for dev does not send login at production.
+//
+// `hostname` and `port` are assigned separately because setting `host` to a
+// portless value leaves any existing port intact — the very port being dropped
+// here. Unparseable input passes through unchanged.
+const normalizeLoginUrl = (uri: string) => {
+  const override = process.env["CAIMEX_LOGIN_URL"]
+  try {
+    const url = new URL(uri)
+    if (!override && url.hostname !== DEFAULT_LOGIN_HOSTNAME) return uri
+    const base = new URL(stripSlash(override ?? DEFAULT_LOGIN_URL))
+    url.protocol = base.protocol
+    url.hostname = base.hostname
+    url.port = base.port
+    return url.toString()
+  } catch {
+    return uri
+  }
+}
 
 // The gateway filters /v1/models by User-Agent — it serves the set an admin
 // enabled for the Caimex Code surface — so an unidentified fetch would list
@@ -102,8 +131,8 @@ function oauth(http: HttpClient.HttpClient) {
         // is what someone authorizing from a phone actually needs.
         return {
           mode: "auto" as const,
-          url: device.verification_uri_complete ?? device.verification_uri,
-          instructions: `Open ${device.verification_uri} on any device and enter code: ${device.user_code}`,
+          url: normalizeLoginUrl(device.verification_uri_complete ?? device.verification_uri),
+          instructions: `Open ${normalizeLoginUrl(device.verification_uri)} on any device and enter code: ${device.user_code}`,
           callback: poll(http, device.device_code, interval(device.interval)),
         }
       }),
