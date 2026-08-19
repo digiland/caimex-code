@@ -187,9 +187,12 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
         Boolean(yield* dep.auth(input.id)) ||
         Boolean((yield* dep.config()).provider?.["opencode"]?.options?.apiKey)
 
+      // caimex: upstream keeps its zero-cost "free" models loadable without a key,
+      // which surfaces opencode/* entries in a build that should only ever offer
+      // the Caimex gateway. Drop the whole provider unless it is explicitly
+      // configured.
       if (!ok) {
-        for (const [key, value] of Object.entries(input.models)) {
-          if (value.cost.input === 0) continue
+        for (const key of Object.keys(input.models)) {
           delete input.models[key]
         }
       }

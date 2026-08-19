@@ -169,8 +169,10 @@ export const OpencodePlugin = define<HttpClient.HttpClient | EventV2.Service | S
         if (!hasKey) provider.request.body.apiKey = "public"
       })
       if (hasKey) return
+      // caimex: upstream leaves its zero-cost "free" models enabled without a key,
+      // which surfaces opencode/* entries in a build that should only ever offer
+      // the Caimex gateway. Disable them all unless a key is present.
       for (const model of item.models.values()) {
-        if (!model.cost.some((cost) => cost.input > 0)) continue
         catalog.model.update(item.provider.id, model.id, (draft) => {
           draft.enabled = false
         })
