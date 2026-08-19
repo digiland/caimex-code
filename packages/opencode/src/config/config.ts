@@ -147,6 +147,11 @@ const CAIMEX_DEFAULT_API_BASE_URL = process.env["CAIMEX_API_BASE_URL"] ?? "https
 
 function caimexDefaults(): Info {
   return {
+    // Only the gateway is offered out of the box. Without this, models.dev's
+    // whole provider catalog (opencode zen included, ~91 models) shows up in
+    // the connect dialog on a stock install. A user-level config can still add
+    // providers back, since every config file merges over these defaults.
+    enabled_providers: ["caimex"],
     provider: {
       caimex: {
         npm: "@ai-sdk/openai-compatible",
