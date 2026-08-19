@@ -76,11 +76,18 @@ const providerLayer = (flags: Partial<RuntimeFlags.Info> = {}) =>
 
 const list = Provider.use.list()
 
+// caimex: without a credential we drop the opencode provider outright, where
+// upstream kept it loaded to serve its zero-cost "free" models. So "provider
+// absent" and "no paid models" are the same state for this fork, and the
+// keyed cases below still assert a present provider via a non-zero count.
 const paid = (providers: Record<string, { models: Record<string, { cost: { input: number } }> }>) => {
   const item = providers[ProviderV2.ID.make("opencode")]
-  expect(item).toBeDefined()
+  if (!item) return 0
   return Object.values(item.models).filter((model) => model.cost.input > 0).length
 }
+
+const hasOpencode = (providers: Record<string, unknown>) =>
+  Boolean(providers[ProviderV2.ID.make("opencode")])
 
 const languageBaseURL = (language: unknown) => (language as { config: { baseURL: string } }).config.baseURL
 
@@ -2051,10 +2058,11 @@ it.effect("opencode loader keeps paid models when config apiKey is present", () 
         .pipe(provideInstanceEffect(directory))
         .pipe(Effect.provide(instanceStoreLayer), Effect.provide(AppNodeBuilder.build(CrossSpawnSpawner.node)))
 
-    const none = paid(yield* listIn(noneDir))
+    const noneProviders = yield* listIn(noneDir)
     const keyedCount = paid(yield* listIn(keyedDir))
 
-    expect(none).toBe(0)
+    expect(hasOpencode(noneProviders)).toBe(false)
+    expect(paid(noneProviders)).toBe(0)
     expect(keyedCount).toBeGreaterThan(0)
   }).pipe(provideMultiInstance),
 )
@@ -2070,7 +2078,7 @@ it.effect("opencode loader keeps paid models when auth exists", () =>
         .pipe(provideInstanceEffect(directory))
         .pipe(Effect.provide(instanceStoreLayer), Effect.provide(AppNodeBuilder.build(CrossSpawnSpawner.node)))
 
-    const none = paid(yield* listIn(noneDir))
+    const noneProviders = yield* listIn(noneDir)
 
     const authPath = path.join(Global.Path.data, "auth.json")
     const original = yield* Effect.promise(() => Filesystem.readText(authPath).catch(() => undefined))
@@ -2086,7 +2094,8 @@ it.effect("opencode loader keeps paid models when auth exists", () =>
 
     const keyedCount = paid(yield* listIn(keyedDir))
 
-    expect(none).toBe(0)
+    expect(hasOpencode(noneProviders)).toBe(false)
+    expect(paid(noneProviders)).toBe(0)
     expect(keyedCount).toBeGreaterThan(0)
   }).pipe(provideMultiInstance),
 )
