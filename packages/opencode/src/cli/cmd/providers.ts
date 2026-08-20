@@ -9,7 +9,7 @@ import { ModelsDev } from "@opencode-ai/core/models-dev"
 import { map, pipe, sortBy, values } from "remeda"
 import path from "path"
 import os from "os"
-import { Config } from "@/config/config"
+import { CAIMEX_CATALOG_PROVIDERS, Config } from "@/config/config"
 import { Global } from "@opencode-ai/core/global"
 import { Plugin } from "../../plugin"
 import type { Hooks } from "@opencode-ai/plugin"
@@ -362,12 +362,14 @@ export const ProvidersLoginCommand = effectCmd({
     const config = yield* cfgSvc.get()
 
     const disabled = new Set(config.disabled_providers ?? [])
-    const enabled = config.enabled_providers ? new Set(config.enabled_providers) : undefined
+    // No user allowlist → fall back to the Caimex catalog default, so a stock
+    // install offers the gateway rather than all of models.dev.
+    const enabled = new Set(config.enabled_providers ?? CAIMEX_CATALOG_PROVIDERS)
 
     const allProviders = yield* modelsDev.get()
     const providers: Record<string, (typeof allProviders)[string]> = {}
     for (const [key, value] of Object.entries(allProviders)) {
-      if ((enabled ? enabled.has(key) : true) && !disabled.has(key)) providers[key] = value
+      if (enabled.has(key) && !disabled.has(key)) providers[key] = value
     }
     const hooks = yield* pluginSvc.list()
 

@@ -396,6 +396,14 @@ describe("provider HttpApi", () => {
       expect(hasProviderMutationMarker(configBody, "providers", "google")).toBe(false)
       expect(hasNonZeroModelCost(providerBody, "all", "google")).toBe(true)
     }),
-    { ...projectOptions, init: writeProviderModelsMutationPlugin },
+    // `enabled_providers` is explicit because this asserts against google in the
+    // catalog listing, which a stock install narrows to the gateway. Naming the
+    // providers keeps the test about hook-mutation isolation rather than about
+    // whatever the default catalog happens to be.
+    {
+      ...projectOptions,
+      config: { ...projectOptions.config, enabled_providers: ["google", "caimex"] },
+      init: writeProviderModelsMutationPlugin,
+    },
   )
 })

@@ -1,5 +1,5 @@
 import { ProviderAuth } from "@/provider/auth"
-import { Config } from "@/config/config"
+import { CAIMEX_CATALOG_PROVIDERS, Config } from "@/config/config"
 import { ModelsDev } from "@opencode-ai/core/models-dev"
 import { Provider } from "@/provider/provider"
 import { Auth } from "@/auth"
@@ -43,10 +43,12 @@ export const providerHandlers = HttpApiBuilder.group(InstanceHttpApi, "provider"
       const config = yield* cfg.get()
       const all = yield* ModelsDev.Service.use((s) => s.get())
       const disabled = new Set(config.disabled_providers ?? [])
-      const enabled = config.enabled_providers ? new Set(config.enabled_providers) : undefined
+      // No user allowlist → the Caimex catalog default, matching the CLI's
+      // connect dialog: a stock install lists the gateway, not all of models.dev.
+      const enabled = new Set(config.enabled_providers ?? CAIMEX_CATALOG_PROVIDERS)
       const filtered: Record<string, (typeof all)[string]> = {}
       for (const [key, value] of Object.entries(all)) {
-        if ((enabled ? enabled.has(key) : true) && !disabled.has(key)) filtered[key] = value
+        if (enabled.has(key) && !disabled.has(key)) filtered[key] = value
       }
       const connected = yield* provider.list()
       const credentials = yield* authStore.all().pipe(Effect.orDie)
