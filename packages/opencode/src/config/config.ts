@@ -145,28 +145,53 @@ export const use = serviceUse(Service)
 // the same gateway root (:2052) that serves the OpenAI-compatible API.
 const CAIMEX_DEFAULT_API_BASE_URL = process.env["CAIMEX_API_BASE_URL"] ?? "https://caimex.econetai.co.zw:2052/v1"
 
+// Which providers a stock install *offers* — the connect dialog and the
+// provider listing API, both of which enumerate the whole models.dev catalog
+// (~91 providers, opencode zen included) when nothing narrows them.
+//
+// Deliberately not seeded into `enabled_providers` in the defaults below.
+// That key means "ONLY these providers may load at all", and applying it from a
+// default would silently drop providers the user actually asked for — an
+// ANTHROPIC_API_KEY in the environment, or a provider written into their own
+// caimex.json — with no error to explain the absence. Restricting the *catalog*
+// is what was wanted; restricting what may load was collateral. A user who sets
+// `enabled_providers` themselves still gets the documented upstream meaning,
+// here and everywhere else.
+export const CAIMEX_CATALOG_PROVIDERS = ["caimex"]
+
 function caimexDefaults(): Info {
   return {
-    // Only the gateway is offered out of the box. Without this, models.dev's
-    // whole provider catalog (opencode zen included, ~91 models) shows up in
-    // the connect dialog on a stock install. A user-level config can still add
-    // providers back, since every config file merges over these defaults.
-    enabled_providers: ["caimex"],
     provider: {
       caimex: {
         npm: "@ai-sdk/openai-compatible",
         name: "Caimex Gateway",
         options: { baseURL: CAIMEX_DEFAULT_API_BASE_URL },
-        // Seed models so the very first run (before the gateway catalog is
-        // cached) still has something selectable; the caimex plugin discovers
-        // the rest from GET /v1/models and refreshes pricing.
+        // One seed model, so the very first run — before the gateway catalog
+        // is cached, or with the gateway unreachable — still has something
+        // selectable. Everything else comes from GET /v1/models, which also
+        // refreshes this one's pricing and limits.
+        //
+        // The id must match the gateway exactly *and* the model must actually
+        // answer, or the entry is a phantom the picker offers and the request
+        // path then fails. Both have bitten this seed:
+        //   - "Caimex/moonshotai/kimi-k2.6" was never served at all.
+        //   - "Qwen3.5-122b" is served and advertises `tools`, but requests to
+        //     it time out and the routing chain drops it as unavailable.
+        // DeepSeek-V4-Flash is verified live end to end: HTTP 200 in ~0.5s, real
+        // tool_calls, and a clean agent turn through the CLI.
+        //
+        // Laguna passes the same request tests but is NOT usable as the default:
+        // it emits `<think>` reasoning that nothing on the response path parses,
+        // so raw reasoning and stray `</think>` tags land in the user's output.
+        // (The only strip in the tree, in session/prompt.ts, is title-generation
+        // only and matches paired tags — Laguna's closer arrives unpaired.)
+        //
+        // Note the gateway catalog reports `capabilities: ["chat"]` for all of
+        // these; that metadata understates them. Tool calling was tested directly
+        // against the gateway rather than trusted from the catalog.
         models: {
-          "Caimex/moonshotai/kimi-k2.6": {
-            name: "Kimi K2.6",
-            limit: { context: 262144, output: 32000 },
-          },
-          "Qwen3.5-122b": {
-            name: "Qwen 3.5 122B",
+          "Caimex2/deepseek-ai/DeepSeek-V4-Flash": {
+            name: "DeepSeek V4 Flash",
             limit: { context: 131072, output: 32000 },
           },
         },

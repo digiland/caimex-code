@@ -76,6 +76,7 @@ starter config ships in this repo at [`caimex.json`](./caimex.json):
 ```jsonc
 {
   "$schema": "https://opencode.ai/config.json",
+  "enabled_providers": ["caimex"], // gateway only; drop to re-enable models.dev
   "provider": {
     "caimex": {
       "npm": "@ai-sdk/openai-compatible",
@@ -89,8 +90,12 @@ starter config ships in this repo at [`caimex.json`](./caimex.json):
 }
 ```
 
-- Models are **auto-discovered** from the gateway's `GET /v1/models`; you may
-  still declare models under `"models"` to override names/limits/cost.
+- Models are **auto-discovered** from the gateway's `GET /v1/models` — the
+  config declares no `"models"` at all. The gateway filters that list to what an
+  admin enabled for the CLI surface, so what the picker offers is what the
+  request path accepts. Declare `"models"` only to override a name/limit/cost;
+  an id that does not match the gateway becomes a model the picker shows and
+  the gateway then refuses.
 - Reference a model as `caimex/<model-id>` (ids match the gateway's `/v1/models`).
 - The API key is supplied by `caimex auth login` (no `apiKey` needed in
   config; a `CAIMEX_API_KEY` env var works as a fallback).
