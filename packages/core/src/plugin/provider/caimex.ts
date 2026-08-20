@@ -172,6 +172,12 @@ export const CaimexPlugin = define<HttpClient.HttpClient | EventV2.Service | Sco
         integrationID: INTEGRATION_ID,
         method: { type: "key", label: "Paste a Caimex API key" },
       })
+      // Same fallback as v1's `{env:CAIMEX_API_KEY}` — lets a locally-exported
+      // key authenticate without running the device-login flow.
+      draft.method.update({
+        integrationID: INTEGRATION_ID,
+        method: { type: "env", names: ["CAIMEX_API_KEY"] },
+      })
     })
 
     yield* ctx.catalog.transform((catalog) => {

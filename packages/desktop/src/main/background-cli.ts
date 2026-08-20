@@ -17,12 +17,13 @@ type Logger = {
 }
 
 export async function startBackgroundCli(logger: Logger, shellStateHome?: string) {
-  const bundled = app.isPackaged
+  const overridden = process.env.OPENCODE_V2_CLI_PATH
+  const bundled = overridden ?? (app.isPackaged
     ? join(process.resourcesPath, executableName())
-    : join(root, "../../resources", executableName())
-  logger.log("v2 CLI executable resolved", { bundled, packaged: app.isPackaged })
+    : join(root, "../../resources", executableName()))
+  logger.log("v2 CLI executable resolved", { bundled, packaged: app.isPackaged, overridden: Boolean(overridden) })
   const version = await run(bundled, ["--version"], logger)
-  const binary = app.isPackaged ? await installCli(bundled, version, logger) : bundled
+  const binary = overridden || !app.isPackaged ? bundled : await installCli(bundled, version, logger)
 
   const candidates = [
     ...new Set([stateHome, shellStateHome, ...desktopStateNames.map((name) => join(app.getPath("appData"), name))]),
