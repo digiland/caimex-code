@@ -19,9 +19,13 @@ export function normalizeAgentList(input: AgentListOutput["data"] | Agent[]): Ag
     description: agent.description,
     mode: agent.mode,
     hidden: agent.hidden,
+    // `settings` is declared by the vendored @opencode-ai/client the app builds
+    // against, but the v2 server this fork ships sends `request` as
+    // {headers, body} with no settings at all — reading through it threw and
+    // took the whole directory bootstrap with it. Optional until the two agree.
     temperature:
-      typeof agent.request.settings.temperature === "number" ? agent.request.settings.temperature : undefined,
-    topP: typeof agent.request.settings.topP === "number" ? agent.request.settings.topP : undefined,
+      typeof agent.request.settings?.temperature === "number" ? agent.request.settings.temperature : undefined,
+    topP: typeof agent.request.settings?.topP === "number" ? agent.request.settings.topP : undefined,
     color: agent.color,
     permission: agent.permissions.map((rule) => ({
       permission: rule.action,
@@ -31,7 +35,7 @@ export function normalizeAgentList(input: AgentListOutput["data"] | Agent[]): Ag
     model: agent.model && { providerID: agent.model.providerID, modelID: agent.model.id },
     variant: agent.model?.variant,
     prompt: agent.system,
-    options: agent.request.settings,
+    options: agent.request.settings ?? {},
     steps: agent.steps,
   }))
 }

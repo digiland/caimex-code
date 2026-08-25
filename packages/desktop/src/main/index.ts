@@ -61,7 +61,12 @@ const APP_IDS: Record<string, string> = {
   prod: "ai.opencode.desktop",
 }
 const TEST_ONBOARDING = process.env.OPENCODE_TEST_ONBOARDING === "1"
-const SIDECAR_VERSION = process.env.OPENCODE_SIDECAR_V2 === "1" ? "v2" : "v1"
+// caimex: upstream defaults to the v1 sidecar and treats v2 as opt-in. This
+// fork defaults the other way — the v2 backend is the one the gateway plugin
+// (packages/core/src/plugin/provider/caimex.ts) runs in, and it is what the
+// desktop is being built against. OPENCODE_SIDECAR_V2=0 still selects v1, which
+// this fork also serves, via packages/opencode.
+const SIDECAR_VERSION = process.env.OPENCODE_SIDECAR_V2 === "0" ? "v1" : "v2"
 const jsCallStackFeature = "DocumentPolicyIncludeJSCallStacksInCrashReports"
 
 let logger: ReturnType<typeof initLogging>
@@ -203,7 +208,7 @@ const main = Effect.gen(function* () {
   const shellEnv = preferAppEnv(app.getPath("userData"))
 
   app.on("second-instance", (_event: Event, argv: string[]) => {
-    const urls = argv.filter((arg: string) => arg.startsWith("opencode://"))
+    const urls = argv.filter((arg: string) => arg.startsWith("caimex://"))
     if (urls.length) {
       logger.log("deep link received via second-instance", { urls })
       emitDeepLinks(urls)
@@ -268,7 +273,7 @@ const main = Effect.gen(function* () {
       }),
     ),
   )
-  app.setAsDefaultProtocolClient("opencode")
+  app.setAsDefaultProtocolClient("caimex")
   registerRendererProtocol()
   setDockIcon()
   const updater = setupAutoUpdater(stopSidecars)

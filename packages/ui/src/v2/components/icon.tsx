@@ -9,6 +9,15 @@ const icons = {
     viewBox: "0 0 16 16",
     body: `<path d="M7.5 13.3333H1.5V2H6.83333L8.83333 4H14.8333V6M10.1667 11.3333H15.5M12.8333 8.66667V14" stroke="currentColor" stroke-miterlimit="10" stroke-linecap="square"/>`,
   },
+  // caimex: absent from upstream's v2 set even though the v2 file browser asks
+  // for it by name (session-file-browser-tab.tsx), and Icon silently falls back
+  // to "plus" for an unknown name — so the file panel's empty state showed a
+  // plus. Path taken from the v1 set in ../../components/icon.tsx, rescaled
+  // from its 20x20 viewBox to the 16x16 these use.
+  "file-tree": {
+    viewBox: "0 0 20 20",
+    body: `<path d="M18 18V5H9.5L7.5 2H2L2 18H5M18 18H5M18 18V8.5H5V18" stroke="currentColor" stroke-linecap="square"/>`,
+  },
   folder: {
     viewBox: "0 0 16 16",
     body: `<path d="M2.545 3.364V12.636H13.455V5H8.545L6.909 3.364H2.545Z" stroke="currentColor" stroke-miterlimit="10" stroke-linecap="square"/>`,

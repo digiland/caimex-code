@@ -197,7 +197,13 @@ describe("OpencodePlugin", () => {
     ),
   )
 
-  it.effect("uses a public key and disables paid models without credentials", () =>
+  // caimex: upstream parks `apiKey = "public"` on an unconnected opencode
+  // provider so its free tier stays usable without an account. This fork does
+  // not — a parked key is what makes a provider pass Catalog.available(), and
+  // it put OpenCode Zen in the desktop's provider list of a build that only
+  // ever offers the Caimex gateway. Disabling the models is kept; the key is
+  // not. See packages/core/src/plugin/provider/opencode.ts.
+  it.effect("leaves the provider unconnected and disables paid models without credentials", () =>
     withEnv({ OPENCODE_API_KEY: undefined }, () =>
       Effect.gen(function* () {
         const catalog = yield* Catalog.Service
@@ -217,7 +223,7 @@ describe("OpencodePlugin", () => {
           })
         })
         yield* addPlugin()
-        expect(required(yield* catalog.provider.get(ProviderV2.ID.opencode)).request.body.apiKey).toBe("public")
+        expect(required(yield* catalog.provider.get(ProviderV2.ID.opencode)).request.body.apiKey).toBeUndefined()
         expect(required(yield* catalog.model.get(ProviderV2.ID.opencode, ModelV2.ID.make("paid"))).enabled).toBe(false)
       }),
     ),

@@ -9,12 +9,6 @@ const execFileAsync = promisify(execFile)
 const packageDir = path.dirname(fileURLToPath(import.meta.url))
 const rootDir = path.resolve(packageDir, "../..")
 const signScript = path.join(rootDir, "script", "sign-windows.ps1")
-// The Electron 42 packaging update briefly installed Linux launchers/icons under
-// "opencode-desktop". Keep that hidden desktop entry around so existing GNOME/KDE
-// pins still resolve after the canonical app id changes back to ai.opencode.desktop.
-const legacyDesktopEntry = path.join(packageDir, "resources", "linux", "opencode-desktop.desktop")
-const legacyDesktopEntryFpm = `${legacyDesktopEntry}=/usr/share/applications/opencode-desktop.desktop`
-
 const metainfoFpm = (appId: string) =>
   `${path.join(packageDir, "resources", `${appId}.metainfo.xml`)}=/usr/share/metainfo/${appId}.metainfo.xml`
 
@@ -35,14 +29,19 @@ const channel = (() => {
   return "dev"
 })()
 
+// Reverse-DNS of the gateway's own domain, caimex.econetai.co.zw. Changing an
+// app id changes the userData directory with it, so an existing install starts
+// from a clean profile — background-cli.ts keeps looking under the old names
+// too, so a v2 daemon already running for the OpenCode-branded build is still
+// found rather than duplicated.
 const APP_IDS = {
-  dev: "ai.opencode.desktop.dev",
-  beta: "ai.opencode.desktop.beta",
-  prod: "ai.opencode.desktop",
+  dev: "zw.co.econetai.caimex.desktop.dev",
+  beta: "zw.co.econetai.caimex.desktop.beta",
+  prod: "zw.co.econetai.caimex.desktop",
 } as const
 
 const getBase = (appId: string): Configuration => ({
-  artifactName: "opencode-desktop-${os}-${arch}.${ext}",
+  artifactName: "caimex-desktop-${os}-${arch}.${ext}",
   directories: {
     output: "dist",
     buildResources: "resources",
@@ -57,15 +56,15 @@ const getBase = (appId: string): Configuration => ({
   },
   files: ["out/**/*", "resources/**/*", "!resources/opencode-cli*"],
   extraResources: [
-    ...(channel === "dev"
-      ? [
-          {
-            from: "resources/",
-            to: "",
-            filter: ["opencode-cli*"],
-          },
-        ]
-      : []),
+    // caimex: upstream ships the v2 CLI only on dev because v2 is its beta and
+    // the packaged app runs the v1 sidecar. This fork defaults to the v2
+    // sidecar (see SIDECAR_VERSION in src/main/index.ts), and that sidecar IS
+    // this binary — a channel without it packages an app that cannot start.
+    {
+      from: "resources/",
+      to: "",
+      filter: ["opencode-cli*"],
+    },
     {
       from: "native/",
       to: "native/",
@@ -86,8 +85,8 @@ const getBase = (appId: string): Configuration => ({
     sign: true,
   },
   protocols: {
-    name: "OpenCode",
-    schemes: ["opencode"],
+    name: "Caimex Code",
+    schemes: ["caimex"],
   },
   win: {
     icon: `resources/icons/icon.ico`,
@@ -127,31 +126,33 @@ function getConfig() {
       return {
         ...base,
         appId,
-        productName: "OpenCode Dev",
+        productName: "Caimex Code Dev",
         deb: { fpm: [metainfoFpm(appId)] },
-        rpm: { packageName: "opencode-dev", fpm: [metainfoFpm(appId)] },
+        rpm: { packageName: "caimex-code-dev", fpm: [metainfoFpm(appId)] },
       }
     }
     case "beta": {
       return {
         ...base,
         appId,
-        productName: "OpenCode Beta",
-        protocols: { name: "OpenCode Beta", schemes: ["opencode"] },
-        publish: { provider: "github", owner: "anomalyco", repo: "opencode-beta", channel: "latest" },
+        productName: "Caimex Code Beta",
+        protocols: { name: "Caimex Code Beta", schemes: ["caimex"] },
+        publish: { provider: "github", owner: "digiland", repo: "caimex-code", channel: "beta" },
         deb: { fpm: [metainfoFpm(appId)] },
-        rpm: { packageName: "opencode-beta", fpm: [metainfoFpm(appId)] },
+        rpm: { packageName: "caimex-code-beta", fpm: [metainfoFpm(appId)] },
       }
     }
     case "prod": {
       return {
         ...base,
         appId,
-        productName: "OpenCode",
-        protocols: { name: "OpenCode", schemes: ["opencode"] },
-        publish: { provider: "github", owner: "anomalyco", repo: "opencode", channel: "latest" },
-        deb: { fpm: [metainfoFpm(appId), legacyDesktopEntryFpm] },
-        rpm: { packageName: "opencode", fpm: [metainfoFpm(appId), legacyDesktopEntryFpm] },
+        productName: "Caimex Code",
+        protocols: { name: "Caimex Code", schemes: ["caimex"] },
+        publish: { provider: "github", owner: "digiland", repo: "caimex-code", channel: "latest" },
+        // No legacy .desktop entry: that one exists to keep GNOME/KDE pins
+        // working across an OpenCode-era app id rename this fork never shipped.
+        deb: { fpm: [metainfoFpm(appId)] },
+        rpm: { packageName: "caimex-code", fpm: [metainfoFpm(appId)] },
       }
     }
   }

@@ -61,7 +61,9 @@ export const DialogSelectModelUnpaid: Component<{ model?: ModelState }> = (props
                 <ModelTooltip
                   model={item}
                   latest={item.latest}
-                  free={item.provider.id === "opencode" && (!item.cost || item.cost.input === 0)}
+                  // caimex: free means zero cost, not "served by opencode" —
+                  // see the same change in dialog-select-model-unpaid-v2.tsx.
+                  free={!item.cost || item.cost.input === 0}
                 />
               }
             >

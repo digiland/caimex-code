@@ -13,7 +13,7 @@ import { useLanguage } from "@/context/language"
 import { ModelTooltip } from "./model-tooltip"
 
 type ModelState = ReturnType<typeof useLocal>["model"]
-const featuredProviders = ["opencode", "opencode-go", "openai", "anthropic", "google", "github-copilot"]
+const featuredProviders = ["caimex"]
 const displayModelName = (name: string) => name.replace(/\s+(?:\(free\)|free)$/i, "")
 
 export const DialogSelectModelUnpaidV2: Component<{ model?: ModelState }> = (props) => {
@@ -29,8 +29,13 @@ export const DialogSelectModelUnpaidV2: Component<{ model?: ModelState }> = (pro
     const c = model.current()
     return c ? `${c.provider.id}:${c.id}` : undefined
   })
-  const isFree = (item: ReturnType<ModelState["list"]>[number]) =>
-    item.provider.id === "opencode" && (!item.cost || item.cost.input === 0)
+  // caimex: upstream reads "free" as "served by opencode at zero cost", because
+  // its free tier is the only one it knows about. The gateway has a free tier
+  // too — 18 of its models cost nothing — and hardcoding the provider hid every
+  // one of them, leaving this dialog empty in a build where Caimex is the only
+  // provider. A model is free when it costs nothing; who serves it is not the
+  // question being asked.
+  const isFree = (item: ReturnType<ModelState["list"]>[number]) => !item.cost || item.cost.input === 0
   const freeModels = createMemo(() => model.list().filter(isFree))
 
   const openProviders = (provider?: string) => {

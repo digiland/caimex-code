@@ -106,9 +106,15 @@ export const loadMcpQuery = (
     queryKey: [scope, directory, "mcp"] as const,
     queryFn: async () => {
       if ((await protocol) === "v1" && legacy) return (await legacy.mcp.status()).data ?? {}
+      // The v2 API this fork serves has no MCP group at all (see the group list
+      // in packages/protocol/src/api.ts) — the vendored client declares one, so
+      // the call compiles and then 404s, failing the directory bootstrap. No
+      // endpoint means nothing to report, not an error.
+      if (!api) return {}
       return api
         .list({ location: { directory } })
         .then((result) => Object.fromEntries(result.data.map((server) => [server.name, server.status])))
+        .catch(() => ({}))
     },
   })
 
@@ -135,11 +141,13 @@ export const loadMcpResourcesQuery = (
           ]),
         )
       }
+      // Same missing MCP group as loadMcpQuery above.
       return api.resource
         .catalog({ location: { directory } })
         .then((result) =>
           Object.fromEntries(result.data.resources.map((resource) => [`${resource.server}:${resource.uri}`, resource])),
         )
+        .catch(() => ({}))
     },
     placeholderData: {},
   })
@@ -185,7 +193,7 @@ function makeQueryOptionsApi(
 ) {
   return {
     globalConfig: () => loadGlobalConfigQuery(scope, serverSDK(), protocol),
-    projects: () => loadProjectsQuery(scope, serverAPI.project),
+    projects: () => loadProjectsQuery(scope, serverAPI.project, protocol),
     providers: (directory: PathKey | null) =>
       loadProvidersQuery(scope, directory, serverAPI, directory ? sdkFor(directory) : serverSDK(), protocol),
     path: (directory: PathKey | null) =>

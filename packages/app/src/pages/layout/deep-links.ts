@@ -1,7 +1,14 @@
 export const deepLinkEvent = "opencode:deep-link"
 
+// The URL scheme registered by the desktop app — see `protocols` in
+// packages/desktop/electron-builder.config.ts and setAsDefaultProtocolClient in
+// its main process, which must all name the same scheme. `deepLinkEvent` above
+// and the `__OPENCODE__` bridge below are internal channel names shared with
+// the preload script, not user-visible, and are deliberately left alone.
+export const DEEP_LINK_SCHEME = "caimex://"
+
 const parseUrl = (input: string) => {
-  if (!input.startsWith("opencode://")) return
+  if (!input.startsWith(DEEP_LINK_SCHEME)) return
   if (typeof URL.canParse === "function" && !URL.canParse(input)) return
   try {
     return new URL(input)
