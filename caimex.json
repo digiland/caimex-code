@@ -17,5 +17,5 @@
     "prune": true,
     "reserved": 160000
   },
-  "model": "caimex/Caimex/moonshotai/kimi-k2.6"
+  "model": "caimex/Caimex2/deepseek-ai/DeepSeek-V4-Flash"
 }

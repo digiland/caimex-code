@@ -173,10 +173,27 @@ function caimexDefaults(): Info {
         //
         // The id must match the gateway exactly *and* the model must actually
         // answer, or the entry is a phantom the picker offers and the request
-        // path then fails. Both have bitten this seed:
+        // path then fails. Three things have bitten this seed:
         //   - "Caimex/moonshotai/kimi-k2.6" was never served at all.
         //   - "Qwen3.5-122b" is served and advertises `tools`, but requests to
         //     it time out and the routing chain drops it as unavailable.
+        //   - Ids on this gateway are not stable, and the churn is not always a
+        //     clean retirement. On 2026-08-27 every "Caimex/*" id (glm-5.2,
+        //     kimi, kimi-k2.6) disappeared from GET /v1/models, and hours later
+        //     a single fused id — "Caimex/kimi glm-5.2", with a literal space —
+        //     appeared in their place. That fused string is the only one that
+        //     routes: it answers 200 and emits real tool_calls (it is GLM, per
+        //     its own self-report), while "Caimex/glm-5.2", "glm-5.2" and
+        //     "Caimex/kimi" all 403. It reads as a missing separator in the
+        //     gateway's own model config, so treat it as temporary and do not
+        //     pin the shipped default to it.
+        //     A config `model` pointing at a dead id fails with "Forbidden: No
+        //     allowed models for routing chain" — and because
+        //     Provider.defaultModel returns cfg.model verbatim without an
+        //     availability check, nothing falls back for you. Re-check against
+        //     the live endpoint, not the cached catalog at
+        //     $XDG_CACHE_HOME/caimex-code/model-catalog.json: it survives its
+        //     TTL long enough to both hide new ids and offer dead ones.
         // DeepSeek-V4-Flash is verified live end to end: HTTP 200 in ~0.5s, real
         // tool_calls, and a clean agent turn through the CLI.
         //
