@@ -1,5 +1,7 @@
 import type { Hooks, PluginInput } from "@opencode-ai/plugin"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
+import { Global } from "@opencode-ai/core/global"
+import { createHash } from "crypto"
 import { readFileSync, writeFileSync, mkdirSync } from "fs"
 import open from "open"
 import os from "os"
@@ -98,7 +100,7 @@ function browserDisabled(): boolean {
 // The OpenAI-compatible API root (…/v1). Independent of the login host, since
 // the two live on different ports. Overridable with CAIMEX_BASE_URL; a baseURL
 // declared in caimex.json still wins over both (config deep-merges last).
-function apiBase(): string {
+export function apiBase(): string {
   return (process.env.CAIMEX_API_BASE_URL ?? DEFAULT_API_BASE_URL).replace(/\/+$/, "")
 }
 
@@ -170,6 +172,13 @@ interface CatalogCache {
   // used to leave the old gateway's models in the picker indefinitely, because
   // discovery only ever ADDS entries and nothing expired the stale ones.
   baseURL?: string
+  // Which credential produced this catalog. The gateway narrows /v1/models by
+  // who is asking — a free-tier caller sees only the models their allowance can
+  // reach — so a catalog fetched while logged out is NOT interchangeable with
+  // one fetched with a key, and swapping accounts changes the answer too. Cache
+  // hits therefore have to match on identity as well as gateway, or the picker
+  // offers models the request path will refuse.
+  identity?: string
   models: Record<string, DiscoveredModel>
 }
 
@@ -188,6 +197,32 @@ const CATALOG_FIRST_FETCH_TIMEOUT_MS = Number(process.env.CAIMEX_CATALOG_FETCH_T
 // doesn't advertise its own context/output window. Override per deployment.
 const DISCOVERY_DEFAULT_CONTEXT = Number(process.env.CAIMEX_DISCOVERY_DEFAULT_CONTEXT) || 128_000
 const DISCOVERY_DEFAULT_OUTPUT = Number(process.env.CAIMEX_DISCOVERY_DEFAULT_OUTPUT) || 32_000
+
+// The gateway key this install is logged in with, if any.
+//
+// Read from auth.json directly rather than through the `loader(getAuth)` hook:
+// the catalog refresh happens in the `config` hook, which is not handed auth,
+// and the file is the same one the auth flow writes.
+function storedApiKey(): string | undefined {
+  const fromEnv = process.env.CAIMEX_API_KEY
+  if (fromEnv) return fromEnv
+  try {
+    const raw = readFileSync(path.join(Global.Path.data, "auth.json"), "utf8")
+    const entry = JSON.parse(raw)?.[PROVIDER_ID]
+    if (!entry || typeof entry !== "object") return undefined
+    const key = entry.type === "api" ? entry.key : entry.type === "oauth" ? entry.access : undefined
+    return typeof key === "string" && key ? key : undefined
+  } catch {
+    return undefined
+  }
+}
+
+// Short, non-reversible marker for "which credential was this fetched with".
+// Hashed rather than stored raw so the cache file never holds a usable key.
+function identityOf(apiKey: string | undefined): string {
+  if (!apiKey) return "anon"
+  return createHash("sha256").update(apiKey).digest("hex").slice(0, 16)
+}
 
 function discoveryEnabled(): boolean {
   const flag = process.env.CAIMEX_DISABLE_MODEL_DISCOVERY
@@ -212,27 +247,54 @@ function firstFinite(...vals: unknown[]): number | undefined {
 // Entries written before this field existed carry no baseURL and are discarded
 // on first run after upgrading — one refetch, rather than trusting a catalog we
 // cannot attribute to a gateway.
-function readCatalogCache(baseURL: string): CatalogCache | undefined {
+function readCatalogCache(baseURL: string, identity: string): CatalogCache | undefined {
   try {
     const parsed = JSON.parse(readFileSync(CATALOG_CACHE_FILE, "utf8")) as CatalogCache
-    if (parsed && typeof parsed.at === "number" && parsed.models && parsed.baseURL === baseURL) return parsed
+    if (
+      parsed &&
+      typeof parsed.at === "number" &&
+      parsed.models &&
+      parsed.baseURL === baseURL &&
+      parsed.identity === identity
+    )
+      return parsed
   } catch {}
   return undefined
 }
 
-function writeCatalogCache(baseURL: string, models: Record<string, DiscoveredModel>): void {
+function writeCatalogCache(
+  baseURL: string,
+  identity: string,
+  models: Record<string, DiscoveredModel>,
+): void {
   try {
     mkdirSync(path.dirname(CATALOG_CACHE_FILE), { recursive: true })
-    writeFileSync(CATALOG_CACHE_FILE, JSON.stringify({ at: Date.now(), baseURL, models } satisfies CatalogCache))
+    writeFileSync(
+      CATALOG_CACHE_FILE,
+      JSON.stringify({ at: Date.now(), baseURL, identity, models } satisfies CatalogCache),
+    )
   } catch {}
 }
 
-export async function fetchModelCatalog(baseURL: string): Promise<Record<string, DiscoveredModel>> {
+export async function fetchModelCatalog(
+  baseURL: string,
+  apiKey?: string,
+): Promise<Record<string, DiscoveredModel>> {
   const url = `${baseURL.replace(/\/+$/, "")}/models`
-  // Send the CLI User-Agent: the gateway filters this catalog down to the
-  // models an admin has enabled for Caimex Code, so an unidentified fetch would
-  // list models the request path then refuses.
-  const res = await fetch(url, { headers: { Accept: "application/json", "User-Agent": USER_AGENT } })
+  // Two pieces of identity, and they narrow the catalog differently:
+  //
+  //   User-Agent  — which surface is asking, so the gateway returns only what an
+  //                 admin has enabled for Caimex Code.
+  //   Bearer key  — *who* is asking. A free-tier caller may only use models an
+  //                 admin opted into the free tier, and the gateway applies that
+  //                 filter here as well as on the request path. Without the key
+  //                 this fetch is anonymous, which the gateway deliberately
+  //                 treats as "not free tier" (so a logged-out install still
+  //                 sees a catalog) — leaving a free user's picker full of
+  //                 models their first request would 403 on.
+  const headers: Record<string, string> = { Accept: "application/json", "User-Agent": USER_AGENT }
+  if (apiKey) headers.Authorization = `Bearer ${apiKey}`
+  const res = await fetch(url, { headers })
   if (!res.ok) throw new Error(`Caimex /v1/models request failed (${res.status})`)
   const body = (await res.json()) as { data?: Array<Record<string, any>> }
   const out: Record<string, DiscoveredModel> = {}
@@ -484,14 +546,16 @@ export async function CaimexAuthPlugin(_input: PluginInput): Promise<Hooks> {
         if (!models || typeof models !== "object") models = provider.models = {}
 
         const baseURL: string = provider.options.baseURL
-        const cache = readCatalogCache(baseURL)
+        const apiKey = storedApiKey()
+        const identity = identityOf(apiKey)
+        const cache = readCatalogCache(baseURL, identity)
         if (cache?.models) applyCatalog(models, cache.models, discoveryEnabled())
 
         const refresh = () =>
-          fetchModelCatalog(baseURL)
+          fetchModelCatalog(baseURL, apiKey)
             .then((catalog) => {
               if (Object.keys(catalog).length) {
-                writeCatalogCache(baseURL, catalog)
+                writeCatalogCache(baseURL, identity, catalog)
                 applyCatalog(models, catalog, discoveryEnabled())
               }
             })
