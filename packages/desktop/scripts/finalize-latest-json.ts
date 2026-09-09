@@ -145,7 +145,6 @@ const alias = (data: Record<string, { url: string; signature: string }>, key: st
   data[key] = data[src]
 }
 
-const assets: Asset[] = release.assets ?? []
 // artifactName is `caimex-desktop-${os}-${arch}`, so the macOS electron-builder
 // archives are caimex-desktop-mac[-arm64].app.tar.gz — never rely on the
 // electron-builder default names.
