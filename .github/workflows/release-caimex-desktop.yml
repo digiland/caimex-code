@@ -1,0 +1,144 @@
+# Builds the caimex desktop app for macOS, Windows, and Linux and attaches the
+# installers to a GitHub Release, so the electron-updater feed (publish repo
+# digiland/caimex-code) and manual downloads both work.
+#
+# The auto-updater only runs for beta/prod channels; dev builds self-update via
+# nothing and are intentionally not published here. macOS signing/notarization
+# activates only when the APPLE_* secrets exist — fork builds produce unsigned
+# apps instead of failing.
+#
+# Trigger: push a tag like v1.0.0 (same tag as release-caimex.yml, which ships
+# the CLI), or run manually. Requires the same version as the CLI release so
+# the sidecar and desktop versions stay consistent.
+name: Release Caimex Desktop
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "Release channel"
+        required: true
+        default: "prod"
+        type: choice
+        options:
+          - beta
+          - prod
+
+permissions:
+  contents: write
+
+concurrency: release-caimex-desktop
+
+env:
+  OPENCODE_CHANNEL: ${{ github.event.inputs.channel || 'prod' }}
+
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            platform_flag: --mac
+          - os: windows-latest
+            platform_flag: --win
+          - os: ubuntu-22.04
+            platform_flag: --linux
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.14"
+
+      - run: bun install
+
+      # Build the caimex v2 sidecar first: prebuild copies it into
+      # resources/caimex-cli, and packaging without it yields a broken app.
+      - name: Build v2 CLI (caimex2)
+        working-directory: packages/cli
+        run: OPENCODE_CLI_BINARY=caimex2 bun run build --single
+
+      - name: Build renderer/main bundles
+        working-directory: packages/desktop
+        run: bun run build
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+
+      - name: Import Apple Developer ID
+        if: runner.os == 'macOS' && vars.APPLE_TEAM_ID != ''
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          echo "$APPLE_CERTIFICATE" | base64 --decode > certificate.p12
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+
+      - name: Package installers
+        working-directory: packages/desktop
+        timeout-minutes: 60
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          APPLE_ID: ${{ vars.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: npx electron-builder ${{ matrix.platform_flag }} --publish never --config electron-builder.config.ts
+
+      - name: Create macOS .app.tar.gz (updater feed)
+        if: runner.os == 'macOS'
+        working-directory: packages/desktop/dist
+        run: |
+          set -euo pipefail
+          make_tar() {
+            dir="$1"; out="$2"
+            app=$(find "$dir" -maxdepth 1 -name "*.app" -type d | head -1)
+            [ -n "$app" ] || { echo "no .app in $dir"; exit 1; }
+            tar -czf "$out" -C "$(dirname "$app")" "$(basename "$app")"
+          }
+          make_tar mac caimex-desktop-mac.app.tar.gz
+          make_tar mac-arm64 caimex-desktop-mac-arm64.app.tar.gz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: caimex-desktop-${{ runner.os }}
+          path: |
+            packages/desktop/dist/*.dmg
+            packages/desktop/dist/*.zip
+            packages/desktop/dist/*.exe
+            packages/desktop/dist/*.AppImage
+            packages/desktop/dist/*.deb
+            packages/desktop/dist/*.rpm
+            packages/desktop/dist/*.app.tar.gz
+            packages/desktop/dist/latest*.yml
+            packages/desktop/dist/*.blockmap
+          if-no-files-found: error
+
+  publish:
+    needs: desktop
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: caimex-desktop-*
+          path: /tmp/caimex-desktop
+          merge-multiple: true
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME:-v$(date +%Y%m%d)}"
+          gh release create "$tag" --title "Caimex Code Desktop $tag" --notes "Desktop installers for Caimex Code." || true
+          files=(/tmp/caimex-desktop/*)
+          [ -e "${files[0]}" ] || { echo "no desktop artifacts"; exit 1; }
+          gh release upload "$tag" "${files[@]}" --clobber

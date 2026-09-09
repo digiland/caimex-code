@@ -95,3 +95,16 @@ export function windowsify(path: string) {
   if (path.endsWith(".exe")) return path
   return `${path}${process.platform === "win32" ? ".exe" : ""}`
 }
+
+export async function buildCaimexCliToResources() {
+  // The v2 sidecar CLI comes from packages/cli (compiled as the caimex-branded
+  // `caimex2` binary); the opencode Bun binary has no `service` subcommand.
+  await $`cd ../cli && OPENCODE_CLI_BINARY=caimex2 bun run build --single`
+  const target = `${process.platform === "win32" ? "windows" : process.platform}-${process.arch}`
+  const source = windowsify(join("../cli/dist", `cli-${target}`, "bin", "caimex2"))
+  const dest = windowsify("resources/caimex-cli")
+  await copyFile(source, dest)
+  if (process.platform !== "win32") await chmod(dest, 0o755)
+  if (process.platform === "darwin") await $`codesign --force --sign - ${dest}`
+  console.log(`Copied locally built caimex CLI to ${dest}`)
+}

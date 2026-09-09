@@ -145,6 +145,15 @@ const alias = (data: Record<string, { url: string; signature: string }>, key: st
   data[key] = data[src]
 }
 
+const assets: Asset[] = release.assets ?? []
+// artifactName is `caimex-desktop-${os}-${arch}`, so the macOS electron-builder
+// archives are caimex-desktop-mac[-arm64].app.tar.gz — never rely on the
+// electron-builder default names.
+const macTarGz = (arch: "x64" | "arm64") => `caimex-desktop-mac${arch === "arm64" ? "-arm64" : ""}.app.tar.gz`
+if (!assets.some((asset) => asset.name === macTarGz("arm64"))) {
+  throw new Error(`Release is missing ${macTarGz("arm64")}; build-electron must create it`)
+}
+
 const winx = await read("latest-yml-x86_64-pc-windows-msvc", "latest.yml")
 const wina = await read("latest-yml-aarch64-pc-windows-msvc", "latest.yml")
 const macx = await read("latest-yml-x86_64-apple-darwin", "latest-mac.yml")
@@ -160,8 +169,8 @@ const out: Record<string, { url: string; signature: string }> = {}
 const winxexe = pick(winx?.files ?? [], [".exe"])
 const winaexe = pick(wina?.files ?? [], [".exe"])
 
-const macxTarGz = "opencode-desktop-mac-x64.app.tar.gz"
-const macaTarGz = "opencode-desktop-mac-arm64.app.tar.gz"
+const macxTarGz = macTarGz("x64")
+const macaTarGz = macTarGz("arm64")
 
 const linxDeb = pick(linx?.files ?? [], [".deb"])
 const linxRpm = pick(linx?.files ?? [], [".rpm"])
@@ -199,7 +208,7 @@ if (!Object.keys(platforms).length) throw new Error("No updater files found in l
 
 const data = {
   version,
-  notes: "",
+  notes: `Caimex Code ${version} is now available.`,
   pub_date: new Date().toISOString(),
   platforms,
 }

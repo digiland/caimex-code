@@ -92,7 +92,12 @@ const require = __cjs_mod__.createRequire(import.meta.url);
   },
   renderer: {
     plugins: [appPlugin, sentry],
-    publicDir: "../../../app/public",
+    publicDir: {
+      // app/public carries the shared web assets; the renderer's own public/
+      // carries desktop-only assets such as the notification icon. Entries are
+      // resolved relative to the config file directory, not the renderer root.
+      entry: ["../app/public", "src/renderer/public"],
+    },
     root: "src/renderer",
     build: {
       sourcemap: true,

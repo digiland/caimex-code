@@ -49,14 +49,15 @@ describe("electron renderer html", () => {
  * after the renderer root is accounted for.
  */
 describe("electron vite publicDir", () => {
-  test("configured publicDir resolves to a directory with oc-theme-preload.js", async () => {
+  test("configured publicDir entries resolve, with theme preload and notification icons", async () => {
     const config = await Bun.file(join(root, "electron.vite.config.ts")).text()
-    const pub = config.match(/publicDir:\s*["']([^"']+)["']/)
-    const rendererRoot = config.match(/root:\s*["']([^"']+)["']/)
-    expect(pub).not.toBeNull()
-    expect(rendererRoot).not.toBeNull()
-    const resolved = resolve(root, rendererRoot![1], pub![1])
-    expect(existsSync(resolved)).toBe(true)
-    expect(existsSync(join(resolved, "oc-theme-preload.js"))).toBe(true)
+    const entries = config.match(/publicDir:\s*\{[^}]*entry:\s*\[([^\]]+)\]/)
+    // publicDir entries resolve relative to the config file directory (packages/desktop).
+    if (!entries?.[1]) throw new Error("renderer publicDir entries not found")
+    const dirs = [...entries[1].matchAll(/["']([^"']+)["']/g)].map((m) => join(root, m[1]))
+    expect(dirs.length).toBe(2)
+    for (const dir of dirs) expect(existsSync(dir)).toBe(true)
+    expect(existsSync(join(dirs[0], "oc-theme-preload.js"))).toBe(true)
+    expect(existsSync(join(dirs[1], "icons/128x128.png"))).toBe(true)
   })
 })

@@ -1,5 +1,11 @@
 import { createUniqueId, type ComponentProps } from "solid-js"
 
+/**
+ * "caimex code" drawn on the inherited block-letter grid:
+ * glyph 73.8462 wide on a 92 pitch, stroke 18.4615, x-height band y 18 -> 110.143,
+ * ascenders (d, the i dot) reach y 0. `m` gets a 92.3077 advance for its third stem,
+ * `i` an 18.4615 one; the word gap is 55.3846 (three strokes).
+ */
 export function WordmarkV2(props: Pick<ComponentProps<"svg">, "class">) {
   const mask = createUniqueId()
   const maskGradient = createUniqueId()
@@ -7,61 +13,81 @@ export function WordmarkV2(props: Pick<ComponentProps<"svg">, "class">) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 720 129"
+      viewBox="0 0 902.154 110.143"
       fill="none"
       classList={{ [props.class ?? ""]: !!props.class }}
     >
       <g opacity="0.6">
         <g mask={`url(#${mask})`}>
           <g opacity="0.16">
+            {/* c */}
             <path
               opacity="0.7"
-              d="M55.3846 36.4286H18.4615V91.7143H55.3846V36.4286ZM73.8462 110.143H0V18H73.8462V110.143Z"
+              d="M73.8462 36.4286H18.4615V91.7143H73.8462V110.143H0V18H73.8462V36.4286Z"
               fill="currentColor"
             />
+            {/* a */}
             <path
               opacity="0.7"
-              d="M110.462 91.7143H147.385V36.4286H110.462V91.7143ZM165.846 110.143H110.462V128.571H92V18H165.846V110.143Z"
+              d="M147.3846 73.2857H110.4615V91.7143H147.3846V73.2857ZM92 18H165.8462V110.143H92V54.8571H147.3846V36.4286H92V18Z"
               fill="currentColor"
             />
+            {/* i */}
             <path
               opacity="0.7"
-              d="M258.846 73.2857H203.462V91.7143H258.846V110.143H185V18H258.846V73.2857ZM203.462 54.8571H240.385V36.4286H203.462V54.8571Z"
+              d="M202.4615 18.4286H184V0H202.4615V18.4286ZM202.4615 110.143H184V36.4286H202.4615V110.143Z"
               fill="currentColor"
             />
+            {/* m */}
             <path
               opacity="0.7"
-              d="M332.385 36.4286H295.462V110.143H277V18H332.385V36.4286ZM350.846 110.143H332.385V36.4286H350.846V110.143Z"
+              d="M294.4615 36.4286H239.0768V110.143H220.6153V18H294.4615V36.4286ZM276 110.143H257.5384V36.4286H276V110.143ZM312.923 110.143H294.4615V36.4286H312.923V110.143Z"
               fill="currentColor"
             />
+            {/* e */}
             <path
               opacity="0.7"
-              d="M442.846 36.4286H387.462V91.7143H442.846V110.143H369V18H442.846V36.4286Z"
+              d="M404.923 73.2857H349.5383V91.7143H404.923V110.143H331.0768V18H404.923V73.2857ZM349.5383 54.8571H386.4614V36.4286H349.5383V54.8571Z"
               fill="currentColor"
             />
+            {/* x */}
             <path
               opacity="0.7"
-              d="M517.385 36.4286H480.462V91.7143H517.385V36.4286ZM535.846 110.143H462V18H535.846V110.143Z"
+              d="M423.0768 18H441.5383L496.923 110.143H478.4614ZM478.4614 18H496.923L441.5383 110.143H423.0768Z"
               fill="currentColor"
             />
+            {/* c */}
             <path
               opacity="0.7"
-              d="M609.385 36.8571H572.462V92.1429H609.385V36.8571ZM627.846 110.571H554V18.4286H609.385V0H627.846V110.571Z"
+              d="M626.1538 36.4286H570.7691V91.7143H626.1538V110.143H552.3076V18H626.1538V36.4286Z"
               fill="currentColor"
             />
+            {/* o */}
             <path
               opacity="0.7"
-              d="M664.462 36.4286V54.8571H701.385V36.4286H664.462ZM719.846 73.2857H664.462V91.7143H719.846V110.143H646V18H719.846V73.2857Z"
+              d="M699.6922 36.4286H662.7691V91.7143H699.6922V36.4286ZM718.1538 110.143H644.3076V18H718.1538V110.143Z"
+              fill="currentColor"
+            />
+            {/* d */}
+            <path
+              opacity="0.7"
+              d="M791.6922 36.4286H754.7691V91.7143H791.6922V36.4286ZM810.1538 110.143H736.3076V18H791.6922V0H810.1538V110.143Z"
+              fill="currentColor"
+            />
+            {/* e */}
+            <path
+              opacity="0.7"
+              d="M902.1538 73.2857H846.7691V91.7143H902.1538V110.143H828.3076V18H902.1538V73.2857ZM846.7691 54.8571H883.6922V36.4286H846.7691V54.8571Z"
               fill="currentColor"
             />
           </g>
         </g>
       </g>
       <defs>
-        <mask id={mask} style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="720" height="129">
-          <rect width="720" height="129" fill={`url(#${maskGradient})`} />
+        <mask id={mask} style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="902.154" height="110.143">
+          <rect width="902.154" height="110.143" fill={`url(#${maskGradient})`} />
         </mask>
-        <linearGradient id={maskGradient} x1="360" y1="68" x2="360" y2="129" gradientUnits="userSpaceOnUse">
+        <linearGradient id={maskGradient} x1="451.077" y1="68" x2="451.077" y2="129" gradientUnits="userSpaceOnUse">
           <stop stop-color="white" stop-opacity="0.7" />
           <stop offset="1" stop-color="white" stop-opacity="0" />
         </linearGradient>

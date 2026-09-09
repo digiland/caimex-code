@@ -257,7 +257,8 @@ const createPlatform = (windowState: DesktopWindowState): Platform => {
 
       const notification = new Notification(title, {
         body: description ?? "",
-        icon: "https://opencode.ai/favicon-96x96-v3.png",
+        // Bundled app icon; the external opencode.ai favicon no longer applies.
+        icon: "./icons/128x128.png",
       })
       notification.onclick = () => {
         void window.api.showWindow()

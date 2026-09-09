@@ -36,3 +36,6 @@ tsconfig.tsbuildinfo
 
 # Internal-only notes — never commit (public repo)
 docs/internal/
+
+# Build artifact from a path-resolution bug; its real destination is resources/
+undefined/

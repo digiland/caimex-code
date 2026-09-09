@@ -1,7 +1,9 @@
 export const deepLinkEvent = "opencode:deep-link"
 
 const parseUrl = (input: string) => {
-  if (!input.startsWith("opencode://")) return
+  // caimex renamed the deep-link scheme; accept the old opencode:// links so
+  // links minted by older builds keep working.
+  if (!input.startsWith("caimex://") && !input.startsWith("opencode://")) return
   if (typeof URL.canParse === "function" && !URL.canParse(input)) return
   try {
     return new URL(input)

@@ -11,17 +11,17 @@ export const dict = {
   "desktop.updater.checkFailed.title": "Не удалось проверить обновления",
   "desktop.updater.checkFailed.message": "Не удалось проверить обновления",
   "desktop.updater.none.title": "Обновлений нет",
-  "desktop.updater.none.message": "Вы уже используете последнюю версию OpenCode",
+  "desktop.updater.none.message": "Вы уже используете последнюю версию Caimex Code",
   "desktop.updater.downloadFailed.title": "Обновление не удалось",
   "desktop.updater.downloadFailed.message": "Не удалось скачать обновление",
   "desktop.updater.downloaded.title": "Обновление загружено",
-  "desktop.updater.downloaded.prompt": "Версия OpenCode {{version}} загружена. Хотите установить и перезапустить?",
+  "desktop.updater.downloaded.prompt": "Версия Caimex Code {{version}} загружена. Хотите установить и перезапустить?",
   "desktop.updater.installFailed.title": "Обновление не удалось",
   "desktop.updater.installFailed.message": "Не удалось установить обновление",
 
   "desktop.cli.installed.title": "CLI установлен",
   "desktop.cli.installed.message":
-    "CLI установлен в {{path}}\n\nПерезапустите терминал, чтобы использовать команду 'opencode'.",
+    "CLI установлен в {{path}}\n\nПерезапустите терминал, чтобы использовать команду 'caimex'.",
   "desktop.cli.failed.title": "Ошибка установки",
   "desktop.cli.failed.message": "Не удалось установить CLI: {{error}}",
 

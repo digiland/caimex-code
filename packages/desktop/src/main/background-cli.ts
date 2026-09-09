@@ -9,12 +9,32 @@ import { app } from "electron"
 const execFileAsync = promisify(execFile)
 const root = dirname(fileURLToPath(import.meta.url))
 const stateHome = process.env.XDG_STATE_HOME
-const desktopStateNames = ["ai.opencode.desktop.dev", "ai.opencode.desktop.beta", "ai.opencode.desktop"]
+const desktopStateNames = [
+  "ai.opencode.desktop.dev",
+  "ai.opencode.desktop.beta",
+  "ai.opencode.desktop",
+  "zw.co.econetai.caimex.desktop.dev",
+  "zw.co.econetai.caimex.desktop.beta",
+  "zw.co.econetai.caimex.desktop",
+]
 
 type Logger = {
   log(message: string, meta?: Record<string, unknown>): void
   error(message: string, meta?: Record<string, unknown>): void
 }
+
+const CAIMEX_CONFIG = JSON.stringify({
+  $schema: "https://opencode.ai/config.json",
+  enabled_providers: ["caimex"],
+  provider: {
+    caimex: {
+      npm: "@ai-sdk/openai-compatible",
+      name: "Caimex Gateway",
+      options: { baseURL: "https://caimex.econetai.co.zw:2052/v1" },
+    },
+  },
+  compaction: { auto: true, prune: true, reserved: 160000 },
+})
 
 export async function startBackgroundCli(logger: Logger, shellStateHome?: string) {
   const overridden = process.env.OPENCODE_V2_CLI_PATH
@@ -53,6 +73,8 @@ export async function startBackgroundCli(logger: Logger, shellStateHome?: string
   })
   return {
     url,
+    // The v2 server defaults its basic-auth username to "opencode"
+    // (OPENCODE_SERVER_USERNAME); the password is the real secret.
     username: "opencode",
     password,
   }
@@ -122,5 +144,5 @@ function endpoint(url: string | undefined) {
 }
 
 function executableName() {
-  return process.platform === "win32" ? "opencode-cli.exe" : "opencode-cli"
+  return process.platform === "win32" ? "caimex-cli.exe" : "caimex-cli"
 }
