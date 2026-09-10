@@ -644,7 +644,7 @@ caimex providers login [url]
 log in to a provider
 
 Positionals:
-  url  opencode auth provider                                                               [string]
+  url  caimex auth provider                                                                 [string]
 
 Options:
   -h, --help        show help                                                              [boolean]
