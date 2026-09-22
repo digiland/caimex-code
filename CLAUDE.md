@@ -202,13 +202,28 @@ after a merge, because a browser-origin renderer cannot work without them:
   without a discriminator `detectServerProtocol` in `packages/app` read every v2
   server as v1 and then addressed it on v1 routes, which 404. The protocol now
   declares `pid`, which is what that detector always looked for.
+- **Event vocabulary** — the source-built daemon streams `session.next.*`
+  events; the renderer (and the vendored client) expect the finalized
+  `session.*` names, different payload shapes, and `session.execution.*`
+  lifecycle events core never emits. With nothing translating, every event was
+  dropped and sessions sat on "Thinking" with the reply already on the server.
+  `packages/app/src/utils/server-event-compat.ts` renames, reshapes and
+  synthesizes the lifecycle; it becomes a pass-through once core finalizes
+  (upstream has it on feature branches, not yet on `dev`). Its test replays a
+  captured daemon stream through the real reducer — rerun it after a merge.
+
+Known gap, not a bug: `dev`'s v2 session API has 15 endpoints against the
+finalized 36 — no delete, rename, fork, move, shell or inbox. Those actions
+404 in the desktop until upstream lands them; do not improvise them into the
+event-sourced store.
 
 Rebranding touch points beyond the strings: app ids (`zw.co.econetai.caimex.desktop*`
 in `electron-builder.config.ts`, kept in step with `scripts/copy-metainfo.ts`),
 the `caimex://` URL scheme (`electron-builder.config.ts`, `setAsDefaultProtocolClient`,
 and `DEEP_LINK_SCHEME` in `packages/app/src/pages/layout/deep-links.ts`), and the
 old app ids retained in `desktopStateNames` so a daemon from a pre-rename install
-is adopted rather than duplicated. Window icons are still upstream's artwork.
+is adopted rather than duplicated. App icons are ours: one SVG master per channel in
+`packages/desktop/icons/master/`, with the derivation in `packages/desktop/icons/README.md`.
 
 ## Rebranding conventions
 
