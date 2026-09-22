@@ -237,7 +237,9 @@ function ProviderPickerV2(props: {
     active: undefined as string | undefined,
     connecting: undefined as string | undefined,
   })
-  const featured = ["opencode", "opencode-go", "anthropic", "openai", "google", "openrouter", "vercel"]
+  // caimex: same reasoning as popularProviders — the gateway is the provider
+  // this build can offer, so it is the one that belongs above the fold.
+  const featured = ["caimex"]
   const custom = () => ({ id: CUSTOM_ID, name: language.t("dialog.provider.custom.label") })
   const all = createMemo(() => {
     language.locale()

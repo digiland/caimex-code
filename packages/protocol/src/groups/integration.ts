@@ -110,6 +110,54 @@ export const IntegrationGroup = HttpApiGroup.make("server.integration")
         }),
       ),
   )
+  // caimex: the client `packages/app` builds against (a pinned 1.17.13-v2
+  // tarball, not the workspace protocol) addresses an OAuth attempt under the
+  // integration that created it, while the routes above address it by attempt
+  // id alone. Nothing reconciled the two, so the connect dialog's status poll
+  // 404'd on its first tick and every UI sign-in died as "request failed" —
+  // there was no way to log in from the app at all. These serve the client's
+  // spelling; both forms run the identical handler, so whichever the caller
+  // knows about works.
+  .add(
+    HttpApiEndpoint.get(
+      "integration.connect.oauth.status",
+      "/api/integration/:integrationID/connect/oauth/:attemptID",
+      {
+        params: { integrationID: Integration.ID, attemptID: Integration.AttemptID },
+        query: LocationQuery,
+        success: Location.response(Integration.AttemptStatus),
+      },
+    )
+      .annotateMerge(locationQueryOpenApi)
+      .annotateMerge(
+        OpenApi.annotations({
+          identifier: "v2.integration.connect.oauth.status",
+          summary: "Get OAuth attempt status (by integration)",
+          description: "Poll the current status of an OAuth attempt, addressed under its integration.",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.post(
+      "integration.connect.oauth.complete",
+      "/api/integration/:integrationID/connect/oauth/:attemptID/complete",
+      {
+        params: { integrationID: Integration.ID, attemptID: Integration.AttemptID },
+        query: LocationQuery,
+        payload: Schema.Struct({ code: Schema.optional(Schema.String) }),
+        success: HttpApiSchema.NoContent,
+        error: InvalidRequestError,
+      },
+    )
+      .annotateMerge(locationQueryOpenApi)
+      .annotateMerge(
+        OpenApi.annotations({
+          identifier: "v2.integration.connect.oauth.complete",
+          summary: "Complete OAuth connection (by integration)",
+          description: "Complete a code-based OAuth attempt, addressed under its integration.",
+        }),
+      ),
+  )
   .add(
     HttpApiEndpoint.delete("integration.attempt.cancel", "/api/integration/attempt/:attemptID", {
       params: { attemptID: Integration.AttemptID },

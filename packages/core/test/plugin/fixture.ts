@@ -27,26 +27,31 @@ const npmLayer = Layer.succeed(
   }),
 )
 
-export const PluginTestLayer = AppNodeBuilder.build(
-  LayerNode.group([
-    FileSystem.node,
-    FSUtil.node,
-    Location.node,
-    Npm.node,
-    Credential.node,
-    EventV2.node,
-    LayerNodePlatform.httpClient,
-    PluginV2.node,
-    AgentV2.node,
-    AISDK.node,
-    Catalog.node,
-    CommandV2.node,
-    Integration.node,
-    Reference.node,
-    SkillV2.node,
-  ]),
-  [
-    [Location.node, tempLocationLayer],
-    [Npm.node, npmLayer],
-  ],
-)
+// Overrides are threaded through so a plugin that talks to the network can be
+// tested against a stubbed HttpClient — see provider-caimex.test.ts. The
+// no-argument PluginTestLayer below stays the default for everything else.
+type Overrides = Parameters<typeof AppNodeBuilder.build>[1]
+
+export const pluginTestLayer = (overrides: Overrides = []) =>
+  AppNodeBuilder.build(
+    LayerNode.group([
+      FileSystem.node,
+      FSUtil.node,
+      Location.node,
+      Npm.node,
+      Credential.node,
+      EventV2.node,
+      LayerNodePlatform.httpClient,
+      PluginV2.node,
+      AgentV2.node,
+      AISDK.node,
+      Catalog.node,
+      CommandV2.node,
+      Integration.node,
+      Reference.node,
+      SkillV2.node,
+    ]),
+    [[Location.node, tempLocationLayer], [Npm.node, npmLayer], ...overrides],
+  )
+
+export const PluginTestLayer = pluginTestLayer()

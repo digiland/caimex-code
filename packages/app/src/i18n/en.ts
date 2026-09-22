@@ -127,9 +127,11 @@ export const dict = {
   "dialog.model.manage.description": "Customize which models appear in the model selector.",
   "dialog.model.manage.provider.toggle": "Toggle all {{provider}} models",
 
-  "dialog.model.unpaid.freeModels.title": "Free models provided by OpenCode",
-  "dialog.model.unpaid.addMore.title": "Add more models from popular providers",
-  "dialog.model.unpaid.viewMoreProviders": "See 70+ more providers",
+  // caimex: the free tier here is the gateway's, not OpenCode's, and this build
+  // has no "70+ providers" to browse. English source copy only.
+  "dialog.model.unpaid.freeModels.title": "Free models on the Caimex gateway",
+  "dialog.model.unpaid.addMore.title": "Sign in for the full model catalog",
+  "dialog.model.unpaid.viewMoreProviders": "Connect Caimex",
 
   "dialog.provider.viewAll": "Show more providers",
 
@@ -663,7 +665,11 @@ export const dict = {
   "home.sessions.group.today": "Today",
   "home.sessions.group.yesterday": "Yesterday",
   "home.sessions.group.older": "Older",
-  "home.providerTip": "Connect to 75+ providers to use other models, including Claude, GPT, Gemini, etc",
+  // caimex: this build routes everything through the one gateway, so upstream's
+  // "connect to 75+ providers" nudge is not just off-brand, it is untrue — and
+  // it is the only sign-in affordance on an empty home screen. English source
+  // copy only; the other locales still carry upstream's sentence.
+  "home.providerTip": "Sign in to Caimex to use the gateway's models, including the free ones",
 
   "session.tab.session": "Session",
   "session.tab.review": "Review",

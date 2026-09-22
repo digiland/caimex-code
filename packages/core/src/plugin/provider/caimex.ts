@@ -65,6 +65,17 @@ const normalizeLoginUrl = (uri: string) => {
 // matches on, even though the command itself is named `caimex`.
 const USER_AGENT = "caimex-code"
 
+// Catalog.available() only surfaces an integration-backed provider once that
+// integration has a connection. Before login the gateway would therefore be
+// invisible in the desktop — and invisible means impossible to log into, since
+// the connect dialog lists providers, not integrations. Upstream's own opencode
+// plugin solves exactly this by parking a placeholder apiKey on the provider
+// while it is unconnected; do the same, with an empty key rather than a
+// made-up one so an unauthenticated request fails as unauthorized instead of as
+// a bad token. It is removed the moment a real connection exists, and a key the
+// user put in their own config is never touched.
+const UNCONNECTED_API_KEY = ""
+
 const Device = Schema.Struct({
   device_code: Schema.String,
   user_code: Schema.String,
@@ -76,40 +87,103 @@ const Device = Schema.Struct({
 
 // Unlike OpenCode Console, the gateway mints a long-lived API key rather than an
 // access/refresh pair — under any of three key names, depending on its version.
-const TokenSuccess = Schema.Struct({
+// The polling error shares this shape rather than sitting in a separate union
+// member: a union of {all optional} | {error} cannot discriminate, because a
+// struct decode strips excess properties, so `{"error":"authorization_pending"}`
+// matched the success member as `{}` with the error silently dropped. The very
+// first poll then read as "authorized, but no key in the response" and failed
+// the login ~5s in, every time, before anyone could reach the browser. One flat
+// struct branched on `error` has nothing to get wrong.
+export const DeviceTokenSchema = Schema.Struct({
+  error: Schema.String.pipe(Schema.optional),
+  error_description: Schema.String.pipe(Schema.optional),
   api_key: Schema.String.pipe(Schema.optional),
   access_token: Schema.String.pipe(Schema.optional),
   key: Schema.String.pipe(Schema.optional),
 })
-const TokenPending = Schema.Struct({
-  error: Schema.String,
-  error_description: Schema.String.pipe(Schema.optional),
-})
-const DeviceToken = Schema.Union([TokenSuccess, TokenPending])
 
 // The gateway serves numbers as JSON strings ("0.5795000000") for pricing and,
 // depending on the upstream provider it proxies, sometimes for the limits too.
 // Accept either and normalise at the use site — a stricter schema fails the
 // whole catalog over a quoted decimal.
 const Numeric = Schema.Union([Schema.Number, Schema.String])
-const numeric = (value: number | string | undefined) => {
-  if (value === undefined) return undefined
+const numeric = (value: number | string | null | undefined) => {
+  if (value === undefined || value === null) return undefined
   const parsed = typeof value === "number" ? value : Number(value)
   return Number.isFinite(parsed) ? parsed : undefined
 }
 
+// First strictly-positive value among the candidates. Mirrors v1's firstFinite.
+const firstFinite = (...values: (number | string | null | undefined)[]) => {
+  for (const value of values) {
+    const parsed = numeric(value)
+    if (parsed !== undefined && parsed > 0) return parsed
+  }
+  return undefined
+}
+
+// Fallbacks for a discovered model whose gateway entry advertises no window.
+// `limit.context` of 0 is what ModelV2.Info.empty() leaves behind, and the
+// picker reads it as a model that cannot hold a conversation. Same env names
+// and same numbers as v1, because the two ports have to agree.
+const DEFAULT_CONTEXT = Number(process.env["CAIMEX_DISCOVERY_DEFAULT_CONTEXT"]) || 128_000
+const DEFAULT_OUTPUT = Number(process.env["CAIMEX_DISCOVERY_DEFAULT_OUTPUT"]) || 32_000
+
+// The gateway spells "no value" as an explicit null — `"context_length": null`
+// is on every entry it has not measured — and Schema.optional alone rejects
+// that. One rejected field fails the whole response, which empties the provider
+// rather than degrading it: the catalog decode has been failing outright
+// against the live gateway, so v2 offered no Caimex models at all. Every
+// optional field here accepts null and is normalised at the use site.
+const nullish = <S extends Schema.Top>(schema: S) => Schema.Union([schema, Schema.Null]).pipe(Schema.optional)
+
 const Pricing = Schema.Struct({
-  input_per_1m: Numeric.pipe(Schema.optional),
-  output_per_1m: Numeric.pipe(Schema.optional),
+  input_per_1m: nullish(Numeric),
+  output_per_1m: nullish(Numeric),
 })
+
+// Modalities the v2 catalog understands. Anything else the gateway advertises
+// is dropped rather than passed through, so one unfamiliar value cannot make a
+// model's capabilities unreadable to the picker.
+const KNOWN_MODALITIES = ["text", "audio", "image", "video", "pdf"] as const
+type Modality = (typeof KNOWN_MODALITIES)[number]
+const modalities = (value: readonly string[] | null | undefined, fallback: Modality) => {
+  const known = (value ?? []).filter((item): item is Modality => KNOWN_MODALITIES.includes(item as Modality))
+  return known.length ? Array.from(new Set(known)) : [fallback]
+}
+
+const Modalities = nullish(Schema.Array(Schema.String))
+// Every alias here is one v1 already accepts. Gateways spell the context window
+// a dozen ways and the two ports have to agree about which ones they read, so
+// the lists are kept identical to firstFinite()'s arguments in
+// packages/opencode/src/plugin/caimex.ts.
 const CatalogModel = Schema.Struct({
   id: Schema.String,
-  pricing: Pricing.pipe(Schema.optional),
-  context_length: Numeric.pipe(Schema.optional),
-  max_output_tokens: Numeric.pipe(Schema.optional),
+  pricing: nullish(Pricing),
+  context_length: nullish(Numeric),
+  context_window: nullish(Numeric),
+  max_context_length: nullish(Numeric),
+  max_context_tokens: nullish(Numeric),
+  max_output_tokens: nullish(Numeric),
+  max_tokens: nullish(Numeric),
+  limit: nullish(
+    Schema.Struct({
+      context: nullish(Numeric),
+      output: nullish(Numeric),
+    }),
+  ),
+  input_modalities: Modalities,
+  output_modalities: Modalities,
+  modalities: Modalities,
+  // The gateway does not advertise tool support today. v1 has always assumed it
+  // (`tool_call ?? true` in provider.ts) and an OpenAI-compatible chat endpoint
+  // is expected to have it, so absence means yes — but an explicit false is
+  // honoured if a future gateway version starts saying so.
+  tool_call: nullish(Schema.Boolean),
+  supports_tools: nullish(Schema.Boolean),
 })
 const CatalogResponse = Schema.Struct({
-  data: CatalogModel.pipe(Schema.Array, Schema.optional),
+  data: nullish(Schema.Array(CatalogModel)),
 })
 
 const DEFAULT_INTERVAL = Duration.seconds(5)
@@ -150,6 +224,7 @@ export const CaimexPlugin = define<HttpClient.HttpClient | EventV2.Service | Sco
     const http = yield* HttpClient.HttpClient
     const loading = Semaphore.makeUnsafe(1)
     let models: readonly (typeof CatalogModel.Type)[] = []
+    let connected = false
 
     // The gateway probes providers to answer this, so it is slow and it is the
     // one call here that can fail while everything else still works. A failure
@@ -161,6 +236,7 @@ export const CaimexPlugin = define<HttpClient.HttpClient | EventV2.Service | Sco
         ),
       )
       if (fetched !== undefined) models = fetched
+      connected = (yield* ctx.integration.connection.active(INTEGRATION_ID)) !== undefined
     })
 
     yield* ctx.integration.transform((draft) => {
@@ -180,6 +256,7 @@ export const CaimexPlugin = define<HttpClient.HttpClient | EventV2.Service | Sco
       })
     })
 
+    connected = (yield* ctx.integration.connection.active(INTEGRATION_ID)) !== undefined
     yield* ctx.catalog.transform((catalog) => {
       catalog.provider.update(PROVIDER_ID, (provider) => {
         provider.integrationID = INTEGRATION_ID
@@ -188,6 +265,11 @@ export const CaimexPlugin = define<HttpClient.HttpClient | EventV2.Service | Sco
           type: "aisdk",
           package: "@ai-sdk/openai-compatible",
           url: apiBase(),
+        }
+        const parked = provider.request.body["apiKey"] === UNCONNECTED_API_KEY
+        if (connected && parked) delete provider.request.body["apiKey"]
+        if (!connected && provider.request.body["apiKey"] === undefined) {
+          provider.request.body["apiKey"] = UNCONNECTED_API_KEY
         }
       })
 
@@ -203,10 +285,26 @@ export const CaimexPlugin = define<HttpClient.HttpClient | EventV2.Service | Sco
               cache: { read: 0, write: 0 },
             },
           ]
-          const context = numeric(model.context_length)
-          const output = numeric(model.max_output_tokens)
-          if (context !== undefined) draft.limit.context = context
-          if (output !== undefined) draft.limit.output = output
+          // Unset capabilities are not a neutral default here: the schema's
+          // empty() leaves `tools: false` and no modalities, which reads as a
+          // model that can neither call a tool nor accept text.
+          draft.capabilities = {
+            tools: model.tool_call ?? model.supports_tools ?? true,
+            input: modalities(model.input_modalities ?? model.modalities, "text"),
+            output: modalities(model.output_modalities, "text"),
+          }
+          const context =
+            firstFinite(
+              model.context_length,
+              model.context_window,
+              model.max_context_length,
+              model.max_context_tokens,
+              model.limit?.context,
+            ) ?? DEFAULT_CONTEXT
+          const output = firstFinite(model.max_output_tokens, model.max_tokens, model.limit?.output) ?? DEFAULT_OUTPUT
+          // `limit` is integral in the schema, and gateways do serve decimals.
+          draft.limit.context = Math.floor(context)
+          draft.limit.output = Math.floor(output)
           draft.enabled = true
           draft.status = "active"
         })
@@ -253,10 +351,10 @@ function poll(
         http,
         deviceTokenUrl(),
         { grant_type: DEVICE_CODE_GRANT_TYPE, client_id: CLIENT_ID, device_code: deviceCode },
-        DeviceToken,
+        DeviceTokenSchema,
         false,
       )
-      if ("error" in result) {
+      if (result.error !== undefined) {
         if (result.error === "authorization_pending") return yield* loop(wait)
         if (result.error === "slow_down") return yield* loop(Duration.sum(wait, SLOW_DOWN_INCREMENT))
         if (result.error === "access_denied" || result.error === "authorization_denied") {

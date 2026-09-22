@@ -174,13 +174,18 @@ export const OpencodePlugin = define<HttpClient.HttpClient | EventV2.Service | S
       const item = catalog.provider.get(ProviderV2.ID.opencode)
       if (!item) return
       const hasKey = Boolean(process.env.OPENCODE_API_KEY || connected || item.provider.request.body.apiKey)
-      catalog.provider.update(item.provider.id, (provider) => {
-        if (!hasKey) provider.request.body.apiKey = "public"
-      })
+      // caimex: upstream parks `apiKey = "public"` here so its free tier stays
+      // usable without an account — but a parked key is also what makes a
+      // provider pass Catalog.available(), so it put OpenCode Zen in the
+      // desktop's provider list on a stock install of a build that should only
+      // ever offer the Caimex gateway. Leaving it unset makes the provider
+      // resolve as any other unconnected integration does: hidden until the
+      // user actually connects one, at which point everything below is skipped
+      // and it behaves exactly as upstream intends.
       if (hasKey) return
-      // caimex: upstream leaves its zero-cost "free" models enabled without a key,
-      // which surfaces opencode/* entries in a build that should only ever offer
-      // the Caimex gateway. Disable them all unless a key is present.
+      // Upstream also leaves its zero-cost "free" models enabled without a key,
+      // which surfaces opencode/* entries in the model picker. Disable them all
+      // unless a key is present.
       for (const model of item.models.values()) {
         catalog.model.update(item.provider.id, model.id, (draft) => {
           draft.enabled = false

@@ -26,6 +26,7 @@ import type {
 import { showToast } from "@/utils/toast"
 import { getFilename } from "@opencode-ai/core/util/path"
 import { retry } from "@opencode-ai/core/util/retry"
+import { ClientError } from "@opencode-ai/client"
 import { batch } from "solid-js"
 import { produce, reconcile, type SetStoreFunction, type Store } from "solid-js/store"
 import type { State, VcsCache } from "./types"
@@ -118,26 +119,32 @@ type ProjectApi = {
   readonly list: () => Promise<ProjectListOutput>
   readonly current: (input?: ProjectCurrentInput) => Promise<ProjectCurrentOutput>
 }
+type LocationApi = ServerApi["location"]
 
 type McpApi = ServerApi["mcp"]
 type PermissionApi = ServerApi["permission"]
 type QuestionApi = ServerApi["question"]
 type VcsApi = ServerApi["vcs"]
 
-export const loadProjectsQuery = (scope: ServerScope, api: ProjectApi) =>
+export const loadProjectsQuery = (scope: ServerScope, api: ProjectApi, protocol?: Promise<ServerProtocol>) =>
   queryOptions({
     queryKey: [scope, "project"],
     queryFn: () =>
-      retry(() =>
-        api.list().then((projects) => {
+      retry(async () => {
+        // v2 has no project registry to list: a project is whatever the
+        // `location` envelope on each response says it is, so there is no
+        // endpoint behind this and the v1 client's /project 404s against it.
+        // Same protocol guard the other v1-only loaders here already use.
+        if ((await protocol) !== "v1") return [] as Project[]
+        return api.list().then((projects) => {
           return projects
             .filter((p) => !!p?.id)
             .filter((p) => !!p.worktree && !p.worktree.includes("opencode-test"))
             .map(normalizeProjectInfo)
             .slice()
             .sort((a, b) => cmp(a.id, b.id))
-        }),
-      ),
+        })
+      }),
   })
 
 export async function bootstrapGlobal(input: {
@@ -160,7 +167,7 @@ export async function bootstrapGlobal(input: {
     () => input.queryClient.fetchQuery(loadPathQuery(input.scope, null, input.serverSDK, input.protocol)),
     () =>
       input.queryClient
-        .fetchQuery(loadProjectsQuery(input.scope, input.serverAPI.project))
+        .fetchQuery(loadProjectsQuery(input.scope, input.serverAPI.project, input.protocol))
         .then((data) => input.setGlobalStore("project", data)),
   ]
   await runAll(slow)
@@ -218,6 +225,27 @@ function warmSessions(input: {
   ).then(() => undefined)
 }
 
+// The v2 client wraps every fetch-level failure — connection refused, reset,
+// DNS — as ClientError("Transport"). Core's retry() decides what is transient by
+// matching the message against a list of network phrases, and "Transport" is not
+// one of them, so a single blip was treated as permanent. That mattered most at
+// startup: the renderer boots while the sidecar daemon is still binding its
+// port, the one attempt fails, TanStack caches the rejection, and nothing ever
+// refetches — leaving an empty model picker and an empty connect dialog with no
+// error shown anywhere. utils/server-health.ts already special-cases this reason
+// for health checks; the catalog needs the same.
+const transient = (error: unknown) =>
+  error instanceof ClientError ? error.reason === "Transport" : defaultTransient(error)
+
+// Mirrors core's isTransientError, which is not exported.
+const TRANSIENT =
+  /load failed|network connection was lost|network request failed|failed to fetch|econnreset|econnrefused|etimedout|socket hang up/i
+const defaultTransient = (error: unknown) => TRANSIENT.test(error instanceof Error ? error.message : String(error))
+
+// Longer than core's default of 3: this is racing a daemon start, not a flaky
+// network, so it needs to cover seconds rather than milliseconds.
+const CATALOG_RETRY = { attempts: 6, delay: 300, retryIf: transient }
+
 export const loadProvidersQuery = (
   scope: ServerScope,
   directory: string | null,
@@ -240,7 +268,7 @@ export const loadProvidersQuery = (
           sdk.model.default(location),
         ])
         return normalizeProviderList(providers.data, models.data, defaultModel.data)
-      }),
+      }, CATALOG_RETRY),
   })
 
 type AgentListApi = {
@@ -337,6 +365,7 @@ export async function bootstrapDirectory(input: {
     readonly command: CommandListApi
     readonly mcp: McpApi
     readonly permission: PermissionApi
+    readonly location: LocationApi
     readonly project: ProjectApi
     readonly question: QuestionApi
     readonly reference: ReferenceListApi
@@ -412,9 +441,17 @@ export async function bootstrapDirectory(input: {
         ),
       !seededProject &&
         (() =>
-          retry(() => input.api.project.current({ location: { directory: input.directory } })).then((project) =>
-            input.setStore("project", project.id),
-          )),
+          retry(async () => {
+            // Same story as loadProjectsQuery: v2 answers "which project is
+            // this directory in" from /api/location, not from a project API.
+            if ((await input.protocol) !== "v1") {
+              const location = await input.api.location.get({ location: { directory: input.directory } })
+              return location.project?.id
+            }
+            return (await input.api.project.current({ location: { directory: input.directory } })).id
+          }).then((project) => {
+            if (project) input.setStore("project", project)
+          })),
       !seededPath &&
         (() =>
           input.queryClient

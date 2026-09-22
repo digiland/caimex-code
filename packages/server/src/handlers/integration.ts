@@ -16,6 +16,31 @@ const authorize = <A, R>(effect: Effect.Effect<A, Integration.AuthorizationError
     ),
   )
 
+// Shared by both spellings of the OAuth attempt routes. Only the params differ
+// between them, and both carry `attemptID`, so one implementation serves both.
+const attemptStatus = Effect.fn(function* (ctx: { readonly params: { readonly attemptID: Integration.AttemptID } }) {
+  const service = yield* Integration.Service
+  return yield* response(service.attempt.status(ctx.params.attemptID))
+})
+
+const attemptComplete = Effect.fn(function* (ctx: {
+  readonly params: { readonly attemptID: Integration.AttemptID }
+  readonly payload: { readonly code?: string | undefined }
+}) {
+  const service = yield* Integration.Service
+  yield* service.attempt.complete({ attemptID: ctx.params.attemptID, code: ctx.payload.code }).pipe(
+    Effect.mapError(
+      (error) =>
+        new InvalidRequestError({
+          message:
+            error._tag === "Integration.CodeRequired" ? "Authorization code is required" : "Authentication failed",
+          kind: error._tag === "Integration.CodeRequired" ? "integration_code_required" : "integration_authorization",
+        }),
+    ),
+  )
+  return HttpApiSchema.NoContent.make()
+})
+
 export const IntegrationHandler = HttpApiBuilder.group(Api, "server.integration", (handlers) =>
   Effect.gen(function* () {
     return handlers
@@ -63,35 +88,12 @@ export const IntegrationHandler = HttpApiBuilder.group(Api, "server.integration"
           )
         }),
       )
-      .handle(
-        "integration.attempt.status",
-        Effect.fn(function* (ctx) {
-          const service = yield* Integration.Service
-          return yield* response(service.attempt.status(ctx.params.attemptID))
-        }),
-      )
-      .handle(
-        "integration.attempt.complete",
-        Effect.fn(function* (ctx) {
-          const service = yield* Integration.Service
-          yield* service.attempt.complete({ attemptID: ctx.params.attemptID, code: ctx.payload.code }).pipe(
-            Effect.mapError(
-              (error) =>
-                new InvalidRequestError({
-                  message:
-                    error._tag === "Integration.CodeRequired"
-                      ? "Authorization code is required"
-                      : "Authentication failed",
-                  kind:
-                    error._tag === "Integration.CodeRequired"
-                      ? "integration_code_required"
-                      : "integration_authorization",
-                }),
-            ),
-          )
-          return HttpApiSchema.NoContent.make()
-        }),
-      )
+      .handle("integration.attempt.status", attemptStatus)
+      // caimex: the same attempt addressed under its integration, which is how
+      // the vendored client spells it — see the note in the protocol group.
+      .handle("integration.connect.oauth.status", attemptStatus)
+      .handle("integration.attempt.complete", attemptComplete)
+      .handle("integration.connect.oauth.complete", attemptComplete)
       .handle(
         "integration.attempt.cancel",
         Effect.fn(function* (ctx) {

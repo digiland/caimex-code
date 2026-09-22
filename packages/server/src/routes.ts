@@ -18,6 +18,7 @@ import { Api } from "./api"
 import { ServerAuth } from "./auth"
 import { handlers } from "./handlers"
 import { authorizationLayer } from "./middleware/authorization"
+import { corsMiddleware } from "./middleware/cors"
 import { schemaErrorLayer } from "./middleware/schema-error"
 import { PtyEnvironment } from "./pty-environment"
 import { layer as locationLayer } from "./location"
@@ -51,7 +52,11 @@ export function createEmbeddedRoutes() {
 function makeRoutes<AuthError, AuthServices>(auth: Layer.Layer<ServerAuth.Config, AuthError, AuthServices>) {
   const serviceLayer = AppNodeBuilder.build(applicationServices, [[SessionExecution.node, SessionExecutionLocal.node]])
 
+  // Global so it also answers the preflights that match no route at all.
+  const cors = HttpRouter.middleware(corsMiddleware, { global: true })
+
   return HttpApiBuilder.layer(Api, { openapiPath: "/openapi.json" }).pipe(
+    Layer.merge(cors),
     Layer.provide(handlers),
     Layer.provide(sessionLocationLayer),
     Layer.provide(locationLayer),

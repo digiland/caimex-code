@@ -65,8 +65,14 @@ The ones that matter for this fork:
 - **`packages/tui`** — terminal UI.
 - **`sdks/vscode`** — VS Code extension. **Not rebranded yet** — leave it unless
   explicitly asked.
-- `web`, `app`, `desktop`, `console`, `docs`, `storybook` — marketing site /
-  desktop app / web UI. **Not used by the CLI; do not rebrand these.**
+- **`packages/desktop`** — the Electron app, and **`packages/app`** — the
+  renderer it (and the web UI) shares. Both are rebranded and wired to the
+  gateway; see **The desktop app** below.
+- **`packages/cli` + `packages/server` + `packages/protocol`** — the v2 stack.
+  `packages/cli` builds the standalone v2 binary the desktop runs as its
+  backend; `packages/server` serves the v2 HTTP API over `packages/core`.
+- `web`, `console`, `docs`, `storybook` — marketing site / docs. **Not used by
+  the CLI or the desktop; do not rebrand these.**
 
 ## ⚠️ Critical gotcha: there are TWO config systems
 
@@ -103,8 +109,9 @@ file merges *over* those defaults, so a user can still override or add.
 
 ## Keeping Caimex the only provider
 
-A goal of the fork, and it takes **four** independent changes — upstream will
-re-open every one of them on a merge, so re-check all four:
+A goal of the fork, and it takes **six** independent changes — upstream will
+re-open every one of them on a merge, so re-check all six. The first four govern
+the v1 CLI; 5 and 6 govern the v2 stack the desktop runs on:
 
 1. **Catalog narrowing** — `CAIMEX_CATALOG_PROVIDERS` (`config/config.ts`),
    applied in `cli/cmd/providers.ts` (connect dialog) and
@@ -116,6 +123,21 @@ re-open every one of them on a merge, so re-check all four:
 3. **`packages/core/src/plugin/provider/opencode.ts`** — the V2 equivalent:
    disables all opencode models rather than only the paid ones.
 4. **The default provider set itself** — `caimexDefaults()`.
+5. **v2: no parked "public" key on `opencode`** —
+   `packages/core/src/plugin/provider/opencode.ts`. Upstream sets
+   `provider.request.body.apiKey = "public"` when unconnected so its free tier
+   works without an account. That parked key is also what makes a provider pass
+   `Catalog.available()` (`packages/core/src/catalog.ts`), so it listed OpenCode
+   Zen in the desktop on a stock install. We leave it unset; the provider then
+   stays hidden until someone actually connects it.
+6. **v2: the gateway parks one instead** —
+   `packages/core/src/plugin/provider/caimex.ts` sets an empty `apiKey` while
+   unconnected, for the same `available()` reason but the opposite goal: without
+   it Caimex is invisible before login, and invisible means impossible to log
+   into, because the connect dialog lists *providers*, not integrations.
+
+Verify with a v2 daemon rather than by reading: `caimex2 service start`, then
+`GET /api/provider` should return exactly `["caimex"]` on a clean profile.
 
 ⚠️ **Do not "simplify" this by setting `enabled_providers: ["caimex"]` in the
 defaults.** That key means "ONLY these providers may load *at all*", so applying
@@ -126,6 +148,67 @@ was the goal; restricting what may load was collateral. A user who sets
 `enabled_providers` themselves still gets the documented upstream meaning.
 
 Verify with `bun run dev -- models`: every line should start with `caimex/`.
+
+## The desktop app
+
+`packages/desktop` (Electron shell) + `packages/app` (SolidJS renderer, shared
+with the web UI). It has **two possible backends**, chosen at startup by
+`SIDECAR_VERSION` in `src/main/index.ts`:
+
+- **v2 (this fork's default)** — `startBackgroundCli` in `src/main/background-cli.ts`
+  runs a **separate CLI binary** at `resources/opencode-cli` as a background
+  daemon (`service start`) and points the renderer at its URL. Upstream defaults
+  to v1 and treats v2 as opt-in; we inverted it, and `OPENCODE_SIDECAR_V2=0`
+  still selects v1.
+- **v1** — `spawnLocalServer` in `src/main/server.ts` forks `src/main/sidecar.ts`
+  as an Electron utility process, which imports `packages/opencode/dist/node`.
+  That is the same v1 server the CLI runs, so it is caimex-wired already.
+
+⚠️ **The v2 binary must be built from this repo.** Upstream's `predev`/`prebuild`
+download it prebuilt from npm (`@opencode-ai/cli-*`), and **that build contains
+no Caimex code at all** — a desktop pointed at it can never reach the gateway.
+`buildCliToResources()` in `scripts/utils.ts` builds `packages/cli` instead
+(`OPENCODE_CLI_BINARY=caimex2`) and stages it under upstream's `opencode-cli`
+resource name, skipping the rebuild when the binary is newer than every source
+file that goes into it. `downloadCliToResources()` is kept, unused, as the
+reference to upstream's path. Cross-target builds are not wired up and throw.
+
+⚠️ **`packages/app` builds against a vendored client, not the workspace one.**
+`@opencode-ai/client` resolves to a pinned tarball (`1.17.13-v2`), so the types
+the renderer compiles against and the API `packages/server` actually serves can
+disagree — and the compiler will not tell you. Everything below was that skew:
+
+- The vendored client declares a **project** API; the v2 server has no project
+  group at all (see the group list in `packages/protocol/src/api.ts`). Project
+  identity comes from the `location` envelope on every v2 response, or
+  `/api/location`.
+- It declares an **MCP** group; the v2 server has none.
+- It declares `agent.request.settings`; the v2 server sends `request` as
+  `{headers, body}`.
+
+The established pattern for these is a `protocol` guard — see `loadPathQuery` in
+`packages/app/src/context/global-sync/bootstrap.ts`, which the project and MCP
+loaders now follow.
+
+Two gaps in `packages/server` itself, both fixed here and both worth re-checking
+after a merge, because a browser-origin renderer cannot work without them:
+
+- **CORS** — the v2 API emitted no CORS headers and 404'd every preflight, so
+  the renderer was blocked outright (an authenticated call carries an
+  `Authorization` header, which makes it preflighted).
+  `src/middleware/cors.ts` adds it, deciding origins with the `isAllowedCorsOrigin`
+  that already existed for the PTY handshake.
+- **`pid` in `/api/health`** — v1's health payload is `{healthy: true}` too, so
+  without a discriminator `detectServerProtocol` in `packages/app` read every v2
+  server as v1 and then addressed it on v1 routes, which 404. The protocol now
+  declares `pid`, which is what that detector always looked for.
+
+Rebranding touch points beyond the strings: app ids (`zw.co.econetai.caimex.desktop*`
+in `electron-builder.config.ts`, kept in step with `scripts/copy-metainfo.ts`),
+the `caimex://` URL scheme (`electron-builder.config.ts`, `setAsDefaultProtocolClient`,
+and `DEEP_LINK_SCHEME` in `packages/app/src/pages/layout/deep-links.ts`), and the
+old app ids retained in `desktopStateNames` so a daemon from a pre-rename install
+is adopted rather than duplicated. Window icons are still upstream's artwork.
 
 ## Rebranding conventions
 
@@ -187,11 +270,16 @@ After **every** merge, before tagging a release:
    and environmental (`snapshot-tool-race` is an upstream known-bug reproducer;
    the `httpapi-*` suites time out under load). Confirm a failure is
    pre-existing by stashing your change and re-running before chasing it.
-4. **Re-check all four provider-narrowing points** in *Keeping Caimex the only
+4. **Re-check all six provider-narrowing points** in *Keeping Caimex the only
    provider* — upstream edits those files, and a merge that silently reverts one
    puts ~91 providers back in the picker.
 5. **Re-check the seed model** against `GET /v1/models`.
 6. `bun run dev -- models` — every line should start with `caimex/`.
+   For the desktop: `cd packages/desktop && bun run dev`, then check the run's
+   `main.log` under `~/Library/Application Support/<app id>/logs/` for a v2
+   sidecar that came up, and its `renderer.log` for a clean bootstrap. A stale
+   instance holds the single-instance lock and makes a new one exit silently
+   right after "app starting".
 7. `bun run dev -- auth login` reaches the gateway's device flow, and
    `bun run dev -- --help` still says `caimex`.
 8. Rebrand any new user-facing strings and locale files upstream added.

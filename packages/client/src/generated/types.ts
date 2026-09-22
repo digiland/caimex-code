@@ -101,7 +101,7 @@ export type ProjectCopyError = {
 export const isProjectCopyError = (value: unknown): value is ProjectCopyError =>
   typeof value === "object" && value !== null && "name" in value && value["name"] === "ProjectCopyError"
 
-export type HealthGetOutput = { readonly healthy: true }
+export type HealthGetOutput = { readonly healthy: true; readonly pid: number }
 
 export type LocationGetInput = {
   readonly location?: {
@@ -1984,6 +1984,65 @@ export type ModelsListOutput = {
     readonly enabled: boolean
     readonly limit: { readonly context: number; readonly input?: number; readonly output: number }
   }>
+}
+
+export type ModelsDefaultInput = {
+  readonly location?: {
+    readonly location?: { readonly directory?: string | undefined; readonly workspace?: string | undefined } | undefined
+  }["location"]
+}
+
+export type ModelsDefaultOutput = {
+  readonly location: {
+    readonly directory: string
+    readonly workspaceID?: string
+    readonly project: { readonly id: string; readonly directory: string }
+  }
+  readonly data: {
+    readonly id: string
+    readonly providerID: string
+    readonly family?: string
+    readonly name: string
+    readonly api:
+      | {
+          readonly id: string
+          readonly type: "aisdk"
+          readonly package: string
+          readonly url?: string
+          readonly settings?: { readonly [x: string]: JsonValue }
+        }
+      | {
+          readonly id: string
+          readonly type: "native"
+          readonly url?: string
+          readonly settings: { readonly [x: string]: JsonValue }
+        }
+    readonly capabilities: {
+      readonly tools: boolean
+      readonly input: ReadonlyArray<string>
+      readonly output: ReadonlyArray<string>
+    }
+    readonly request: {
+      readonly headers: { readonly [x: string]: string }
+      readonly body: { readonly [x: string]: JsonValue }
+      readonly variant?: string
+    }
+    readonly variants: ReadonlyArray<{
+      readonly id: string
+      readonly headers: { readonly [x: string]: string }
+      readonly body: { readonly [x: string]: JsonValue }
+    }>
+    readonly time: { readonly released: number }
+    readonly cost: ReadonlyArray<{
+      readonly tier?: { readonly type: "context"; readonly size: number }
+      readonly input: number
+      readonly output: number
+      readonly cache: { readonly read: number; readonly write: number }
+    }>
+    readonly status: "alpha" | "beta" | "deprecated" | "active"
+    readonly enabled: boolean
+    readonly limit: { readonly context: number; readonly input?: number; readonly output: number }
+  } | null
 }
 
 export type ProvidersListInput = {

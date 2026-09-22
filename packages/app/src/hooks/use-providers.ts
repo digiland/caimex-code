@@ -2,19 +2,16 @@ import { useServerSync } from "@/context/server-sync"
 import { decode64 } from "@/utils/base64"
 import { useParams } from "@solidjs/router"
 import { Iterable, pipe } from "effect"
-import { createEffect, createMemo, type Accessor } from "solid-js"
+import { createMemo, type Accessor } from "solid-js"
 import { selectProviderCatalog } from "./provider-catalog"
 
-export const popularProviders = [
-  "opencode",
-  "opencode-go",
-  "anthropic",
-  "github-copilot",
-  "openai",
-  "google",
-  "openrouter",
-  "vercel",
-]
+// caimex: the fork routes every request through the gateway, so the one
+// provider it can offer is the one that belongs at the top of the connect
+// dialog and the model picker. Upstream's list of eight is what put OpenCode
+// Zen, Anthropic and Copilot in the "Popular" group of a build that cannot use
+// them. A provider absent from this list is not hidden — it simply sorts under
+// "Other", which is where a provider the user configured themselves belongs.
+export const popularProviders = ["caimex"]
 const popularProviderSet = new Set(popularProviders)
 
 export function useProviders(directory: Accessor<string | undefined>) {
@@ -58,17 +55,15 @@ export function useProviders(directory: Accessor<string | undefined>) {
         (v) => Array.from(v),
       )
     },
+    // Despite the name this answers "is there a provider that can run work",
+    // and it gates the model picker: false swaps it for the connect-a-provider
+    // dialog. Upstream excludes an opencode account holding only zero-cost
+    // models, so its free tier keeps being nudged toward an upgrade. The
+    // gateway's free tier is a real tier and a connected free account is meant
+    // to be able to pick a model, so connection alone is the test here.
     paid: () => {
       const connected = new Set(providers().connected)
-      const paid = [
-        ...Iterable.filter(
-          providers().all,
-          ([id]) =>
-            connected.has(id) &&
-            (id !== "opencode" || Object.values(providers().all.get(id)?.models ?? {}).some((m) => m.cost?.input)),
-        ),
-      ]
-      return paid
+      return [...Iterable.filter(providers().all, ([id]) => connected.has(id))]
     },
   }
 }
