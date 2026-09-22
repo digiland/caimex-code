@@ -2319,6 +2319,63 @@ export type IntegrationsAttemptCompleteInput = {
 
 export type IntegrationsAttemptCompleteOutput = void
 
+export type IntegrationsStatusInput = {
+  readonly integrationID: { readonly integrationID: string; readonly attemptID: string }["integrationID"]
+  readonly attemptID: { readonly integrationID: string; readonly attemptID: string }["attemptID"]
+  readonly location?: {
+    readonly location?: { readonly directory?: string | undefined; readonly workspace?: string | undefined } | undefined
+  }["location"]
+}
+
+export type IntegrationsStatusOutput = {
+  readonly location: {
+    readonly directory: string
+    readonly workspaceID?: string
+    readonly project: { readonly id: string; readonly directory: string }
+  }
+  readonly data:
+    | {
+        readonly status: "pending"
+        readonly time: {
+          readonly created: number | "Infinity" | "-Infinity" | "NaN"
+          readonly expires: number | "Infinity" | "-Infinity" | "NaN"
+        }
+      }
+    | {
+        readonly status: "complete"
+        readonly time: {
+          readonly created: number | "Infinity" | "-Infinity" | "NaN"
+          readonly expires: number | "Infinity" | "-Infinity" | "NaN"
+        }
+      }
+    | {
+        readonly status: "failed"
+        readonly message: string
+        readonly time: {
+          readonly created: number | "Infinity" | "-Infinity" | "NaN"
+          readonly expires: number | "Infinity" | "-Infinity" | "NaN"
+        }
+      }
+    | {
+        readonly status: "expired"
+        readonly time: {
+          readonly created: number | "Infinity" | "-Infinity" | "NaN"
+          readonly expires: number | "Infinity" | "-Infinity" | "NaN"
+        }
+      }
+}
+
+export type IntegrationsCompleteInput = {
+  readonly integrationID: { readonly integrationID: string; readonly attemptID: string }["integrationID"]
+  readonly attemptID: { readonly integrationID: string; readonly attemptID: string }["attemptID"]
+  readonly location?: {
+    readonly location?: { readonly directory?: string | undefined; readonly workspace?: string | undefined } | undefined
+  }["location"]
+  readonly code?: { readonly code?: string | undefined }["code"]
+}
+
+export type IntegrationsCompleteOutput = void
+
 export type IntegrationsAttemptCancelInput = {
   readonly attemptID: { readonly attemptID: string }["attemptID"]
   readonly location?: {
