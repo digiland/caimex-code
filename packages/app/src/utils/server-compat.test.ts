@@ -24,6 +24,18 @@ function setup(
       }
       if (request.method === "POST" && request.url.endsWith("/prompt_async"))
         return new Response(undefined, { status: 204 })
+      if (request.method === "POST" && request.url.endsWith("/prompt") && new URL(request.url).pathname.startsWith("/api/session/")) {
+        return Response.json({
+          data: {
+            admittedSeq: 1,
+            id: "msg_1",
+            sessionID: "ses_1",
+            prompt: { text: "hello" },
+            delivery: "steer",
+            timeCreated: 1,
+          },
+        })
+      }
       if (request.method === "POST" && request.url.endsWith("/prompt")) {
         return Response.json({
           admittedSeq: 1,
@@ -108,6 +120,33 @@ describe("createCompatibleApi", () => {
       ],
     })
     expect(body.parts[2]).not.toHaveProperty("source")
+  })
+
+  test("sends V2 prompts with a nested prompt and file/agent sources", async () => {
+    const { api, requests } = setup("v2")
+    await api.session.prompt({
+      sessionID: "ses_1",
+      id: "msg_1",
+      text: "hello @src/index.ts",
+      files: [
+        { uri: "file:///repo/src/index.ts", name: "index.ts", mention: { text: "@src/index.ts", start: 6, end: 19 } },
+        { uri: "data:text/plain;base64,aGVsbG8=", name: "notes.txt" },
+      ],
+      agents: [{ name: "build", mention: { text: "@build", start: 0, end: 6 } }],
+    })
+
+    expect(new URL(requests[0]!.url).pathname).toBe("/api/session/ses_1/prompt")
+    const body = await requests[0]!.json()
+    expect(body).toMatchObject({ id: "msg_1" })
+    expect(body.prompt).toEqual({
+      text: "hello @src/index.ts",
+      files: [
+        { uri: "file:///repo/src/index.ts", name: "index.ts", source: { start: 6, end: 19, text: "@src/index.ts" } },
+        { uri: "data:text/plain;base64,aGVsbG8=", name: "notes.txt" },
+      ],
+      agents: [{ name: "build", source: { start: 0, end: 6, text: "@build" } }],
+    })
+    expect(body).not.toHaveProperty("text")
   })
 
   test("preserves original parts for V1 optimistic reconciliation", async () => {

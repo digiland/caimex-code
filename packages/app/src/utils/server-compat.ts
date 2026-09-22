@@ -85,10 +85,58 @@ function sessionInfo(session: Session): SessionInfo {
 
 export function createCompatibleApi(input: CompatibleInput): CompatibleApi {
   const v1 = createV1Api(input)
+  const v2 = createV2Api(input)
   return lazyApi(
-    input.protocol.then((protocol) => (protocol === "v1" ? v1 : input.current)),
+    input.protocol.then((protocol) => (protocol === "v1" ? v1 : v2)),
     input.current,
   )
+}
+
+function createV2Api(input: CompatibleInput): CompatibleApi {
+  const directory = (location?: { directory?: string }) => location?.directory ?? input.directory
+  const legacy = (location?: { directory?: string }) => input.legacy(directory(location))
+
+  return {
+    ...input.current,
+    session: {
+      ...input.current.session,
+      async prompt(value: SessionPromptInput & LegacyPrompt) {
+        const result = await legacy().v2.session.prompt({
+          sessionID: value.sessionID,
+          id: value.id ?? undefined,
+          prompt: {
+            text: value.text,
+            files: value.files?.map((file) => ({
+              uri: file.uri,
+              name: file.name ?? undefined,
+              description: file.description ?? undefined,
+              source: file.mention
+                ? { start: file.mention.start, end: file.mention.end, text: file.mention.text }
+                : undefined,
+            })),
+            agents: value.agents?.map((agent) => ({
+              name: agent.name,
+              source: agent.mention
+                ? { start: agent.mention.start, end: agent.mention.end, text: agent.mention.text }
+                : undefined,
+            })),
+          },
+          delivery: value.delivery ?? undefined,
+          resume: value.resume ?? undefined,
+        })
+        const admitted = result.data?.data
+        return {
+          admittedSeq: admitted?.admittedSeq ?? 0,
+          id: admitted?.id ?? value.id ?? "",
+          sessionID: value.sessionID,
+          timeCreated: admitted?.timeCreated ?? Date.now(),
+          type: "user",
+          data: { text: value.text },
+          delivery: value.delivery ?? "steer",
+        }
+      },
+    },
+  }
 }
 
 function lazyApi<T extends object>(implementation: Promise<T>, shape: T): T {
