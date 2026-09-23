@@ -1,0 +1,30 @@
+{
+  "name": "@caimex/code-app",
+  "private": true,
+  "version": "0.1.0",
+  "productName": "Caimex Code",
+  "description": "Caimex Code desktop app, a client for the Caimex Code v2 daemon",
+  "type": "module",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "typecheck": "tsgo -b",
+    "package": "electron-vite build && electron-builder --mac --dir"
+  },
+  "devDependencies": {
+    "@opencode-ai/ui": "workspace:*",
+    "@tailwindcss/vite": "catalog:",
+    "@typescript/native-preview": "catalog:",
+    "dompurify": "catalog:",
+    "electron": "42.3.3",
+    "electron-builder": "26.15.2",
+    "electron-vite": "^5",
+    "marked": "catalog:",
+    "shiki": "catalog:",
+    "solid-js": "catalog:",
+    "tailwindcss": "catalog:",
+    "vite": "catalog:",
+    "vite-plugin-solid": "catalog:"
+  }
+}

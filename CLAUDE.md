@@ -212,10 +212,23 @@ after a merge, because a browser-origin renderer cannot work without them:
   (upstream has it on feature branches, not yet on `dev`). Its test replays a
   captured daemon stream through the real reducer — rerun it after a merge.
 
-Known gap, not a bug: `dev`'s v2 session API has 15 endpoints against the
-finalized 36 — no delete, rename, fork, move, shell or inbox. Those actions
-404 in the desktop until upstream lands them; do not improvise them into the
-event-sourced store.
+`dev`'s v2 session API has 15 endpoints against upstream's finalized 36. Three
+are added here, all additive and all worth re-checking after a merge:
+
+- `DELETE /api/session/:id` and `POST /api/session/:id/rename` — same paths and
+  names as upstream's, so a merge that brings theirs should conflict loudly
+  rather than silently. They reuse the v1 `session.deleted`/`session.updated`
+  events, which the projector already applies (Deleted cascades through every
+  table keyed on the session); nothing new is written to the event store.
+  Rename rebuilds the full row first (`packages/core/src/session/v1-info.ts`)
+  because `session.updated` rewrites every column.
+- `GET /api/session/:id/legacy-message` — read-only v1 `message`/`part` rows for
+  sessions from before the v2 reset (a migration emptied the v2 tables without
+  converting them). Upstream has a real converter on its feature branches.
+
+All three skip the session-location middleware, which 500s for a session whose
+folder was deleted. Tests: `packages/core/test/session-manage.test.ts`. Fork,
+move, shell and inbox are still missing; don't improvise those into the store.
 
 Rebranding touch points beyond the strings: app ids (`zw.co.econetai.caimex.desktop*`
 in `electron-builder.config.ts`, kept in step with `scripts/copy-metainfo.ts`),
@@ -224,6 +237,34 @@ and `DEEP_LINK_SCHEME` in `packages/app/src/pages/layout/deep-links.ts`), and th
 old app ids retained in `desktopStateNames` so a daemon from a pre-rename install
 is adopted rather than duplicated. App icons are ours: one SVG master per channel in
 `packages/desktop/icons/master/`, with the derivation in `packages/desktop/icons/README.md`.
+
+## The Caimex Code app (`packages/caimex-code-app`)
+
+A second desktop client, written from scratch in the Claude Code desktop mould (SolidJS
+renderer, Electron shell), talking to the same v2 daemon as `packages/desktop` rather
+than reusing `packages/app`. It shares the daemon binary staged in
+`packages/desktop/resources/caimex-cli`, so build that once first.
+
+- `bun run dev` in the package; dev runs name themselves "Caimex Code Dev" so they never
+  contend with an installed build for the single-instance lock. They expose DevTools on
+  `localhost:9333` (`CAIMEX_DEBUG_PORT`) for scripted inspection; packaged builds don't.
+- `bun run package` builds an unsigned `dist/mac-arm64/Caimex Code.app` with the daemon in
+  `Contents/Resources/`. Signing, notarization and a DMG are not wired up.
+- **All daemon knowledge lives in `src/renderer/src/api.ts`** (routes, payload shapes, the
+  `session.next.*` event names). This app reads the transitional names directly instead of
+  translating them like `packages/app` does, so an upstream rename lands in that one file.
+- Packaged builds serve the UI from `oc://renderer`, the origin the daemon's CORS
+  already allows; `file://` is refused.
+- Busy state comes from `GET /api/session/active`, not from open assistant messages: a
+  run ends after a denied permission without closing its message.
+- Daemon quirks it works around, all worth fixing at the source: a 500 (no CORS headers)
+  for sessions whose folder was deleted; model capability flags from the gateway that call
+  every model tool-capable, so the picker also filters by name; DeepSeek through the
+  gateway emitting identical text on both the reasoning and text channels.
+- Sessions run by the v1 engine have their history only in the v1 tables; the app reads
+  it through `legacy-message` and shows it read-only above any new messages.
+- It re-finds the daemon after two failed health checks (`service start` returns the
+  current URL), so a daemon restart on a new port doesn't strand it.
 
 ## Rebranding conventions
 

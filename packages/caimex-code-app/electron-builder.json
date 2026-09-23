@@ -1,0 +1,27 @@
+{
+  "appId": "zw.co.econetai.caimex.code",
+  "productName": "Caimex Code",
+  "directories": {
+    "output": "dist"
+  },
+  "files": [
+    "out/**/*",
+    "package.json",
+    "!**/node_modules/**"
+  ],
+  "extraResources": [
+    {
+      "from": "../desktop/resources/caimex-cli",
+      "to": "caimex-cli"
+    }
+  ],
+  "mac": {
+    "category": "public.app-category.developer-tools",
+    "icon": "../desktop/icons/prod/icon.icns",
+    "target": [
+      "dir"
+    ],
+    "identity": null
+  },
+  "npmRebuild": false
+}

@@ -1,0 +1,566 @@
+import { createEffect, createMemo, createResource, createSignal, Match, on, onCleanup, onMount, Show, Switch, type JSX } from "solid-js"
+import { createStore } from "solid-js/store"
+import { createApi, isAssistant, isUser, type Api, type DaemonEvent, type Model, type ModelRef, type Session } from "./api"
+import { createConversations, isBusy } from "./conversations"
+import { sessionTitle } from "./format"
+import { ask, ConfirmHost, notify } from "./components/confirm"
+import { EmptyState } from "./components/empty-state"
+import { NewSessionView } from "./components/new-session"
+import { ModelPicker, ModeSwitch, ProjectPicker } from "./components/pickers"
+import { SessionView } from "./components/session-view"
+import { Sidebar } from "./components/sidebar"
+import { SettingsDialog } from "./components/settings-dialog"
+import { Status, type Gateway } from "./components/status"
+import { createSettings, type Settings } from "./settings"
+
+export function App() {
+  // Created before anything renders so text size applies to the splash too.
+  const [settings, setSettings] = createSettings()
+  const [connection, { refetch: reconnect }] = createResource(() => window.caimex.connect())
+  const api = createMemo(() => {
+    const value = connection()
+    return value?.ok ? createApi(value) : undefined
+  })
+
+  return (
+    <Switch>
+      <Match when={api()}>
+        {(value) => (
+          <Workspace
+            api={value()}
+            onLost={() => {
+              if (!connection.loading) void reconnect()
+            }}
+            settings={settings}
+            onSettings={(key, setting) => setSettings(key, setting)}
+          />
+        )}
+      </Match>
+      <Match when={connection.loading}>
+        <Splash>Starting Caimex Code…</Splash>
+      </Match>
+      <Match when={connection()?.ok === false || connection.error}>
+        <Splash>
+          <div class="mb-2 text-text">Couldn't reach the Caimex Code daemon</div>
+          <div class="mb-5 max-w-[520px] text-center break-words select-text">
+            {(() => {
+              const value = connection()
+              return value && !value.ok ? value.error : String(connection.error)
+            })()}
+          </div>
+          <button class="rounded-md border border-line px-3 py-1.5 text-text hover:bg-hover" onClick={reconnect}>
+            Try again
+          </button>
+        </Splash>
+      </Match>
+    </Switch>
+  )
+}
+
+function Splash(props: { children: JSX.Element }) {
+  return (
+    <div class="drag flex h-full flex-col items-center justify-center px-8 text-[13px] text-muted">
+      <div class="no-drag flex flex-col items-center">{props.children}</div>
+    </div>
+  )
+}
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+// Sentinel selection for the new-session screen.
+const NEW = "new"
+
+type Draft = { directory?: string; model?: ModelRef; agent?: string }
+
+function stored<T>(key: string): T | undefined {
+  try {
+    const raw = localStorage.getItem(key)
+    return raw ? (JSON.parse(raw) as T) : undefined
+  } catch {
+    return undefined
+  }
+}
+function store(key: string, value: unknown) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+  } catch {
+    // preferences are a convenience; losing one is fine
+  }
+}
+
+const ref = (model: Model | ModelRef): ModelRef => ({ id: model.id, providerID: model.providerID })
+
+const firstLine = (text: string) => text.trim().split("\n")[0].slice(0, 80)
+const untitled = (session: Session) => session.title.startsWith("New session - ")
+
+function Workspace(props: {
+  api: Api
+  // The daemon stopped answering: look it up again (it may have restarted on a new port).
+  onLost: () => void
+  settings: Settings
+  onSettings: <K extends keyof Settings>(key: K, value: Settings[K]) => void
+}) {
+  const [account, { refetch: refreshAccount }] = createResource(() => props.api.integration())
+  const signedIn = () => (account.latest ? account.latest.connections.length > 0 : undefined)
+  const [settingsOpen, setSettingsOpen] = createSignal(false)
+  const [sessions, { refetch: refreshSessions }] = createResource(() => props.api.sessions())
+  const [gateway, { refetch: refreshGateway }] = createResource<Gateway>(async () => {
+    // A location loads lazily on the daemon; its first provider listing can come back
+    // empty while that happens.
+    let providers: string[] = []
+    for (let attempt = 0; attempt < 4 && providers.length === 0; attempt++) {
+      if (attempt) await wait(700)
+      providers = (await props.api.providers()).map((provider) => provider.id)
+    }
+    const [models, defaultModel] = await Promise.all([
+      props.api.models(),
+      props.api.defaultModel().catch(() => undefined),
+    ])
+    return { providers, models: models.length, defaultModel }
+  })
+
+  const [catalog, { refetch: refreshCatalog }] = createResource(async () => {
+    const [models, agents] = await Promise.all([props.api.models(), props.api.agents().catch(() => [])])
+    return { models, agents }
+  })
+
+  const conversations = createConversations(() => props.api)
+  // A reconnect swaps in a client for the (possibly relocated) daemon; reload what's shown.
+  createEffect(
+    on(
+      () => props.api,
+      () => {
+        void refreshSessions()
+        void refreshGateway()
+        void refreshCatalog()
+        void refreshAccount()
+        refreshActive()
+        const id = selected()
+        if (id && id !== NEW) void conversations.load(id, { force: true, directory: directoryOf(id) })
+      },
+      { defer: true },
+    ),
+  )
+  const [online, setOnline] = createSignal<boolean>()
+  const [active, setActive] = createSignal<ReadonlySet<string>>(new Set())
+  let activeTimer: ReturnType<typeof setTimeout> | undefined
+  // Debounced: a burst of events should cost one request.
+  const refreshActive = () => {
+    clearTimeout(activeTimer)
+    activeTimer = setTimeout(async () => {
+      const ids = await props.api.active().catch(() => undefined)
+      if (ids) setActive(new Set(ids))
+    }, 250)
+  }
+  const markActive = (id: string) => {
+    if (!active().has(id)) setActive(new Set([...active(), id]))
+  }
+  const [live, setLive] = createSignal(false)
+  // Reopen on the last session. Storage can be unavailable; the app just starts empty.
+  const remembered = (() => {
+    try {
+      return localStorage.getItem("caimex.selected") ?? undefined
+    } catch {
+      return undefined
+    }
+  })()
+  const [selected, setSelected] = createSignal<string | undefined>(remembered)
+  createEffect(
+    on(selected, (id) => {
+      try {
+        if (id) localStorage.setItem("caimex.selected", id)
+      } catch {
+        // not worth surfacing
+      }
+    }),
+  )
+  const [search, setSearch] = createSignal("")
+
+  // Model and mode per session. The list endpoint omits them, so read the session
+  // itself the first time it's opened; after that, local choices lead.
+  const [choices, setChoices] = createStore<Record<string, { model?: ModelRef; agent?: string }>>({})
+  createEffect(
+    on(selected, (id) => {
+      if (!id || id === NEW || id in choices) return
+      setChoices(id, {})
+      void props.api
+        .session(id)
+        .then((detail) => setChoices(id, (current) => ({ model: detail.model, agent: detail.agent, ...current })))
+        .catch(() => {})
+    }),
+  )
+  const modelOf = (id: string) =>
+    choices[id]?.model ??
+    conversations.state[id]?.messages.filter(isAssistant).at(-1)?.model ??
+    gateway.latest?.defaultModel
+  const chooseModel = async (id: string, model: Model) => {
+    const previous = choices[id]?.model
+    setChoices(id, "model", ref(model))
+    try {
+      await props.api.setModel(id, ref(model))
+    } catch (error) {
+      setChoices(id, "model", previous)
+      throw error
+    }
+  }
+  const chooseAgent = async (id: string, agent: string) => {
+    const previous = choices[id]?.agent
+    setChoices(id, "agent", agent)
+    try {
+      await props.api.setAgent(id, agent)
+    } catch (error) {
+      setChoices(id, "agent", previous)
+      throw error
+    }
+  }
+
+  // What a new session starts with: the last project, model and mode used.
+  const [draft, setDraft] = createStore<Draft>(stored<Draft>("caimex.draft") ?? {})
+  createEffect(() => store("caimex.draft", { ...draft }))
+  // Most recent first, skipping folders that have since been deleted.
+  const [recentProjects] = createResource(
+    () => sessions.latest,
+    async (list) => {
+      const seen = new Set<string>()
+      for (const item of [...list].sort((a, b) => b.time.updated - a.time.updated)) seen.add(item.location.directory)
+      const present = await Promise.all([...seen].map(async (directory) => ((await window.caimex.exists(directory)) ? directory : undefined)))
+      return present.filter((directory): directory is string => !!directory).slice(0, 8)
+    },
+  )
+
+  async function startSession(text: string) {
+    const directory = draft.directory
+    if (!directory) throw new Error("Choose a project folder first.")
+    if (!(await window.caimex.exists(directory))) throw new Error(`That folder no longer exists: ${directory}`)
+    const model = draft.model ?? (gateway.latest?.defaultModel && ref(gateway.latest.defaultModel))
+    const created = await props.api.createSession({ directory, model, agent: draft.agent })
+    setTitles(created.id, firstLine(text))
+    setChoices(created.id, { model: created.model ?? model, agent: created.agent ?? draft.agent })
+    await refreshSessions()
+    await conversations.load(created.id, { directory })
+    setSelected(created.id)
+    markActive(created.id)
+    await conversations.send(created.id, text)
+  }
+
+  const controls = (input: {
+    model: () => ModelRef | undefined
+    agent: () => string | undefined
+    onModel: (model: Model) => void | Promise<void>
+    onAgent: (agent: string) => void | Promise<void>
+  }) => (
+    <>
+      <ModelPicker models={catalog.latest?.models ?? []} value={input.model()} onChange={input.onModel} />
+      <ModeSwitch agents={catalog.latest?.agents ?? []} value={input.agent()} onChange={input.onAgent} />
+    </>
+  )
+  const session = createMemo(() => sessions.latest?.find((item) => item.id === selected()))
+
+  // The dev daemon never titles sessions, so name untitled ones by their first prompt.
+  const [titles, setTitles] = createStore<Record<string, string>>({})
+  // A real title always wins; the first-prompt name only stands in for an untitled one.
+  const titleOf = (session: Session) =>
+    untitled(session) ? titles[session.id] || sessionTitle(session) : session.title
+  createEffect(
+    on(
+      () => sessions.latest,
+      async (list) => {
+        const missing = (list ?? []).filter((item) => untitled(item) && !(item.id in titles))
+        for (const item of missing) setTitles(item.id, "")
+        for (let i = 0; i < missing.length; i += 6)
+          await Promise.all(
+            missing.slice(i, i + 6).map(async (item) => {
+              // A session whose folder is gone makes the daemon 500; don't ask.
+              if (!(await window.caimex.exists(item.location.directory))) return
+              const first = await props.api.firstMessage(item.id).catch(() => undefined)
+              if (first && isUser(first)) setTitles(item.id, firstLine(first.text))
+            }),
+          )
+      },
+    ),
+  )
+
+  const directoryOf = (id: string) => sessions.latest?.find((item) => item.id === id)?.location.directory
+  createEffect(
+    on([selected, () => sessions.latest] as const, ([id, list]) => {
+      if (id && id !== NEW && list) void conversations.load(id, { directory: directoryOf(id) })
+    }),
+  )
+
+  // Events after which a run may have started or finished.
+  const RUN_EDGES = new Set([
+    "session.next.step.ended",
+    "session.next.step.failed",
+    "session.next.tool.failed",
+    "permission.v2.replied",
+    "question.v2.replied",
+    "question.v2.rejected",
+  ])
+
+  async function renameSession(id: string, title: string) {
+    await props.api.rename(id, title)
+    await refreshSessions()
+  }
+
+  async function deleteSession(target: Session) {
+    const confirmed = await ask({
+      message: `Delete “${titleOf(target)}”?`,
+      detail: "This permanently removes the session and its history. It can't be undone.",
+      confirm: "Delete",
+      danger: true,
+    })
+    if (!confirmed) return
+    await props.api.remove(target.id)
+    dropSession(target.id)
+    await refreshSessions()
+  }
+
+  async function reportFailure(message: string, action: () => Promise<void>) {
+    try {
+      await action()
+    } catch (error) {
+      await notify({ message, detail: error instanceof Error ? error.message : String(error) })
+    }
+  }
+
+  function dropSession(id: string) {
+    if (selected() === id) setSelected(undefined)
+    conversations.forget(id)
+  }
+
+  // Other clients (the CLI, the other desktop app) rename and delete too.
+  let listTimer: ReturnType<typeof setTimeout> | undefined
+  const refreshListSoon = () => {
+    clearTimeout(listTimer)
+    listTimer = setTimeout(() => void refreshSessions(), 200)
+  }
+
+  function handle(event: DaemonEvent) {
+    conversations.apply(event)
+    if (event.type === "session.created" || event.type === "session.deleted" || event.type === "session.updated") {
+      if (event.type === "session.deleted" && event.data.sessionID) dropSession(event.data.sessionID)
+      refreshListSoon()
+      return
+    }
+    const sessionID = event.data.sessionID
+    if (sessionID && (event.type === "session.next.prompted" || event.type === "session.next.step.started"))
+      markActive(sessionID)
+    if (event.type === "session.next.prompted" || RUN_EDGES.has(event.type)) refreshActive()
+    if (event.type !== "session.next.prompted") return
+    const id = event.data.sessionID
+    const text = (event.data.prompt as { text?: string } | undefined)?.text
+    if (!id) return
+    const known = sessions.latest?.find((item) => item.id === id)
+    if (!known) void refreshSessions()
+    if (text && !titles[id] && (!known || untitled(known))) setTitles(id, firstLine(text))
+  }
+
+  onMount(() => {
+    let failures = 0
+    const check = async () => {
+      const healthy = await props.api
+        .health()
+        .then((value) => value.healthy)
+        .catch(() => false)
+      if (healthy && online() === false) void refreshSessions()
+      setOnline(healthy)
+      if (healthy) refreshActive()
+      failures = healthy ? 0 : failures + 1
+      if (failures >= 2) {
+        failures = 0
+        props.onLost()
+      }
+    }
+    void check()
+    const timer = setInterval(check, 5000)
+    // Sessions started elsewhere (the CLI, the other desktop app) show up on return.
+    const onFocus = () => void refreshSessions()
+    window.addEventListener("focus", onFocus)
+    const onKey = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey)) return
+      if (event.key.toLowerCase() === "n") {
+        event.preventDefault()
+        setSelected(NEW)
+      } else if (event.key === ",") {
+        event.preventDefault()
+        setSettingsOpen(true)
+      }
+    }
+    window.addEventListener("keydown", onKey)
+
+    // Live updates, reconnecting with backoff. After a gap, reload what is on screen:
+    // events missed while disconnected are gone for good.
+    const abort = new AbortController()
+    void (async () => {
+      let delay = 1000
+      let connected = false
+      while (!abort.signal.aborted) {
+        try {
+          let opened = false
+          for await (const event of props.api.events(abort.signal)) {
+            if (!opened) {
+              opened = true
+              setLive(true)
+              delay = 1000
+              refreshActive()
+              if (connected) {
+                void refreshSessions()
+                const id = selected()
+                if (id) void conversations.load(id, { force: true, directory: directoryOf(id) })
+              }
+              connected = true
+            }
+            handle(event)
+          }
+        } catch {
+          if (abort.signal.aborted) return
+        }
+        setLive(false)
+        await wait(delay)
+        delay = Math.min(delay * 2, 10_000)
+      }
+    })()
+
+    onCleanup(() => {
+      clearInterval(timer)
+      clearTimeout(activeTimer)
+      clearTimeout(listTimer)
+      window.removeEventListener("focus", onFocus)
+      window.removeEventListener("keydown", onKey)
+      abort.abort()
+    })
+  })
+
+  return (
+    <div class="flex h-full">
+      <Sidebar
+        sessions={sessions.latest}
+        loading={sessions.loading}
+        error={sessions.error ? String(sessions.error.message ?? sessions.error) : undefined}
+        selected={selected()}
+        search={search()}
+        onSearch={setSearch}
+        onSelect={setSelected}
+        onRefresh={refreshSessions}
+        onNew={() => setSelected(NEW)}
+        creating={selected() === NEW}
+        titleOf={titleOf}
+        onRename={(id, title) => reportFailure("Couldn't rename the session", () => renameSession(id, title))}
+        onDelete={(target) => reportFailure("Couldn't delete the session", () => deleteSession(target))}
+        busy={(id) => isBusy(conversations.state[id], active().has(id))}
+        footer={
+          <div class="flex items-center gap-1">
+            <button
+              onClick={() => setSettingsOpen(true)}
+              class="min-w-0 flex-1 rounded-md py-1 text-left hover:bg-hover"
+              title="Settings (⌘,)"
+            >
+              <Status
+                online={online()}
+                live={live()}
+                signedIn={signedIn()}
+                gateway={gateway.latest}
+                error={gateway.error ? String(gateway.error.message ?? gateway.error) : undefined}
+              />
+            </button>
+            <button
+              onClick={() => setSettingsOpen(true)}
+              title="Settings (⌘,)"
+              class="flex size-7 shrink-0 items-center justify-center rounded-md text-faint hover:bg-hover hover:text-text"
+            >
+              <svg viewBox="0 0 16 16" class="size-4" fill="none" stroke="currentColor" stroke-width="1.3">
+                <circle cx="8" cy="8" r="2.2" />
+                <path d="M8 1.5v1.8M8 12.7v1.8M14.5 8h-1.8M3.3 8H1.5M12.6 3.4l-1.3 1.3M4.7 11.3l-1.3 1.3M12.6 12.6l-1.3-1.3M4.7 4.7 3.4 3.4" stroke-linecap="round" />
+              </svg>
+            </button>
+          </div>
+        }
+      />
+      <main class="min-w-0 flex-1">
+        {/* Keyed on the id, not the session object, so refreshing the list doesn't
+            remount the view and throw away scroll position or a half-typed message. */}
+        <Show
+          when={selected()}
+          keyed
+          fallback={
+            <div class="flex h-full flex-col">
+              <div class="drag h-[52px] shrink-0" />
+              <div class="min-h-0 flex-1">
+                <EmptyState />
+              </div>
+            </div>
+          }
+        >
+          {(id) => (
+            <Show
+              when={id !== NEW}
+              fallback={
+                <NewSessionView
+                  onSend={startSession}
+                  project={
+                    <ProjectPicker
+                      recent={recentProjects.latest ?? []}
+                      value={draft.directory}
+                      onChange={(directory) => setDraft("directory", directory)}
+                    />
+                  }
+                  controls={controls({
+                    model: () => draft.model ?? (gateway.latest?.defaultModel && ref(gateway.latest.defaultModel)),
+                    agent: () => draft.agent,
+                    onModel: (model) => void setDraft("model", ref(model)),
+                    onAgent: (agent) => void setDraft("agent", agent),
+                  })}
+                />
+              }
+            >
+            <Show when={session()}>
+              {(value) => (
+                <SessionView
+                  session={value()}
+                  title={titleOf(value())}
+                  conversation={conversations.state[id]}
+                  running={active().has(id)}
+                  controls={controls({
+                    model: () => modelOf(id),
+                    agent: () => choices[id]?.agent,
+                    onModel: (model) => chooseModel(id, model),
+                    onAgent: (agent) => chooseAgent(id, agent),
+                  })}
+                  onRetry={() => void conversations.load(id, { force: true, directory: value().location.directory })}
+                  onSend={(text) => conversations.send(id, text)}
+                  onStop={async () => {
+                    await props.api.interrupt(id)
+                    refreshActive()
+                  }}
+                  onAnswer={async (requestID, answers) => {
+                    await props.api.answer(id, requestID, answers)
+                    conversations.settle(id, "questions", requestID)
+                  }}
+                  onDismiss={async (requestID) => {
+                    await props.api.dismiss(id, requestID)
+                    conversations.settle(id, "questions", requestID)
+                  }}
+                  onDecide={async (requestID, reply) => {
+                    await props.api.decide(id, requestID, reply)
+                    conversations.settle(id, "permissions", requestID)
+                  }}
+                />
+              )}
+            </Show>
+            </Show>
+          )}
+        </Show>
+      </main>
+      <ConfirmHost />
+      <Show when={settingsOpen()}>
+        <SettingsDialog
+          api={props.api}
+          settings={props.settings}
+          onSettings={props.onSettings}
+          onAccountChanged={() => void refreshAccount()}
+          onClose={() => setSettingsOpen(false)}
+        />
+      </Show>
+    </div>
+  )
+}
