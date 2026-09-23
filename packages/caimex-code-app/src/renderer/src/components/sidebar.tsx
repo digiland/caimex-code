@@ -1,4 +1,4 @@
-import { createMemo, createSignal, For, onCleanup, onMount, Show, type JSX } from "solid-js"
+import { createEffect, createMemo, createSignal, For, on, onCleanup, onMount, Show, type JSX } from "solid-js"
 import type { Session } from "../api"
 import { projectName, relativeTime } from "../format"
 
@@ -20,9 +20,18 @@ export function Sidebar(props: {
   busy: (id: string) => boolean
   onRename: (id: string, title: string) => Promise<void>
   onDelete: (session: Session) => Promise<void>
+  // Starts an inline rename from elsewhere (the command palette).
+  renameRequest?: { id: string; nonce: number }
 }) {
   const [menu, setMenu] = createSignal<string>()
   const [renaming, setRenaming] = createSignal<string>()
+  createEffect(
+    on(
+      () => props.renameRequest?.nonce,
+      () => props.renameRequest && setRenaming(props.renameRequest.id),
+      { defer: true },
+    ),
+  )
   const groups = createMemo<Group[]>(() => {
     const query = props.search.trim().toLowerCase()
     const byDirectory = new Map<string, Session[]>()

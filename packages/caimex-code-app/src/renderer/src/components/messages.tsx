@@ -1,24 +1,41 @@
-import { createSignal, For, Match, Show, Switch } from "solid-js"
+import { createSignal, For, type JSX, Match, Show, Switch } from "solid-js"
 import { isInterruption, type AssistantMessage, type ReasoningPart, type UserMessage } from "../api"
 import { compact, modelName } from "../format"
 import { Markdown } from "./markdown"
 import { Chevron, ToolView } from "./tools"
 
-export function UserBubble(props: { text: string; pending?: boolean }) {
+export function UserBubble(props: {
+  text: string
+  images?: string[]
+  pending?: boolean
+  actions?: JSX.Element
+}) {
   return (
-    <div class="flex justify-end">
+    <div class="group flex items-start justify-end gap-2">
+      <div class="mt-2 opacity-0 transition-opacity group-hover:opacity-100">{props.actions}</div>
       <div
         classList={{ "opacity-60": props.pending }}
         class="max-w-[85%] rounded-2xl border border-line bg-elevated px-4 py-2.5 text-[14px] leading-relaxed [overflow-wrap:anywhere] whitespace-pre-wrap select-text"
       >
+        <Show when={props.images?.length}>
+          <div class="mb-2 flex flex-wrap gap-2">
+            <For each={props.images}>
+              {(uri) => <img src={uri} alt="" class="max-h-40 max-w-[240px] rounded-lg border border-line object-cover" />}
+            </For>
+          </div>
+        </Show>
         {props.text}
       </div>
     </div>
   )
 }
 
-export function User(props: { message: UserMessage }) {
-  return <UserBubble text={props.message.text} />
+export function User(props: { message: UserMessage; actions?: JSX.Element }) {
+  const images = () =>
+    (props.message.files as { uri?: string; mime?: string }[] | undefined)
+      ?.filter((file) => file.mime?.startsWith("image/") && file.uri?.startsWith("data:"))
+      .map((file) => file.uri!)
+  return <UserBubble text={props.message.text} images={images()} actions={props.actions} />
 }
 
 export function Assistant(props: { message: AssistantMessage; directory: string }) {

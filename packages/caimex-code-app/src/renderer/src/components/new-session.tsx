@@ -1,11 +1,13 @@
 import { Logo } from "@opencode-ai/ui/logo"
 import type { JSX } from "solid-js"
-import { Composer } from "./composer"
+import type { Attachment } from "../conversations"
+import { Composer, type Suggestion } from "./composer"
 
 export function NewSessionView(props: {
   project: JSX.Element
   controls: JSX.Element
-  onSend: (text: string) => Promise<void>
+  onSend: (text: string, files: Attachment[]) => Promise<void>
+  suggest: (kind: "mention" | "command", query: string) => Promise<Suggestion[]>
 }) {
   return (
     <div class="flex h-full flex-col">
@@ -20,7 +22,14 @@ export function NewSessionView(props: {
           {props.project}
         </div>
       </div>
-      <Composer busy={false} onSend={props.onSend} onStop={async () => {}} controls={props.controls} placeholder="Describe a task…" />
+      <Composer
+        busy={false}
+        onSend={props.onSend}
+        onStop={async () => {}}
+        controls={props.controls}
+        suggest={props.suggest}
+        placeholder="Describe a task…"
+      />
     </div>
   )
 }

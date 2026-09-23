@@ -228,6 +228,11 @@ function fromLegacy(message: LegacyMessage): Message[] {
   ]
 }
 
+export type FileEntry = { path: string; type: "file" | "directory" }
+export type Command = { name: string; template: string; description?: string; agent?: string }
+export type RevertState = { messageID: string; diff?: string; files?: { file?: string; additions?: number; deletions?: number }[] }
+export type Pty = { id: string; title: string; command: string; cwd: string; status: "running" | "exited"; exitCode?: number }
+
 export const isUser = (message: Message): message is UserMessage => message.type === "user"
 export const isAssistant = (message: Message): message is AssistantMessage => message.type === "assistant"
 
@@ -318,7 +323,15 @@ export function createApi(connection: Extract<Connection, { ok: true }>) {
     },
     firstMessage: async (sessionID: string) =>
       (await data<Message[]>(`/api/session/${sessionID}/message`, { limit: "1", order: "asc" }))[0],
-    prompt: (sessionID: string, text: string) => send(`/api/session/${sessionID}/prompt`, { prompt: { text } }),
+    // Returns the admitted message id. Files are images as data: URIs; the gateway's
+    // provider rejects any other attachment type, and a rejected one fails every later
+    // turn in the session, so text files are referenced by @path in the text instead.
+    prompt: async (sessionID: string, text: string, files: { uri: string; name: string }[] = []) =>
+      (
+        (await post(`/api/session/${sessionID}/prompt`, {
+          prompt: files.length ? { text, files } : { text },
+        })) as { data: { id: string } }
+      ).data.id,
     interrupt: (sessionID: string) => send(`/api/session/${sessionID}/interrupt`),
 
     // Sessions with a run in progress, keyed by id. The authority on "busy": a run can
@@ -333,6 +346,55 @@ export function createApi(connection: Extract<Connection, { ok: true }>) {
     finishSignIn: (attemptID: string, code: string) => send(`/api/integration/attempt/${attemptID}/complete`, { code }),
     useKey: (key: string, id = "caimex") => send(`/api/integration/${id}/connect/key`, { key }),
     signOut: (credentialID: string) => remove(`/api/credential/${credentialID}`),
+
+    // Folder-scoped routes take the folder as location[directory].
+    findFiles: (directory: string, query: string, limit = 20) =>
+      data<FileEntry[]>("/api/fs/find", { "location[directory]": directory, query, limit: String(limit) }),
+    listDir: (directory: string, path = "") =>
+      data<FileEntry[]>("/api/fs/list", { "location[directory]": directory, ...(path ? { path } : {}) }),
+    readFile: async (directory: string, path: string) => {
+      const url = new URL(`${connection.url}/api/fs/read/${path.split("/").map(encodeURIComponent).join("/")}`)
+      url.searchParams.set("location[directory]", directory)
+      const response = await fetch(url, { headers: { authorization } })
+      if (!response.ok) throw new ApiError(response.status, `${response.status} reading ${path}`)
+      return response.text()
+    },
+    commands: (directory: string) => data<Command[]>("/api/command", { "location[directory]": directory }),
+    // Warms a folder the daemon hasn't loaded yet (see sendPrompt's use).
+    warm: (directory: string) => data<unknown[]>("/api/agent", { "location[directory]": directory }).then(() => {}),
+
+    // Rewind: stage marks the point (keeping that message), commit drops everything after
+    // it, clear abandons a staged rewind.
+    stageRewind: async (sessionID: string, messageID: string) =>
+      ((await post(`/api/session/${sessionID}/revert/stage`, { messageID, files: false })) as { data: RevertState }).data,
+    commitRewind: (sessionID: string) => send(`/api/session/${sessionID}/revert/commit`),
+    clearRewind: (sessionID: string) => send(`/api/session/${sessionID}/revert/clear`),
+
+    ptyCreate: async (directory: string, input: { cwd: string; title?: string }) =>
+      ((await post(`/api/pty?location%5Bdirectory%5D=${encodeURIComponent(directory)}`, input)) as { data: Pty }).data,
+    ptyResize: (directory: string, id: string, size: { rows: number; cols: number }) =>
+      fetch(`${connection.url}/api/pty/${id}?location%5Bdirectory%5D=${encodeURIComponent(directory)}`, {
+        method: "PUT",
+        headers: { authorization, "content-type": "application/json" },
+        body: JSON.stringify({ size }),
+      }).then(() => {}),
+    ptyRemove: (directory: string, id: string) =>
+      remove(`/api/pty/${id}?location%5Bdirectory%5D=${encodeURIComponent(directory)}`),
+    // WebSockets can't send an Authorization header; a short-lived ticket stands in.
+    ptySocketUrl: async (directory: string, id: string) => {
+      // The header is the daemon's CSRF guard for ticket requests.
+      const response = await fetch(
+        `${connection.url}/api/pty/${id}/connect-token?location%5Bdirectory%5D=${encodeURIComponent(directory)}`,
+        { method: "POST", headers: { authorization, "x-opencode-ticket": "1" } },
+      )
+      if (!response.ok) throw new ApiError(response.status, `${response.status} terminal ticket`)
+      const ticket = ((await response.json()) as { data: { ticket: string } }).data.ticket
+      const url = new URL(`${connection.url.replace(/^http/, "ws")}/api/pty/${id}/connect`)
+      url.searchParams.set("location[directory]", directory)
+      url.searchParams.set("cursor", "0")
+      url.searchParams.set("ticket", ticket)
+      return url.toString()
+    },
 
     questions: (sessionID: string) => data<QuestionRequest[]>(`/api/session/${sessionID}/question`),
     // One answer per question, each the list of chosen labels (or typed text).

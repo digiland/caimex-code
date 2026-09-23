@@ -105,6 +105,7 @@
         "electron": "42.3.3",
         "electron-builder": "26.15.2",
         "electron-vite": "^5",
+        "ghostty-web": "github:anomalyco/ghostty-web#83c0a07b8628b748aed073b232cb4b52a6ca11c1",
         "marked": "catalog:",
         "shiki": "catalog:",
         "solid-js": "catalog:",

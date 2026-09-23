@@ -261,6 +261,23 @@ than reusing `packages/app`. It shares the daemon binary staged in
   for sessions whose folder was deleted; model capability flags from the gateway that call
   every model tool-capable, so the picker also filters by name; DeepSeek through the
   gateway emitting identical text on both the reasoning and text channels.
+- **Open daemon bug it works around:** the first prompt in a folder the daemon has just
+  loaded is admitted and promoted but its run dies before the first step — the provider
+  request goes out with an invalid key (HTTP 401 "Invalid API Key", visible only with
+  `serve --log-level debug`), the runner logs "Failed to drain Session" and emits no
+  `step.failed`, and re-sending the same prompt id doesn't help because the input is
+  already promoted. Neither the saved credential nor `CAIMEX_API_KEY` is the bad key, and
+  the parked empty key isn't present; ~2s after the folder loads the same prompt works.
+  The app lets a new session's folder settle first and flags any prompt with no reply
+  after 10s, with a Retry. The real fix is in the daemon (catalog/credential readiness
+  for a fresh location).
+- Only images are sent as attachments: through the gateway, OpenAI Chat rejects every
+  other media type ("does not support media type text/plain"), and the rejected message
+  then fails every later turn in that session. Files are referenced by `@path` instead.
+- `POST /api/session/:id/compact` answers 503 on `dev` ("not available yet"), so the
+  context meter has no Compact action.
+- The renderer CSP allows `'wasm-unsafe-eval'` and `data:` in `connect-src` because the
+  terminal (ghostty-web) compiles an embedded WebAssembly module.
 - Sessions run by the v1 engine have their history only in the v1 tables; the app reads
   it through `legacy-message` and shows it read-only above any new messages.
 - It re-finds the daemon after two failed health checks (`service start` returns the

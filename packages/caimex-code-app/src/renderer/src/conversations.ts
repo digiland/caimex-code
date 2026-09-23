@@ -13,7 +13,10 @@ import {
   type ToolPart,
 } from "./api"
 
-export type Pending = { key: string; text: string; time: number }
+export type Attachment = { uri: string; name: string }
+export type Pending = { key: string; text: string; time: number; files: Attachment[] }
+// A prompt the daemon accepted but never started answering (see `watch`).
+export type Stalled = { messageID: string; text: string; files: Attachment[] }
 
 export type Conversation = {
   status: "loading" | "ready" | "error"
@@ -28,9 +31,12 @@ export type Conversation = {
   // History from the v1 engine, read-only: shown above, but not part of the model's context.
   legacy: Message[]
   legacyHasMore: boolean
+  stalled?: Stalled
 }
 
 const PREFIX = "session.next."
+const SETTLE_MS = 2500
+const STALL_MS = 10_000
 const REQUESTS = ["question.v2.", "permission.v2."]
 
 // `api` is read on every call: after a daemon restart the app swaps in a new client.
@@ -39,6 +45,7 @@ export function createConversations(api: () => Api) {
   // Events for a session whose history is still loading, replayed once it lands.
   const queued = new Map<string, DaemonEvent[]>()
   let sent = 0
+  const watchers = new Map<string, ReturnType<typeof setTimeout>>()
 
   async function load(sessionID: string, options: { force?: boolean; directory?: string } = {}) {
     const current = state[sessionID]
@@ -112,6 +119,11 @@ export function createConversations(api: () => Api) {
       return
     }
     const kind = event.type.slice(PREFIX.length)
+    if (kind === "step.started") {
+      clearTimeout(watchers.get(sessionID))
+      watchers.delete(sessionID)
+      if (state[sessionID].stalled) setState(sessionID, "stalled", undefined)
+    }
     // The echo may come from another client (the CLI, the other desktop app), so only
     // clear a pending prompt this window actually sent.
     if (kind === "prompted") {
@@ -122,15 +134,51 @@ export function createConversations(api: () => Api) {
     setState(sessionID, "messages", produce((messages) => reduce(messages, kind, event.data)))
   }
 
-  async function send(sessionID: string, text: string) {
-    const pending = { key: `pending-${++sent}`, text, time: Date.now() }
+  // `fresh`: the session's folder was only just loaded by the daemon. Its first run can
+  // go out before the folder's provider setup settles and fail silently (the daemon
+  // records the message but never answers). Letting the folder settle first avoids it.
+  async function send(
+    sessionID: string,
+    text: string,
+    options: { files?: Attachment[]; fresh?: { directory: string } } = {},
+  ) {
+    const files = options.files ?? []
+    const pending = { key: `pending-${++sent}`, text, time: Date.now(), files }
     setState(sessionID, "pending", (list) => [...list, pending])
+    setState(sessionID, "stalled", undefined)
     try {
-      await api().prompt(sessionID, text)
+      if (options.fresh) {
+        await api().warm(options.fresh.directory).catch(() => {})
+        await new Promise((resolve) => setTimeout(resolve, SETTLE_MS))
+      }
+      const messageID = await api().prompt(sessionID, text, files)
+      watch(sessionID, { messageID, text, files })
     } catch (error) {
       setState(sessionID, "pending", (list) => list.filter((item) => item.key !== pending.key))
       throw error
     }
+  }
+
+  // If no reply has started a while after the daemon accepted a prompt, it was dropped
+  // (the failure above, or any other silent one). Say so instead of spinning forever.
+  function watch(sessionID: string, prompt: Stalled) {
+    clearTimeout(watchers.get(sessionID))
+    watchers.set(
+      sessionID,
+      setTimeout(() => {
+        watchers.delete(sessionID)
+        const messages = state[sessionID]?.messages ?? []
+        const index = messages.findIndex((message) => message.id === prompt.messageID)
+        const answered = index !== -1 && messages.slice(index + 1).some(isAssistant)
+        if (!answered) setState(sessionID, "stalled", prompt)
+      }, STALL_MS),
+    )
+  }
+
+  async function retry(sessionID: string) {
+    const stalled = state[sessionID]?.stalled
+    if (!stalled) return
+    await send(sessionID, stalled.text, { files: stalled.files })
   }
 
   function applyRequest(sessionID: string, event: DaemonEvent) {
@@ -162,6 +210,8 @@ export function createConversations(api: () => Api) {
   // Drop everything held for a session that no longer exists.
   function forget(sessionID: string) {
     queued.delete(sessionID)
+    clearTimeout(watchers.get(sessionID))
+    watchers.delete(sessionID)
     setState(
       produce((all) => {
         delete all[sessionID]
@@ -169,7 +219,7 @@ export function createConversations(api: () => Api) {
     )
   }
 
-  return { state, load, apply, send, settle, forget }
+  return { state, load, apply, send, retry, settle, forget }
 }
 
 // Busy: the daemon reports a run in progress, or a prompt from here hasn't landed yet.

@@ -1,11 +1,26 @@
 import { createEffect, createMemo, createResource, createSignal, Match, on, onCleanup, onMount, Show, Switch, type JSX } from "solid-js"
 import { createStore } from "solid-js/store"
-import { createApi, isAssistant, isUser, type Api, type DaemonEvent, type Model, type ModelRef, type Session } from "./api"
-import { createConversations, isBusy } from "./conversations"
-import { sessionTitle } from "./format"
+import {
+  createApi,
+  isAssistant,
+  isUser,
+  type Api,
+  type DaemonEvent,
+  type Model,
+  type ModelRef,
+  type Session,
+  type UserMessage,
+} from "./api"
+import { createSuggestions, expand, isBuiltin, parseCommand } from "./commands"
+import type { Draft as ComposerDraft } from "./components/composer"
+import { createConversations, isBusy, type Attachment } from "./conversations"
+import { modelName, projectName, sessionTitle } from "./format"
+import { isChatModel } from "./models"
 import { ask, ConfirmHost, notify } from "./components/confirm"
 import { EmptyState } from "./components/empty-state"
 import { NewSessionView } from "./components/new-session"
+import { Palette, type PaletteItem } from "./components/palette"
+import { RightPane } from "./components/right-pane"
 import { ModelPicker, ModeSwitch, ProjectPicker } from "./components/pickers"
 import { SessionView } from "./components/session-view"
 import { Sidebar } from "./components/sidebar"
@@ -228,8 +243,144 @@ function Workspace(props: {
     },
   )
 
-  async function startSession(text: string) {
+  const { commands, suggest } = createSuggestions(() => props.api)
+
+  // Turns what was typed into the prompt to send: app commands run here and send
+  // nothing (undefined); project commands expand their template.
+  async function prepare(text: string, directory: string | undefined, sessionID?: string) {
+    const command = parseCommand(text)
+    if (!command) return text
+    if (isBuiltin(command.name)) {
+      if (command.name === "new") setSelected(NEW)
+      else if (command.name === "settings") setSettingsOpen(true)
+      else if (sessionID) await chooseAgent(sessionID, command.name)
+      else setDraft("agent", command.name)
+      return undefined
+    }
+    const found = directory ? (await commands(directory)).find((item) => item.name === command.name) : undefined
+    if (!found) throw new Error(`There's no /${command.name} command in this project.`)
+    return expand(found.template, command.args)
+  }
+
+  // Rewind hands the removed message back to the composer, per session.
+  const [drafts, setDrafts] = createStore<Record<string, ComposerDraft>>({})
+  let nonce = 0
+  async function rewind(sessionID: string, message: UserMessage) {
+    const messages = conversations.state[sessionID]?.messages ?? []
+    const previous = messages[messages.findIndex((item) => item.id === message.id) - 1]
+    if (!previous) return
+    const confirmed = await ask({
+      message: "Rewind to before this message?",
+      detail:
+        "This message and everything after it leave the conversation, and its text goes back in the composer to edit. Files the agent changed stay as they are.",
+      confirm: "Rewind",
+    })
+    if (!confirmed) return
+    // Rewinding keeps the message it's staged at and drops what follows, so stage at the
+    // one before.
+    await props.api.stageRewind(sessionID, previous.id)
+    try {
+      await props.api.commitRewind(sessionID)
+    } catch (error) {
+      await props.api.clearRewind(sessionID).catch(() => {})
+      throw error
+    }
+    await conversations.load(sessionID, { force: true, directory: directoryOf(sessionID) })
+    setDrafts(sessionID, { text: message.text, nonce: ++nonce })
+  }
+
+  const rewindButton = (sessionID: string) => (message: UserMessage, index: number) => (
+    <Show when={index > 0 && !isBusy(conversations.state[sessionID], active().has(sessionID))}>
+      <button
+        title="Rewind to before this message"
+        onClick={() => void reportFailure("Couldn't rewind", () => rewind(sessionID, message))}
+        class="flex size-7 items-center justify-center rounded-md text-faint hover:bg-hover hover:text-text"
+      >
+        <svg viewBox="0 0 16 16" class="size-3.5" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M3 8a5 5 0 1 0 1.5-3.5M3 2.5v2.5h2.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </button>
+    </Show>
+  )
+
+  const contextLimitOf = (id: string) => {
+    const model = modelOf(id)
+    return catalog.latest?.models.find((item) => item.id === model?.id && item.providerID === model.providerID)?.limit?.context
+  }
+
+  const [paletteOpen, setPaletteOpen] = createSignal(false)
+  const [renameRequest, setRenameRequest] = createSignal<{ id: string; nonce: number }>()
+
+  const paletteItems = (): PaletteItem[] => {
+    const id = selected()
+    const current = id && id !== NEW ? session() : undefined
+    const items: PaletteItem[] = [
+      { id: "new", group: "Actions", label: "New session", shortcut: "⌘N", run: () => setSelected(NEW) },
+      { id: "settings", group: "Actions", label: "Settings", shortcut: "⌘,", run: () => setSettingsOpen(true) },
+    ]
+    if (current) {
+      items.push(
+        {
+          id: "pane",
+          group: "Actions",
+          label: paneOpen() ? "Hide files, changes and terminal" : "Show files, changes and terminal",
+          shortcut: "⌘\\",
+          run: () => setPaneOpen(!paneOpen()),
+        },
+        {
+          id: "rename",
+          group: "Actions",
+          label: "Rename this session",
+          run: () => setRenameRequest({ id: current.id, nonce: ++nonce }),
+        },
+        {
+          id: "delete",
+          group: "Actions",
+          label: "Delete this session…",
+          run: () => void reportFailure("Couldn't delete the session", () => deleteSession(current)),
+        },
+      )
+    }
+    for (const mode of ["plan", "build"] as const)
+      items.push({
+        id: `mode-${mode}`,
+        group: "Actions",
+        label: mode === "plan" ? "Switch to Plan mode" : "Switch to Build mode",
+        detail: mode === "plan" ? "no edits" : undefined,
+        run: () =>
+          current
+            ? void reportFailure("Couldn't switch mode", () => chooseAgent(current.id, mode))
+            : setDraft("agent", mode),
+      })
+    for (const item of [...(sessions.latest ?? [])].sort((a, b) => b.time.updated - a.time.updated))
+      items.push({
+        id: `session-${item.id}`,
+        group: "Sessions",
+        label: titleOf(item),
+        detail: projectName(item.location.directory),
+        run: () => setSelected(item.id),
+      })
+    for (const model of (catalog.latest?.models ?? []).filter(isChatModel))
+      items.push({
+        id: `model-${model.id}`,
+        group: "Models",
+        label: modelName(model.id),
+        detail: current ? "use in this session" : "use for new sessions",
+        run: () =>
+          current
+            ? void reportFailure("Couldn't switch model", () => chooseModel(current.id, model))
+            : void setDraft("model", ref(model)),
+      })
+    return items
+  }
+
+  const [paneOpen, setPaneOpen] = createSignal(stored<boolean>("caimex.pane") ?? false)
+  createEffect(() => store("caimex.pane", paneOpen()))
+
+  async function startSession(input: string, files: Attachment[]) {
     const directory = draft.directory
+    const text = await prepare(input, directory)
+    if (text === undefined) return
     if (!directory) throw new Error("Choose a project folder first.")
     if (!(await window.caimex.exists(directory))) throw new Error(`That folder no longer exists: ${directory}`)
     const model = draft.model ?? (gateway.latest?.defaultModel && ref(gateway.latest.defaultModel))
@@ -240,7 +391,7 @@ function Workspace(props: {
     await conversations.load(created.id, { directory })
     setSelected(created.id)
     markActive(created.id)
-    await conversations.send(created.id, text)
+    await conversations.send(created.id, text, { files, fresh: { directory } })
   }
 
   const controls = (input: {
@@ -337,6 +488,11 @@ function Workspace(props: {
 
   function handle(event: DaemonEvent) {
     conversations.apply(event)
+    // A rewind removes messages, which the event reducer can't express; reload instead.
+    if (event.type === "session.next.revert.committed" && event.data.sessionID) {
+      const id = event.data.sessionID
+      if (conversations.state[id]) void conversations.load(id, { force: true, directory: directoryOf(id) })
+    }
     if (event.type === "session.created" || event.type === "session.deleted" || event.type === "session.updated") {
       if (event.type === "session.deleted" && event.data.sessionID) dropSession(event.data.sessionID)
       refreshListSoon()
@@ -384,6 +540,12 @@ function Workspace(props: {
       } else if (event.key === ",") {
         event.preventDefault()
         setSettingsOpen(true)
+      } else if (event.key.toLowerCase() === "k") {
+        event.preventDefault()
+        setPaletteOpen(!paletteOpen())
+      } else if (event.key === "\\") {
+        event.preventDefault()
+        setPaneOpen(!paneOpen())
       }
     }
     window.addEventListener("keydown", onKey)
@@ -445,6 +607,7 @@ function Workspace(props: {
         onNew={() => setSelected(NEW)}
         creating={selected() === NEW}
         titleOf={titleOf}
+        renameRequest={renameRequest()}
         onRename={(id, title) => reportFailure("Couldn't rename the session", () => renameSession(id, title))}
         onDelete={(target) => reportFailure("Couldn't delete the session", () => deleteSession(target))}
         busy={(id) => isBusy(conversations.state[id], active().has(id))}
@@ -497,6 +660,7 @@ function Workspace(props: {
               fallback={
                 <NewSessionView
                   onSend={startSession}
+                  suggest={suggest(draft.directory)}
                   project={
                     <ProjectPicker
                       recent={recentProjects.latest ?? []}
@@ -515,6 +679,8 @@ function Workspace(props: {
             >
             <Show when={session()}>
               {(value) => (
+                <div class="flex h-full">
+                <div class="min-w-0 flex-1">
                 <SessionView
                   session={value()}
                   title={titleOf(value())}
@@ -526,8 +692,20 @@ function Workspace(props: {
                     onModel: (model) => chooseModel(id, model),
                     onAgent: (agent) => chooseAgent(id, agent),
                   })}
+                  contextLimit={contextLimitOf(id)}
+                  draft={drafts[id]}
+                  paneOpen={paneOpen()}
+                  onTogglePane={() => setPaneOpen(!paneOpen())}
+                  suggest={suggest(value().location.directory)}
+                  userActions={rewindButton(id)}
                   onRetry={() => void conversations.load(id, { force: true, directory: value().location.directory })}
-                  onSend={(text) => conversations.send(id, text)}
+                  onRetrySend={() =>
+                    void reportFailure("Couldn't resend the message", () => conversations.retry(id))
+                  }
+                  onSend={async (input, files) => {
+                    const text = await prepare(input, value().location.directory, id)
+                    if (text !== undefined) await conversations.send(id, text, { files })
+                  }}
                   onStop={async () => {
                     await props.api.interrupt(id)
                     refreshActive()
@@ -545,12 +723,25 @@ function Workspace(props: {
                     conversations.settle(id, "permissions", requestID)
                   }}
                 />
+                </div>
+                <Show when={paneOpen()}>
+                  <RightPane
+                    api={props.api}
+                    directory={value().location.directory}
+                    conversation={conversations.state[id]}
+                    onClose={() => setPaneOpen(false)}
+                  />
+                </Show>
+                </div>
               )}
             </Show>
             </Show>
           )}
         </Show>
       </main>
+      <Show when={paletteOpen()}>
+        <Palette items={paletteItems()} onClose={() => setPaletteOpen(false)} />
+      </Show>
       <ConfirmHost />
       <Show when={settingsOpen()}>
         <SettingsDialog

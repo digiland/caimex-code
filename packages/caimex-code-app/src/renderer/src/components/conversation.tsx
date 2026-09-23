@@ -1,5 +1,5 @@
-import { createSignal, For, Match, onCleanup, onMount, Show, Switch } from "solid-js"
-import { isAssistant, isUser, type Message } from "../api"
+import { createSignal, For, type JSX, Match, onCleanup, onMount, Show, Switch } from "solid-js"
+import { isAssistant, isUser, type Message, type UserMessage } from "../api"
 import type { Conversation } from "../conversations"
 import { Assistant, User, UserBubble } from "./messages"
 
@@ -8,6 +8,9 @@ export function ConversationView(props: {
   directory: string
   busy: boolean
   onRetry: () => void
+  onRetrySend: () => void
+  // Per-message actions (rewind) shown beside the user's own messages.
+  userActions?: (message: UserMessage, index: number) => JSX.Element
 }) {
   let scroller!: HTMLDivElement
   let content!: HTMLDivElement
@@ -71,10 +74,27 @@ export function ConversationView(props: {
         </Show>
 
         <For each={props.conversation.messages}>
-          {(message) => <MessageView message={message} directory={props.directory} />}
+          {(message, index) => (
+            <MessageView
+              message={message}
+              directory={props.directory}
+              actions={isUser(message) ? props.userActions?.(message, index()) : undefined}
+            />
+          )}
         </For>
 
-        <For each={props.conversation.pending}>{(item) => <UserBubble text={item.text} pending />}</For>
+        <For each={props.conversation.pending}>
+          {(item) => <UserBubble text={item.text} images={item.files.map((file) => file.uri)} pending />}
+        </For>
+
+        <Show when={props.conversation.stalled && !props.busy}>
+          <div class="flex items-center gap-3 rounded-lg border border-warn/40 bg-warn/10 px-3.5 py-2.5 text-[12.5px] text-text">
+            <span class="flex-1">This message didn't start a reply. The daemon accepted it but never answered.</span>
+            <button onClick={props.onRetrySend} class="rounded-md bg-text px-3 py-1 text-[12px] font-medium text-bg">
+              Retry
+            </button>
+          </div>
+        </Show>
 
         <Show when={props.busy && !streaming(props.conversation)}>
           <Working />
@@ -84,10 +104,12 @@ export function ConversationView(props: {
   )
 }
 
-function MessageView(props: { message: Message; directory: string }) {
+function MessageView(props: { message: Message; directory: string; actions?: JSX.Element }) {
   return (
     <Switch>
-      <Match when={isUser(props.message) && props.message}>{(item) => <User message={item()} />}</Match>
+      <Match when={isUser(props.message) && props.message}>
+        {(item) => <User message={item()} actions={props.actions} />}
+      </Match>
       <Match when={isAssistant(props.message) && props.message}>
         {(item) => <Assistant message={item()} directory={props.directory} />}
       </Match>
