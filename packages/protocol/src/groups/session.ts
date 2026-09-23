@@ -169,6 +169,65 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S>(sessionLo
           }),
         ),
     )
+    // Delete, rename and legacy history deliberately skip the session-location middleware:
+    // booting a location fails for a session whose folder was deleted, and those are the
+    // sessions most worth deleting. Paths and names match upstream's finalized API.
+    .add(
+      HttpApiEndpoint.delete("session.remove", "/api/session/:sessionID", {
+        params: { sessionID: Session.ID },
+        success: HttpApiSchema.NoContent,
+        error: SessionNotFoundError,
+      }).annotateMerge(
+        OpenApi.annotations({
+          identifier: "v2.session.remove",
+          summary: "Delete session",
+          description: "Delete a session, its child sessions and everything stored under them.",
+        }),
+      ),
+    )
+    .add(
+      HttpApiEndpoint.post("session.rename", "/api/session/:sessionID/rename", {
+        params: { sessionID: Session.ID },
+        payload: Schema.Struct({ title: Schema.Trim.pipe(Schema.check(Schema.isNonEmpty())) }),
+        success: HttpApiSchema.NoContent,
+        error: SessionNotFoundError,
+      }).annotateMerge(
+        OpenApi.annotations({
+          identifier: "v2.session.rename",
+          summary: "Rename session",
+          description: "Set a session's title.",
+        }),
+      ),
+    )
+    .add(
+      HttpApiEndpoint.get("session.legacyMessages", "/api/session/:sessionID/legacy-message", {
+        params: { sessionID: Session.ID },
+        query: Schema.Struct({
+          limit: Schema.optional(
+            Schema.NumberFromString.check(Schema.isInt(), Schema.isGreaterThanOrEqualTo(1), Schema.isLessThanOrEqualTo(500)),
+          ),
+        }),
+        // Stored v1 rows, passed through as they are: historical data predates today's
+        // schemas, so decoding it strictly would fail on old sessions rather than show them.
+        success: Schema.Struct({
+          data: Schema.Array(
+            Schema.Struct({
+              info: Schema.Record(Schema.String, Schema.Unknown),
+              parts: Schema.Array(Schema.Record(Schema.String, Schema.Unknown)),
+            }),
+          ),
+          hasMore: Schema.Boolean,
+        }),
+        error: SessionNotFoundError,
+      }).annotateMerge(
+        OpenApi.annotations({
+          identifier: "v2.session.legacyMessages",
+          summary: "Get v1 session history",
+          description:
+            "Read-only v1-engine messages for sessions from before the v2 reset, newest page first, returned oldest to newest.",
+        }),
+      ),
+    )
     .add(
       HttpApiEndpoint.post("session.switchAgent", "/api/session/:sessionID/agent", {
         params: { sessionID: Session.ID },

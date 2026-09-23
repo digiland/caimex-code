@@ -3,7 +3,7 @@ export * from "./session/schema"
 
 import { DateTime, Effect, Layer, Schema, Context, Stream } from "effect"
 import { ListAnchor } from "@opencode-ai/schema/session"
-import { and, asc, desc, eq, gt, like, lt, or, type SQL } from "drizzle-orm"
+import { and, asc, desc, eq, gt, inArray, like, lt, or, type SQL } from "drizzle-orm"
 import { ProjectV2 } from "./project"
 import { WorkspaceV2 } from "./workspace"
 import { ModelV2 } from "./model"
@@ -14,7 +14,8 @@ import { PromptInput } from "@opencode-ai/schema/prompt-input"
 import { EventV2 } from "./event"
 import { Database } from "./database/database"
 import { SessionProjector } from "./session/projector"
-import { SessionMessageTable, SessionTable } from "./session/sql"
+import { MessageTable, PartTable, SessionMessageTable, SessionTable } from "./session/sql"
+import { toSessionInfo } from "./session/v1-info"
 import { SessionSchema } from "./session/schema"
 import { AbsolutePath, PositiveInt, RelativePath } from "./schema"
 import { AgentV2 } from "./agent"
@@ -108,6 +109,13 @@ export class PromptConflictError extends Schema.TaggedErrorClass<PromptConflictE
 export const MessageNotFoundError = SessionRevert.MessageNotFoundError
 export type MessageNotFoundError = SessionRevert.MessageNotFoundError
 
+// A message from the v1 engine, as stored: the v1 message and its parts, ids restored.
+// Sessions from before the v2 reset have their history only in these tables.
+export type LegacyMessage = {
+  readonly info: Record<string, unknown>
+  readonly parts: ReadonlyArray<Record<string, unknown>>
+}
+
 export type Error = NotFoundError | MessageDecodeError | OperationUnavailableError | PromptConflictError
 
 export interface Interface {
@@ -168,6 +176,14 @@ export interface Interface {
   readonly active: Effect.Effect<ReadonlySet<SessionSchema.ID>>
   readonly resume: (sessionID: SessionSchema.ID) => Effect.Effect<void, NotFoundError | SessionRunner.RunError>
   readonly interrupt: (sessionID: SessionSchema.ID) => Effect.Effect<void>
+  readonly rename: (input: { sessionID: SessionSchema.ID; title: string }) => Effect.Effect<void, NotFoundError>
+  // Removes the session, its children and everything stored under it.
+  readonly remove: (sessionID: SessionSchema.ID) => Effect.Effect<void, NotFoundError>
+  // Newest `limit` v1-engine messages, oldest first. Read-only.
+  readonly legacyMessages: (input: {
+    sessionID: SessionSchema.ID
+    limit?: number
+  }) => Effect.Effect<{ messages: LegacyMessage[]; hasMore: boolean }, NotFoundError>
   readonly revert: {
     readonly stage: (input: {
       sessionID: SessionSchema.ID
@@ -203,6 +219,13 @@ const layer = Layer.effect(
             }),
         ),
       )
+
+    // The raw row, for operations that must see every column (see toSessionInfo).
+    const sessionRow = Effect.fn("V2Session.row")(function* (sessionID: SessionSchema.ID) {
+      const row = yield* db.select().from(SessionTable).where(eq(SessionTable.id, sessionID)).get().pipe(Effect.orDie)
+      if (!row) return yield* new NotFoundError({ sessionID })
+      return row
+    })
 
     const result = Service.of({
       create: Effect.fn("V2Session.create")(function* (input) {
@@ -430,6 +453,66 @@ const layer = Layer.effect(
       interrupt: Effect.fn("V2Session.interrupt")((sessionID) =>
         Effect.uninterruptible(execution.interrupt(sessionID)),
       ),
+      // Rename and remove go through the v1 session events, which the projector already
+      // applies to the session row (and, for Deleted, cascades through every table keyed
+      // on it). That is the path the v1 engine uses; nothing new is written to the store.
+      rename: Effect.fn("V2Session.rename")(function* (input) {
+        const current = yield* sessionRow(input.sessionID)
+        const info = toSessionInfo(current)
+        yield* events.publish(SessionV1.Event.Updated, {
+          sessionID: input.sessionID,
+          info: SessionV1.SessionInfo.make({ ...info, title: input.title, time: { ...info.time, updated: Date.now() } }),
+        })
+      }),
+      remove: Effect.fn("V2Session.remove")(function* (sessionID) {
+        const current = yield* sessionRow(sessionID)
+        yield* Effect.uninterruptible(execution.interrupt(sessionID))
+        const children = yield* db
+          .select({ id: SessionTable.id })
+          .from(SessionTable)
+          .where(eq(SessionTable.parent_id, sessionID))
+          .all()
+          .pipe(Effect.orDie)
+        for (const child of children) yield* result.remove(SessionSchema.ID.make(child.id))
+        yield* events.publish(SessionV1.Event.Deleted, { sessionID, info: toSessionInfo(current) })
+        yield* events.remove(sessionID)
+      }),
+      legacyMessages: Effect.fn("V2Session.legacyMessages")(function* (input) {
+        yield* sessionRow(input.sessionID)
+        const limit = input.limit ?? 200
+        const rows = yield* db
+          .select()
+          .from(MessageTable)
+          .where(eq(MessageTable.session_id, input.sessionID))
+          .orderBy(desc(MessageTable.time_created), desc(MessageTable.id))
+          .limit(limit + 1)
+          .all()
+          .pipe(Effect.orDie)
+        const page = rows.slice(0, limit).reverse()
+        const parts = page.length
+          ? yield* db
+              .select()
+              .from(PartTable)
+              .where(
+                inArray(
+                  PartTable.message_id,
+                  page.map((row) => row.id),
+                ),
+              )
+              .orderBy(asc(PartTable.message_id), asc(PartTable.id))
+              .all()
+              .pipe(Effect.orDie)
+          : []
+        return {
+          hasMore: rows.length > limit,
+          messages: page.map((row) => ({
+            info: { ...row.data, id: row.id, sessionID: row.session_id },
+            parts: parts
+              .filter((part) => part.message_id === row.id)
+              .map((part) => ({ ...part.data, id: part.id, sessionID: part.session_id, messageID: part.message_id })),
+          })),
+        }
+      }),
       revert: {
         stage: Effect.fn("V2Session.revert.stage")(function* (input) {
           const session = yield* result.get(input.sessionID)

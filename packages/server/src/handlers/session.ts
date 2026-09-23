@@ -19,6 +19,8 @@ const DefaultSessionHistoryLimit = 50
 export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handlers) =>
   Effect.gen(function* () {
     const session = yield* SessionV2.Service
+    const notFound = (error: SessionV2.NotFoundError) =>
+      Effect.fail(new SessionNotFoundError({ sessionID: error.sessionID, message: `Session not found: ${error.sessionID}` }))
 
     return handlers
       .handle(
@@ -102,6 +104,31 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
               ),
             ),
           }
+        }),
+      )
+      .handle(
+        "session.remove",
+        Effect.fn(function* (ctx) {
+          yield* session.remove(ctx.params.sessionID).pipe(Effect.catchTag("Session.NotFoundError", notFound))
+          return HttpApiSchema.NoContent.make()
+        }),
+      )
+      .handle(
+        "session.rename",
+        Effect.fn(function* (ctx) {
+          yield* session
+            .rename({ sessionID: ctx.params.sessionID, title: ctx.payload.title })
+            .pipe(Effect.catchTag("Session.NotFoundError", notFound))
+          return HttpApiSchema.NoContent.make()
+        }),
+      )
+      .handle(
+        "session.legacyMessages",
+        Effect.fn(function* (ctx) {
+          const page = yield* session
+            .legacyMessages({ sessionID: ctx.params.sessionID, limit: ctx.query.limit })
+            .pipe(Effect.catchTag("Session.NotFoundError", notFound))
+          return { data: page.messages, hasMore: page.hasMore }
         }),
       )
       .handle(
