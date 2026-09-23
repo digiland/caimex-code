@@ -38,7 +38,13 @@ export function Composer(props: {
   onStop: () => Promise<void>
   // Suggestions for the current @ or / token; undefined disables that trigger.
   suggest?: (kind: Trigger["kind"], query: string) => Promise<Suggestion[]>
+  // Image attachments (on unless the backend can't take them).
+  attachments?: boolean
+  // Sending stays open while busy (the caller queues it), next to Stop.
+  sendWhileBusy?: boolean
+  busyPlaceholder?: string
 }) {
+  const blocked = () => props.busy && !props.sendWhileBusy
   let input!: HTMLTextAreaElement
   let picker!: HTMLInputElement
   const [text, setText] = createSignal("")
@@ -133,7 +139,7 @@ export function Composer(props: {
   const send = async () => {
     const value = text().trim()
     const attached = files()
-    if ((!value && !attached.length) || props.busy) return
+    if ((!value && !attached.length) || blocked()) return
     setError(undefined)
     setValue("")
     setFiles([])
@@ -213,14 +219,14 @@ export function Composer(props: {
         </Show>
         <div
           onDragOver={(event) => {
-            if (!event.dataTransfer?.types.includes("Files")) return
+            if (props.attachments === false || !event.dataTransfer?.types.includes("Files")) return
             event.preventDefault()
             setDragging(true)
           }}
           onDragLeave={() => setDragging(false)}
           onDrop={(event) => {
             setDragging(false)
-            if (!event.dataTransfer?.files.length) return
+            if (props.attachments === false || !event.dataTransfer?.files.length) return
             event.preventDefault()
             void addFiles(event.dataTransfer.files)
           }}
@@ -250,7 +256,9 @@ export function Composer(props: {
             rows={1}
             value={text()}
             placeholder={
-              props.busy ? "Working… you can type your next message" : (props.placeholder ?? "Message Caimex Code")
+              props.busy
+                ? (props.busyPlaceholder ?? "Working… you can type your next message")
+                : (props.placeholder ?? "Message Caimex Code")
             }
             onInput={(event) => {
               setText(event.currentTarget.value)
@@ -261,13 +269,14 @@ export function Composer(props: {
             onKeyDown={onKeyDown}
             onPaste={(event) => {
               const pasted = event.clipboardData?.files
-              if (!pasted?.length) return
+              if (!pasted?.length || props.attachments === false) return
               event.preventDefault()
               void addFiles(pasted)
             }}
             class="block max-h-[240px] w-full resize-none bg-transparent px-4 pt-3.5 pb-1 text-[14px] leading-relaxed text-text outline-none placeholder:text-faint select-text"
           />
           <div class="flex items-center gap-1.5 px-2 pb-2">
+            <Show when={props.attachments !== false}>
             <button
               title="Attach images"
               onClick={() => picker.click()}
@@ -286,6 +295,7 @@ export function Composer(props: {
                 event.currentTarget.value = ""
               }}
             />
+            </Show>
             {props.controls}
             <div class="flex-1" />
             <Show
@@ -303,6 +313,16 @@ export function Composer(props: {
                 </button>
               }
             >
+              <Show when={props.sendWhileBusy}>
+                <button
+                  onClick={() => void send()}
+                  disabled={!text().trim() && !files().length}
+                  title="Queue for when this run finishes (Enter)"
+                  class="flex h-8 items-center rounded-full border border-line px-3 text-[12px] text-muted hover:bg-hover hover:text-text disabled:opacity-40"
+                >
+                  Queue
+                </button>
+              </Show>
               <button
                 onClick={() => void stop()}
                 disabled={stopping()}

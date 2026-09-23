@@ -11,6 +11,7 @@ import {
   type Session,
   type UserMessage,
 } from "./api"
+import { createAgents, type Agents } from "./agents"
 import { createSuggestions, expand, isBuiltin, parseCommand } from "./commands"
 import type { Draft as ComposerDraft } from "./components/composer"
 import { createConversations, isBusy, type Attachment } from "./conversations"
@@ -26,11 +27,19 @@ import { SessionView } from "./components/session-view"
 import { Sidebar } from "./components/sidebar"
 import { SettingsDialog } from "./components/settings-dialog"
 import { Status, type Gateway } from "./components/status"
+import { AgentEditor, AgentView, ModeTabs, WorkEmpty, WorkSidebar, type Mode } from "./components/work"
 import { createSettings, type Settings } from "./settings"
 
 export function App() {
   // Created before anything renders so text size applies to the splash too.
   const [settings, setSettings] = createSettings()
+  // Agents live above the daemon connection: their runs keep going through a reconnect.
+  const agents = createAgents()
+  onMount(() => {
+    const resume = () => agents.resumeAll()
+    window.addEventListener("online", resume)
+    onCleanup(() => window.removeEventListener("online", resume))
+  })
   const [connection, { refetch: reconnect }] = createResource(() => window.caimex.connect())
   const api = createMemo(() => {
     const value = connection()
@@ -43,6 +52,7 @@ export function App() {
         {(value) => (
           <Workspace
             api={value()}
+            agents={agents}
             onLost={() => {
               if (!connection.loading) void reconnect()
             }}
@@ -110,6 +120,7 @@ const untitled = (session: Session) => session.title.startsWith("New session - "
 
 function Workspace(props: {
   api: Api
+  agents: Agents
   // The daemon stopped answering: look it up again (it may have restarted on a new port).
   onLost: () => void
   settings: Settings
@@ -309,13 +320,45 @@ function Workspace(props: {
   }
 
   const [paletteOpen, setPaletteOpen] = createSignal(false)
+
+  // Code (sessions on the daemon) or Work (Hermes agents).
+  const [mode, setMode] = createSignal<Mode>(stored<Mode>("caimex.mode") ?? "code")
+  createEffect(() => store("caimex.mode", mode()))
+  const [agent, setAgent] = createSignal<string | undefined>(stored<string>("caimex.agent"))
+  createEffect(() => store("caimex.agent", agent()))
+  const shownAgent = () => {
+    const id = agent()
+    return id && props.agents.profileOf(id) ? id : props.agents.sorted()[0]?.id
+  }
+  // undefined: closed; null: adding; an id: editing that agent.
+  const [editing, setEditing] = createSignal<string | null>()
+  const attention = () =>
+    props.agents.state.profiles.filter((profile) => props.agents.state.live[profile.id]?.presence === "needsYou").length
+  const tabs = () => <ModeTabs mode={mode()} onMode={setMode} attention={attention()} />
   const [renameRequest, setRenameRequest] = createSignal<{ id: string; nonce: number }>()
 
   const paletteItems = (): PaletteItem[] => {
     const id = selected()
     const current = id && id !== NEW ? session() : undefined
     const items: PaletteItem[] = [
-      { id: "new", group: "Actions", label: "New session", shortcut: "⌘N", run: () => setSelected(NEW) },
+      {
+        id: "new",
+        group: "Actions",
+        label: "New session",
+        shortcut: "⌘N",
+        run: () => {
+          setMode("code")
+          setSelected(NEW)
+        },
+      },
+      {
+        id: "mode",
+        group: "Actions",
+        label: mode() === "code" ? "Go to Work (agents)" : "Go to Code (sessions)",
+        shortcut: mode() === "code" ? "⌘2" : "⌘1",
+        run: () => setMode(mode() === "code" ? "work" : "code"),
+      },
+      { id: "add-agent", group: "Actions", label: "Add an agent…", run: () => setEditing(null) },
       { id: "settings", group: "Actions", label: "Settings", shortcut: "⌘,", run: () => setSettingsOpen(true) },
     ]
     if (current) {
@@ -358,7 +401,21 @@ function Workspace(props: {
         group: "Sessions",
         label: titleOf(item),
         detail: projectName(item.location.directory),
-        run: () => setSelected(item.id),
+        run: () => {
+          setMode("code")
+          setSelected(item.id)
+        },
+      })
+    for (const profile of props.agents.sorted())
+      items.push({
+        id: `agent-${profile.id}`,
+        group: "Agents",
+        label: `${profile.emoji} ${profile.name}`,
+        detail: props.agents.state.live[profile.id]?.presence === "needsYou" ? "needs you" : profile.profile,
+        run: () => {
+          setMode("work")
+          setAgent(profile.id)
+        },
       })
     for (const model of (catalog.latest?.models ?? []).filter(isChatModel))
       items.push({
@@ -534,8 +591,12 @@ function Workspace(props: {
     window.addEventListener("focus", onFocus)
     const onKey = (event: KeyboardEvent) => {
       if (!(event.metaKey || event.ctrlKey)) return
-      if (event.key.toLowerCase() === "n") {
+      if (event.key === "1" || event.key === "2") {
         event.preventDefault()
+        setMode(event.key === "1" ? "code" : "work")
+      } else if (event.key.toLowerCase() === "n") {
+        event.preventDefault()
+        setMode("code")
         setSelected(NEW)
       } else if (event.key === ",") {
         event.preventDefault()
@@ -593,53 +654,77 @@ function Workspace(props: {
     })
   })
 
+  const footer = () => (
+      <div class="flex items-center gap-1">
+        <button
+          onClick={() => setSettingsOpen(true)}
+          class="min-w-0 flex-1 rounded-md py-1 text-left hover:bg-hover"
+          title="Settings (⌘,)"
+        >
+          <Status
+            online={online()}
+            live={live()}
+            signedIn={signedIn()}
+            gateway={gateway.latest}
+            error={gateway.error ? String(gateway.error.message ?? gateway.error) : undefined}
+          />
+        </button>
+        <button
+          onClick={() => setSettingsOpen(true)}
+          title="Settings (⌘,)"
+          class="flex size-7 shrink-0 items-center justify-center rounded-md text-faint hover:bg-hover hover:text-text"
+        >
+          <svg viewBox="0 0 16 16" class="size-4" fill="none" stroke="currentColor" stroke-width="1.3">
+            <circle cx="8" cy="8" r="2.2" />
+            <path d="M8 1.5v1.8M8 12.7v1.8M14.5 8h-1.8M3.3 8H1.5M12.6 3.4l-1.3 1.3M4.7 11.3l-1.3 1.3M12.6 12.6l-1.3-1.3M4.7 4.7 3.4 3.4" stroke-linecap="round" />
+          </svg>
+        </button>
+      </div>
+  )
+
   return (
     <div class="flex h-full">
-      <Sidebar
-        sessions={sessions.latest}
-        loading={sessions.loading}
-        error={sessions.error ? String(sessions.error.message ?? sessions.error) : undefined}
-        selected={selected()}
-        search={search()}
-        onSearch={setSearch}
-        onSelect={setSelected}
-        onRefresh={refreshSessions}
-        onNew={() => setSelected(NEW)}
-        creating={selected() === NEW}
-        titleOf={titleOf}
-        renameRequest={renameRequest()}
-        onRename={(id, title) => reportFailure("Couldn't rename the session", () => renameSession(id, title))}
-        onDelete={(target) => reportFailure("Couldn't delete the session", () => deleteSession(target))}
-        busy={(id) => isBusy(conversations.state[id], active().has(id))}
-        footer={
-          <div class="flex items-center gap-1">
-            <button
-              onClick={() => setSettingsOpen(true)}
-              class="min-w-0 flex-1 rounded-md py-1 text-left hover:bg-hover"
-              title="Settings (⌘,)"
-            >
-              <Status
-                online={online()}
-                live={live()}
-                signedIn={signedIn()}
-                gateway={gateway.latest}
-                error={gateway.error ? String(gateway.error.message ?? gateway.error) : undefined}
-              />
-            </button>
-            <button
-              onClick={() => setSettingsOpen(true)}
-              title="Settings (⌘,)"
-              class="flex size-7 shrink-0 items-center justify-center rounded-md text-faint hover:bg-hover hover:text-text"
-            >
-              <svg viewBox="0 0 16 16" class="size-4" fill="none" stroke="currentColor" stroke-width="1.3">
-                <circle cx="8" cy="8" r="2.2" />
-                <path d="M8 1.5v1.8M8 12.7v1.8M14.5 8h-1.8M3.3 8H1.5M12.6 3.4l-1.3 1.3M4.7 11.3l-1.3 1.3M12.6 12.6l-1.3-1.3M4.7 4.7 3.4 3.4" stroke-linecap="round" />
-              </svg>
-            </button>
-          </div>
-        }
-      />
-      <main class="min-w-0 flex-1">
+      <div classList={{ hidden: mode() !== "code" }} class="h-full">
+        <Sidebar
+          sessions={sessions.latest}
+          loading={sessions.loading}
+          error={sessions.error ? String(sessions.error.message ?? sessions.error) : undefined}
+          selected={selected()}
+          search={search()}
+          onSearch={setSearch}
+          onSelect={setSelected}
+          onRefresh={refreshSessions}
+          onNew={() => setSelected(NEW)}
+          creating={selected() === NEW}
+          titleOf={titleOf}
+          renameRequest={renameRequest()}
+          onRename={(id, title) => reportFailure("Couldn't rename the session", () => renameSession(id, title))}
+          onDelete={(target) => reportFailure("Couldn't delete the session", () => deleteSession(target))}
+          busy={(id) => isBusy(conversations.state[id], active().has(id))}
+          tabs={tabs()}
+          footer={footer()}
+        />
+      </div>
+      <div classList={{ hidden: mode() !== "work" }} class="h-full">
+        <WorkSidebar
+          agents={props.agents}
+          selected={shownAgent()}
+          onSelect={setAgent}
+          onAdd={() => setEditing(null)}
+          tabs={tabs()}
+          footer={footer()}
+        />
+      </div>
+      <main classList={{ hidden: mode() !== "work" }} class="min-w-0 flex-1">
+        <Show
+          when={shownAgent()}
+          keyed
+          fallback={<WorkEmpty agents={props.agents} onAdd={() => setEditing(null)} onCreated={setAgent} />}
+        >
+          {(id) => <AgentView agents={props.agents} id={id} onEdit={() => setEditing(id)} />}
+        </Show>
+      </main>
+      <main classList={{ hidden: mode() !== "code" }} class="min-w-0 flex-1">
         {/* Keyed on the id, not the session object, so refreshing the list doesn't
             remount the view and throw away scroll position or a half-typed message. */}
         <Show
@@ -741,6 +826,18 @@ function Workspace(props: {
       </main>
       <Show when={paletteOpen()}>
         <Palette items={paletteItems()} onClose={() => setPaletteOpen(false)} />
+      </Show>
+      <Show when={editing() !== undefined}>
+        <AgentEditor
+          agents={props.agents}
+          profile={editing() ? props.agents.profileOf(editing()!) : undefined}
+          onClose={() => setEditing(undefined)}
+          onSaved={(id) => {
+            setMode("work")
+            setAgent(id)
+          }}
+          onRemoved={(id) => agent() === id && setAgent(undefined)}
+        />
       </Show>
       <ConfirmHost />
       <Show when={settingsOpen()}>

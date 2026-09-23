@@ -14,6 +14,8 @@ export function Sidebar(props: {
   onSelect: (id: string) => void
   onRefresh: () => void
   footer?: JSX.Element
+  // The Code/Work switch.
+  tabs?: JSX.Element
   titleOf: (session: Session) => string
   onNew: () => void
   creating: boolean
@@ -53,6 +55,7 @@ export function Sidebar(props: {
     <aside class="flex h-full w-[272px] shrink-0 flex-col border-r border-line bg-sidebar">
       {/* space for the macOS traffic lights; the whole strip drags the window */}
       <div class="drag h-[52px] shrink-0" />
+      {props.tabs}
 
       <div class="flex flex-col gap-2 px-3 pb-3">
         <button

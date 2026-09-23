@@ -278,6 +278,14 @@ than reusing `packages/app`. It shares the daemon binary staged in
   context meter has no Compact action.
 - The renderer CSP allows `'wasm-unsafe-eval'` and `data:` in `connect-src` because the
   terminal (ghostty-web) compiles an embedded WebAssembly module.
+- **Work tab** (`src/renderer/src/agents.ts`, `hermes.ts`, `components/work.tsx`): Hermes
+  agents over Hermes' API server (`/v1/runs`), following the same run protocol as the
+  mobile apps (`caimex-mobile/PROTOCOL.md` in the caimex_desktop folder): replay after
+  the last `seq`, fall back to polling the run status, one card per approval/question id,
+  queue while running, steer. All Hermes traffic goes through the main process
+  (`src/main/hermes.ts`) because Hermes only answers allow-listed browser origins; keys
+  are stored with `safeStorage` in `userData/agent-keys.json` and never reach the page.
+  "Connect this Mac's Hermes" reads `~/.hermes/.env` and `~/.hermes/profiles` there.
 - Sessions run by the v1 engine have their history only in the v1 tables; the app reads
   it through `legacy-message` and shows it read-only above any new messages.
 - It re-finds the daemon after two failed health checks (`service start` returns the

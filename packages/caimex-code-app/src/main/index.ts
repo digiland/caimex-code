@@ -3,6 +3,7 @@ import { isAbsolute, join, relative, resolve } from "node:path"
 import { pathToFileURL } from "node:url"
 import { app, BrowserWindow, dialog, ipcMain, nativeImage, net, protocol, shell } from "electron"
 import { connect } from "./daemon"
+import { registerHermes } from "./hermes"
 
 // Set before ready so userData, the single-instance lock and the Dock label are this
 // app's own. Dev runs get a separate name so they never contend with an installed build.
@@ -64,6 +65,7 @@ function createWindow() {
 }
 
 ipcMain.handle("daemon:connect", () => connect())
+registerHermes()
 ipcMain.handle("dialog:folder", async () => {
   if (!window) return undefined
   const result = await dialog.showOpenDialog(window, {

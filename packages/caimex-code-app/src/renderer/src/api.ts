@@ -15,6 +15,7 @@ declare global {
       openExternal(url: string): Promise<void>
       setZoom(factor: number): void
       info(): Promise<{ version: string; packaged: boolean }>
+      hermes: import("./hermes").HermesBridge
     }
   }
 }

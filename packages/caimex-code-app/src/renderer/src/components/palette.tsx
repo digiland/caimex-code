@@ -2,7 +2,7 @@ import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-j
 
 export type PaletteItem = {
   id: string
-  group: "Actions" | "Sessions" | "Models"
+  group: "Actions" | "Agents" | "Sessions" | "Models"
   label: string
   detail?: string
   shortcut?: string
@@ -19,7 +19,7 @@ function matches(item: PaletteItem, query: string) {
     .every((word) => haystack.includes(word))
 }
 
-const GROUPS = ["Actions", "Sessions", "Models"] as const
+const GROUPS = ["Actions", "Agents", "Sessions", "Models"] as const
 
 export function Palette(props: { items: PaletteItem[]; onClose: () => void }) {
   let input!: HTMLInputElement
@@ -31,7 +31,9 @@ export function Palette(props: { items: PaletteItem[]; onClose: () => void }) {
     const filtered = props.items.filter((item) => matches(item, query()))
     const limited = query()
       ? filtered
-      : filtered.filter((item) => item.group === "Actions" || (item.group === "Sessions" && filtered.indexOf(item) < 20))
+      : filtered.filter(
+          (item) => item.group === "Actions" || item.group === "Agents" || (item.group === "Sessions" && filtered.indexOf(item) < 20),
+        )
     return GROUPS.flatMap((group) => limited.filter((item) => item.group === group).slice(0, query() ? 30 : 8))
   })
 
@@ -74,7 +76,7 @@ export function Palette(props: { items: PaletteItem[]; onClose: () => void }) {
             setQuery(event.currentTarget.value)
             setCursor(0)
           }}
-          placeholder="Search actions, sessions and models"
+          placeholder="Search actions, agents, sessions and models"
           class="border-b border-line bg-transparent px-4 py-3.5 text-[14px] text-text outline-none placeholder:text-faint"
         />
         <div ref={list} class="min-h-0 flex-1 overflow-y-auto p-1.5">
