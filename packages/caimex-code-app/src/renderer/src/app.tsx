@@ -131,6 +131,16 @@ function Workspace(props: {
   const signedIn = () => (account.latest ? account.latest.connections.length > 0 : undefined)
   const [settingsOpen, setSettingsOpen] = createSignal(false)
   const [sessions, { refetch: refreshSessions }] = createResource(() => props.api.sessions())
+  // Right after the daemon starts, the gateway's model list is still being fetched and
+  // comes back empty; ask again rather than showing no models until the next reconnect.
+  async function loadModels() {
+    let models = await props.api.models()
+    for (let attempt = 0; attempt < 8 && models.length === 0; attempt++) {
+      await wait(1000)
+      models = await props.api.models()
+    }
+    return models
+  }
   const [gateway, { refetch: refreshGateway }] = createResource<Gateway>(async () => {
     // A location loads lazily on the daemon; its first provider listing can come back
     // empty while that happens.
@@ -140,14 +150,14 @@ function Workspace(props: {
       providers = (await props.api.providers()).map((provider) => provider.id)
     }
     const [models, defaultModel] = await Promise.all([
-      props.api.models(),
+      loadModels(),
       props.api.defaultModel().catch(() => undefined),
     ])
     return { providers, models: models.length, defaultModel }
   })
 
   const [catalog, { refetch: refreshCatalog }] = createResource(async () => {
-    const [models, agents] = await Promise.all([props.api.models(), props.api.agents().catch(() => [])])
+    const [models, agents] = await Promise.all([loadModels(), props.api.agents().catch(() => [])])
     return { models, agents }
   })
 
@@ -800,6 +810,7 @@ function Workspace(props: {
                     onAgent: (agent) => chooseAgent(id, agent),
                   })}
                   contextLimit={contextLimitOf(id)}
+                  loadContext={() => props.api.context(id)}
                   draft={drafts[id]}
                   paneOpen={paneOpen()}
                   onTogglePane={() => setPaneOpen(!paneOpen())}
@@ -868,6 +879,12 @@ function Workspace(props: {
           settings={props.settings}
           onSettings={props.onSettings}
           onAccountChanged={() => void refreshAccount()}
+          directories={[...new Set((sessions.latest ?? []).map((item) => item.location.directory))]}
+          onRestartDaemon={async () => {
+            await window.caimex.stopDaemon()
+            // Reconnecting runs `service start`, which brings it back with the new config.
+            props.onLost()
+          }}
           onClose={() => setSettingsOpen(false)}
         />
       </Show>

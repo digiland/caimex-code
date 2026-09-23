@@ -1,11 +1,11 @@
 import type { FitAddon, Terminal } from "ghostty-web"
-import { createMemo, createResource, createSignal, For, onCleanup, onMount, Show } from "solid-js"
+import { createMemo, createResource, createSignal, For, type JSX, onCleanup, onMount, Show } from "solid-js"
 import { isAssistant, type Api, type FileEntry, type ToolPart } from "../api"
 import type { Conversation } from "../conversations"
 import { highlight } from "../highlight"
 import { ToolView } from "./tools"
 
-type Tab = "files" | "changes" | "terminal"
+type Tab = "files" | "changes" | "terminal" | "library"
 
 // Working context beside the conversation. Tabs stay mounted once opened, so a running
 // terminal or an expanded folder survives switching between them.
@@ -26,7 +26,7 @@ export function RightPane(props: {
   return (
     <aside class="flex h-full w-[440px] shrink-0 flex-col border-l border-line bg-sidebar">
       <div class="drag flex h-[52px] shrink-0 items-center gap-1 border-b border-line px-3">
-        <For each={[["files", "Files"], ["changes", "Changes"], ["terminal", "Terminal"]] as const}>
+        <For each={[["files", "Files"], ["changes", "Changes"], ["terminal", "Terminal"], ["library", "Library"]] as const}>
           {([id, label]) => (
             <button
               onClick={() => show(id)}
@@ -56,6 +56,11 @@ export function RightPane(props: {
         <div class="absolute inset-0 overflow-y-auto" classList={{ hidden: tab() !== "changes" }}>
           <Changes files={changes()} directory={props.directory} />
         </div>
+        <Show when={opened().has("library")}>
+          <div class="absolute inset-0 overflow-y-auto" classList={{ hidden: tab() !== "library" }}>
+            <Library api={props.api} directory={props.directory} />
+          </div>
+        </Show>
         <Show when={opened().has("terminal")}>
           <div class="absolute inset-0" classList={{ hidden: tab() !== "terminal" }}>
             <TerminalView api={props.api} directory={props.directory} visible={tab() === "terminal"} />
@@ -63,6 +68,119 @@ export function RightPane(props: {
         </Show>
       </div>
     </aside>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Library: what the agent has to work with in this folder. Plugins contribute through
+// the same lists (the v2 API has no plugin listing of its own), so this is also where
+// a newly added plugin shows what it brought.
+
+function Library(props: { api: Api; directory: string }) {
+  const [data, { refetch }] = createResource(
+    () => props.directory,
+    async (directory) => {
+      const [skills, references, commands, agents] = await Promise.all([
+        props.api.skills(directory).catch(() => undefined),
+        props.api.references(directory).catch(() => undefined),
+        props.api.commands(directory).catch(() => undefined),
+        props.api.agents(directory).catch(() => undefined),
+      ])
+      return { skills, references, commands, agents: agents?.filter((agent) => !agent.hidden) }
+    },
+  )
+  return (
+    <div class="flex flex-col gap-5 px-4 py-4">
+      <div class="flex items-center">
+        <div class="flex-1 text-[11.5px] leading-snug text-faint">
+          Available to the agent in this folder, including anything added by plugins.
+        </div>
+        <button onClick={() => void refetch()} class="rounded px-2 py-1 text-[11.5px] text-muted hover:bg-hover hover:text-text">
+          Refresh
+        </button>
+      </div>
+      <Section title="Skills" count={data.latest?.skills?.length} empty="No skills.">
+        <For each={data.latest?.skills}>
+          {(skill) => (
+            <LibraryItem
+              name={skill.name}
+              detail={skill.description}
+              meta={skill.location?.startsWith("/builtin/") ? "built in" : skill.location}
+              body={skill.content}
+            />
+          )}
+        </For>
+      </Section>
+      <Section title="Modes" count={data.latest?.agents?.length} empty="No modes.">
+        <For each={data.latest?.agents}>
+          {(agent) => <LibraryItem name={agent.id} detail={agent.description} meta={agent.mode === "subagent" ? "sub-agent" : undefined} />}
+        </For>
+      </Section>
+      <Section title="Commands" count={data.latest?.commands?.length} empty="No project commands.">
+        <For each={data.latest?.commands}>
+          {(command) => (
+            <LibraryItem name={`/${command.name}`} detail={command.description ?? command.template.split("\n")[0]} body={command.template} />
+          )}
+        </For>
+      </Section>
+      <Section
+        title="References"
+        count={data.latest?.references?.filter((item) => !item.hidden).length}
+        empty="No references. Add docs or repositories under “references” in the project's config."
+      >
+        <For each={data.latest?.references?.filter((item) => !item.hidden)}>
+          {(reference) => (
+            <LibraryItem
+              name={reference.name}
+              detail={reference.description}
+              meta={reference.source.type === "git" ? `${reference.source.repository}${reference.source.branch ? ` @ ${reference.source.branch}` : ""}` : reference.path}
+            />
+          )}
+        </For>
+      </Section>
+    </div>
+  )
+}
+
+function Section(props: { title: string; count: number | undefined; empty: string; children: JSX.Element }) {
+  return (
+    <section>
+      <div class="mb-1.5 flex items-baseline gap-1.5 text-[11px] font-medium tracking-wide text-faint uppercase">
+        {props.title}
+        <Show when={props.count}>
+          <span class="font-normal normal-case">{props.count}</span>
+        </Show>
+      </div>
+      <Show when={props.count} fallback={<div class="text-[12px] text-faint">{props.count === undefined ? "Loading…" : props.empty}</div>}>
+        <div class="flex flex-col gap-1">{props.children}</div>
+      </Show>
+    </section>
+  )
+}
+
+function LibraryItem(props: { name: string; detail?: string; meta?: string; body?: string }) {
+  const [open, setOpen] = createSignal(false)
+  return (
+    <div class="rounded-md border border-line bg-bg px-3 py-2">
+      <button onClick={() => props.body && setOpen(!open())} class="block w-full text-left" classList={{ "cursor-default": !props.body }}>
+        <div class="flex items-baseline gap-2">
+          <span class="font-mono text-[12px] text-text">{props.name}</span>
+          <Show when={props.meta}>
+            <span class="min-w-0 truncate text-[10.5px] text-faint">{props.meta}</span>
+          </Show>
+        </div>
+        <Show when={props.detail}>
+          <div classList={{ "line-clamp-2": !open() }} class="mt-0.5 text-[11.5px] leading-snug text-muted">
+            {props.detail}
+          </div>
+        </Show>
+      </button>
+      <Show when={open() && props.body}>
+        <pre class="mt-2 max-h-[260px] overflow-auto rounded bg-sidebar px-2 py-1.5 font-mono text-[11px] whitespace-pre-wrap text-muted select-text">
+          {props.body}
+        </pre>
+      </Show>
+    </div>
   )
 }
 
@@ -250,10 +368,66 @@ const loadGhostty = () => {
   return ghostty
 }
 
+// The pane's shell outlives the pane: closing it (or reloading the app) leaves the shell
+// running on the daemon, and opening it again reattaches, replaying what it printed.
+const TERMINAL_TITLE = "Caimex Code"
+
 function TerminalView(props: { api: Api; directory: string; visible: boolean }) {
+  // Bumped to start over; `fresh` ends the current shell first.
+  const [run, setRun] = createSignal({ id: 0, fresh: false })
+  const [ptyID, setPtyID] = createSignal<string>()
+  const restart = (fresh: boolean) => setRun((current) => ({ id: current.id + 1, fresh }))
+  const end = async () => {
+    const id = ptyID()
+    if (id) await props.api.ptyRemove(props.directory, id).catch(() => {})
+  }
+  return (
+    <div class="flex h-full flex-col">
+      <div class="flex shrink-0 items-center gap-1 border-b border-line px-2 py-1">
+        <span class="min-w-0 flex-1 truncate px-1 font-mono text-[11px] text-faint">{props.directory}</span>
+        <button
+          onClick={() => restart(true)}
+          title="End this shell and start a new one"
+          class="h-6 rounded px-2 text-[11.5px] text-muted hover:bg-hover hover:text-text"
+        >
+          New shell
+        </button>
+        <button
+          onClick={() => void end()}
+          title="End this shell"
+          class="h-6 rounded px-2 text-[11.5px] text-muted hover:bg-hover hover:text-text"
+        >
+          End
+        </button>
+      </div>
+      <Show when={run()} keyed>
+        {(current) => (
+          <TerminalSession
+            api={props.api}
+            directory={props.directory}
+            visible={props.visible}
+            fresh={current.fresh}
+            onPty={setPtyID}
+            onRestart={() => restart(false)}
+          />
+        )}
+      </Show>
+    </div>
+  )
+}
+
+function TerminalSession(props: {
+  api: Api
+  directory: string
+  visible: boolean
+  fresh: boolean
+  onPty: (id: string | undefined) => void
+  onRestart: () => void
+}) {
   let host!: HTMLDivElement
   const [error, setError] = createSignal<string>()
   const [exited, setExited] = createSignal(false)
+  const [reattached, setReattached] = createSignal(false)
 
   onMount(() => {
     let disposed = false
@@ -297,9 +471,17 @@ function TerminalView(props: { api: Api; directory: string; visible: boolean }) 
         term.open(host)
         fit.fit()
 
-        const pty = await props.api.ptyCreate(props.directory, { cwd: props.directory, title: "Caimex Code" })
+        // This app's shell for the folder, if one is still running.
+        const running = (await props.api.ptyList(props.directory).catch(() => [])).filter(
+          (item) => item.title === TERMINAL_TITLE && item.cwd === props.directory && item.status === "running",
+        )
+        if (props.fresh) await Promise.all(running.map((item) => props.api.ptyRemove(props.directory, item.id).catch(() => {})))
+        const existing = props.fresh ? undefined : running[0]
+        const pty = existing ?? (await props.api.ptyCreate(props.directory, { cwd: props.directory, title: TERMINAL_TITLE }))
         ptyID = pty.id
-        if (disposed) return void props.api.ptyRemove(props.directory, pty.id).catch(() => {})
+        props.onPty(pty.id)
+        setReattached(!!existing)
+        if (disposed) return
         socket = new WebSocket(await props.api.ptySocketUrl(props.directory, pty.id))
         socket.binaryType = "arraybuffer"
         // Text frames are terminal output; binary frames are the daemon's control channel.
@@ -307,7 +489,11 @@ function TerminalView(props: { api: Api; directory: string; visible: boolean }) 
           if (typeof event.data === "string") term?.write(event.data)
         }
         socket.onopen = () => resize()
-        socket.onclose = () => !disposed && setExited(true)
+        socket.onclose = () => {
+          if (disposed) return
+          setExited(true)
+          props.onPty(undefined)
+        }
         term.onData((data) => {
           if (socket?.readyState === WebSocket.OPEN) socket.send(data)
         })
@@ -324,17 +510,24 @@ function TerminalView(props: { api: Api; directory: string; visible: boolean }) 
       clearTimeout(resizeTimer)
       socket?.close()
       term?.dispose()
-      if (ptyID) void props.api.ptyRemove(props.directory, ptyID).catch(() => {})
     })
   })
 
   return (
-    <div class="flex h-full flex-col">
+    <div class="flex min-h-0 flex-1 flex-col">
       <Show when={error()}>
         <div class="px-3 py-2 text-[12px] text-bad">Couldn't start a terminal: {error()}</div>
       </Show>
+      <Show when={reattached() && !exited()}>
+        <div class="px-3 pt-1.5 text-[11px] text-faint">Reattached to the shell that was already running here.</div>
+      </Show>
       <Show when={exited()}>
-        <div class="px-3 py-1.5 text-[11.5px] text-faint">The shell exited. Close and reopen the pane for a new one.</div>
+        <div class="flex items-center gap-2 px-3 py-1.5 text-[11.5px] text-faint">
+          The shell ended.
+          <button onClick={props.onRestart} class="text-text underline">
+            Start a new one
+          </button>
+        </div>
       </Show>
       <div ref={host} class="min-h-0 flex-1 px-2 py-1.5" />
     </div>

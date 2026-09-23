@@ -16,9 +16,18 @@ declare global {
       setZoom(factor: number): void
       info(): Promise<{ version: string; packaged: boolean }>
       hermes: import("./hermes").HermesBridge
+      stopDaemon(): Promise<string>
+      plugins: {
+        list(): Promise<PluginConfig>
+        save(entries: PluginEntry[]): Promise<PluginConfig>
+      }
     }
   }
 }
+
+export type PluginEntry = { package: string; options?: Record<string, unknown> }
+// The daemon's plugin setup, from the global config folder (see src/main/plugins.ts).
+export type PluginConfig = { file: string; entries: PluginEntry[]; files: string[]; v1: string[] }
 
 export type Session = {
   id: string
@@ -234,6 +243,18 @@ export type Command = { name: string; template: string; description?: string; ag
 export type RevertState = { messageID: string; diff?: string; files?: { file?: string; additions?: number; deletions?: number }[] }
 export type Pty = { id: string; title: string; command: string; cwd: string; status: "running" | "exited"; exitCode?: number }
 
+export type Skill = { name: string; description?: string; location?: string; content?: string }
+export type Reference = {
+  name: string
+  path: string
+  description?: string
+  hidden?: boolean
+  source: { type: "local"; path: string } | { type: "git"; repository: string; branch?: string }
+}
+// An "Always allow" rule remembered for a project.
+export type SavedPermission = { id: string; projectID: string; action: string; resource: string }
+export type LocationInfo = { directory: string; project: { id: string; directory: string } }
+
 export const isUser = (message: Message): message is UserMessage => message.type === "user"
 export const isAssistant = (message: Message): message is AssistantMessage => message.type === "assistant"
 
@@ -312,7 +333,9 @@ export function createApi(connection: Extract<Connection, { ok: true }>) {
     },
     setModel: (sessionID: string, model: ModelRef) => send(`/api/session/${sessionID}/model`, { model }),
     setAgent: (sessionID: string, agent: string) => send(`/api/session/${sessionID}/agent`, { agent }),
-    agents: () => data<Agent[]>("/api/agent"),
+    // Without a folder, the daemon answers for its default location.
+    agents: (directory?: string) =>
+      data<Agent[]>("/api/agent", directory ? { "location[directory]": directory } : undefined),
     providers: () => data<{ id: string }[]>("/api/provider"),
     models: () => data<Model[]>("/api/model"),
     defaultModel: () => data<Model>("/api/model/default"),
@@ -360,6 +383,16 @@ export function createApi(connection: Extract<Connection, { ok: true }>) {
       if (!response.ok) throw new ApiError(response.status, `${response.status} reading ${path}`)
       return response.text()
     },
+    // What the folder's agent has available: built-in and plugin-provided skills, and
+    // project references (docs and repos it can consult).
+    skills: (directory: string) => data<Skill[]>("/api/skill", { "location[directory]": directory }),
+    references: (directory: string) => data<Reference[]>("/api/reference", { "location[directory]": directory }),
+    location: (directory: string) =>
+      request("/api/location", { "location[directory]": directory }) as Promise<LocationInfo>,
+    savedPermissions: () => data<SavedPermission[]>("/api/permission/saved"),
+    removeSavedPermission: (id: string) => remove(`/api/permission/saved/${id}`),
+    // Messages the model currently sees: everything after the last compaction.
+    context: (sessionID: string) => data<Message[]>(`/api/session/${sessionID}/context`),
     commands: (directory: string) => data<Command[]>("/api/command", { "location[directory]": directory }),
     // Warms a folder the daemon hasn't loaded yet (see sendPrompt's use).
     warm: (directory: string) => data<unknown[]>("/api/agent", { "location[directory]": directory }).then(() => {}),
@@ -373,6 +406,7 @@ export function createApi(connection: Extract<Connection, { ok: true }>) {
 
     ptyCreate: async (directory: string, input: { cwd: string; title?: string }) =>
       ((await post(`/api/pty?location%5Bdirectory%5D=${encodeURIComponent(directory)}`, input)) as { data: Pty }).data,
+    ptyList: (directory: string) => data<Pty[]>("/api/pty", { "location[directory]": directory }),
     ptyResize: (directory: string, id: string, size: { rows: number; cols: number }) =>
       fetch(`${connection.url}/api/pty/${id}?location%5Bdirectory%5D=${encodeURIComponent(directory)}`, {
         method: "PUT",

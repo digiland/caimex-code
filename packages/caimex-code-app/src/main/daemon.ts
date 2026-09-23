@@ -35,6 +35,14 @@ async function password(path: string) {
   throw new Error("The daemon did not return a password")
 }
 
+// Stops the daemon so it rereads its config (plugins) on the next start. Every client's
+// running work stops with it. The caller reconnects, which starts it again.
+export async function stop() {
+  const path = binary()
+  const { stdout } = await exec(path, ["service", "stop"], { windowsHide: true, timeout: 90_000 })
+  return stdout.trim()
+}
+
 export async function connect(): Promise<Connection> {
   const path = binary()
   if (!existsSync(path))

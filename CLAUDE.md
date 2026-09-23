@@ -290,6 +290,17 @@ than reusing `packages/app`. It shares the daemon binary staged in
   server+profile, with run now / pause / resume / edit / delete. Hermes has no API for
   job results; the main process reads the per-run Markdown files from
   `<hermes home>/cron/output/<job id>/` (or `profiles/<p>/cron/…`), loopback agents only.
+- **Plugins** (Settings → Plugins, `src/main/plugins.ts`): the v2 API has no config or
+  plugin routes, so the main process edits the `plugins` key of
+  `~/.config/caimex-code/opencode.jsonc` (with jsonc-parser, comments kept) and lists
+  files in `plugins/`. Not `caimex.json`: it has v1 keys, so v2 migrates it as v1 and
+  only its v1 `plugin` key survives. Applying means `service stop` + reconnect. A plugin
+  that fails to load is dropped silently (`Effect.ignoreCause` in
+  `core/src/config/plugin/external.ts`); what it adds shows in the side pane's Library
+  (skills, modes, commands, references), which reads the same list endpoints. v2 plugins
+  have no tool hook and v2 doesn't read `mcp` on dev yet.
+- The pane's terminal outlives the pane: it reattaches to its running pty (`GET /api/pty`,
+  title "Caimex Code") and only "New shell"/"End" remove one.
 - Sessions run by the v1 engine have their history only in the v1 tables; the app reads
   it through `legacy-message` and shows it read-only above any new messages.
 - It re-finds the daemon after two failed health checks (`service start` returns the

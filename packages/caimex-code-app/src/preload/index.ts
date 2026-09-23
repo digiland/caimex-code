@@ -8,6 +8,11 @@ contextBridge.exposeInMainWorld("caimex", {
   openExternal: (url: string) => ipcRenderer.invoke("shell:open", url),
   setZoom: (factor: number) => webFrame.setZoomFactor(factor),
   info: () => ipcRenderer.invoke("app:info"),
+  stopDaemon: () => ipcRenderer.invoke("daemon:stop"),
+  plugins: {
+    list: () => ipcRenderer.invoke("plugins:list"),
+    save: (entries: unknown) => ipcRenderer.invoke("plugins:save", entries),
+  },
   hermes: {
     local: () => ipcRenderer.invoke("hermes:local"),
     hasKey: (id: string) => ipcRenderer.invoke("hermes:hasKey", id),

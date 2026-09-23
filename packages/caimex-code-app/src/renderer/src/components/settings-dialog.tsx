@@ -1,12 +1,16 @@
 import { createResource, createSignal, For, type JSX, onCleanup, onMount, Show } from "solid-js"
 import type { Api, SignInAttempt } from "../api"
 import { CODE_FONTS, type Settings, TEXT_SIZES } from "../settings"
+import { Plugins, SavedPermissions } from "./settings-extras"
 
 export function SettingsDialog(props: {
   api: Api
   settings: Settings
   onSettings: <K extends keyof Settings>(key: K, value: Settings[K]) => void
   onAccountChanged: () => void
+  // Project folders the app knows, for naming saved permissions.
+  directories: string[]
+  onRestartDaemon: () => Promise<void>
   onClose: () => void
 }) {
   const [info] = createResource(() => window.caimex.info())
@@ -59,6 +63,14 @@ export function SettingsDialog(props: {
             <div class="mt-1 rounded-md bg-sidebar px-3 py-2 font-mono text-[12px] text-muted">
               const answer = await caimex.ask("hello")
             </div>
+          </Section>
+
+          <Section title="Plugins">
+            <Plugins onRestart={props.onRestartDaemon} />
+          </Section>
+
+          <Section title="Saved permissions">
+            <SavedPermissions api={props.api} directories={props.directories} />
           </Section>
 
           <Section title="About">
