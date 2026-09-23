@@ -406,6 +406,44 @@ function applyCaching(msgs: ModelMessage[], model: Provider.Model): ModelMessage
   return msgs
 }
 
+// A file part's bytes, when it carries them inline (a data URL, bare base64 or
+// raw bytes). A remote URL is left for the provider to fetch.
+function inlineBytes(data: unknown): Uint8Array | undefined {
+  if (data instanceof Uint8Array) return data
+  if (data instanceof ArrayBuffer) return new Uint8Array(data)
+  if (typeof data !== "string") return undefined
+  const match = data.match(/^data:[^,]*;base64,(.*)$/s)
+  if (match) return Buffer.from(match[1], "base64")
+  if (/^[a-z][a-z0-9+.-]*:/i.test(data)) return undefined
+  return Buffer.from(data, "base64")
+}
+
+// Strict UTF-8 with no NULs, or undefined. Guessing an encoding would hand the
+// model mojibake, so anything else counts as binary.
+function asText(bytes: Uint8Array): string | undefined {
+  if (bytes.includes(0)) return undefined
+  try {
+    const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes)
+    return text.trim() ? text : undefined
+  } catch {
+    return undefined
+  }
+}
+
+// Attachments that are really text (.json, .yaml, source files, …) go to the
+// model as text, which every provider accepts. As file parts they are refused
+// by provider SDKs that only take images, audio and PDFs — @ai-sdk/openai-compatible
+// throws on them, and because that happens while the whole history is being
+// converted, one such attachment failed every later turn of the session too.
+// `video/mp2t` is included because mime tables call a .ts file that.
+function textAttachment(part: { data: unknown; mediaType: string; filename?: string }): string | undefined {
+  if (mimeToModality(part.mediaType) && part.mediaType !== "video/mp2t") return undefined
+  const bytes = inlineBytes(part.data)
+  const text = bytes && asText(bytes)
+  if (text === undefined) return undefined
+  return `[Document: ${part.filename ?? "attachment"}]\n\n${text}`
+}
+
 function unsupportedParts(msgs: ModelMessage[], model: Provider.Model): ModelMessage[] {
   return msgs.map((msg) => {
     if (msg.role !== "user" || !Array.isArray(msg.content)) return msg
@@ -427,10 +465,25 @@ function unsupportedParts(msgs: ModelMessage[], model: Provider.Model): ModelMes
         }
       }
 
+      if (part.type === "file") {
+        const text = textAttachment(part)
+        if (text !== undefined) return { type: "text" as const, text }
+      }
+
       const mime = part.type === "image" ? String(part.image).split(";")[0].replace("data:", "") : part.mediaType
       const filename = part.type === "file" ? part.filename : undefined
       const modality = mimeToModality(mime)
-      if (!modality) return part
+      if (!modality) {
+        // Any other binary (.docx, .zip, …): this SDK has no way to send it
+        // and would throw, failing every later turn along with this one.
+        if (part.type === "file" && model.api.npm === "@ai-sdk/openai-compatible") {
+          return {
+            type: "text" as const,
+            text: `ERROR: Cannot read "${filename ?? "attachment"}" (${mime} files cannot be attached to this model; only text files, images and PDFs can). Inform the user.`,
+          }
+        }
+        return part
+      }
       if (model.capabilities.input[modality]) return part
 
       const name = filename ? `"${filename}"` : modality

@@ -6209,3 +6209,85 @@ describe("ProviderTransform.options - kimi family adaptive thinking", () => {
     expect(result.thinking).toBeUndefined()
   })
 })
+
+describe("ProviderTransform.message - text attachments", () => {
+  const caimexModel = {
+    id: "caimex/DeepSeek-V4-Flash",
+    providerID: "caimex",
+    api: { id: "DeepSeek-V4-Flash", url: "https://gateway.example/v1", npm: "@ai-sdk/openai-compatible" },
+    name: "DeepSeek V4 Flash",
+    capabilities: {
+      temperature: true,
+      reasoning: false,
+      attachment: true,
+      toolcall: true,
+      input: { text: true, audio: false, image: true, video: false, pdf: false },
+      output: { text: true, audio: false, image: false, video: false, pdf: false },
+      interleaved: false,
+    },
+    cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
+    limit: { context: 128000, output: 8192 },
+    status: "active",
+    options: {},
+    headers: {},
+  } as any
+
+  const b64 = (s: string | Uint8Array) => Buffer.from(s).toString("base64")
+  const turn = (part: any) => [{ role: "user", content: [{ type: "text", text: "Review this." }, part] }] as any[]
+
+  test.each([
+    ["application/json", "config.json", '{"code": "BLUE-42"}'],
+    ["application/x-yaml", "deploy.yaml", "code: BLUE-42\n"],
+    ["video/mp2t", "main.ts", "export const code = 'BLUE-42'\n"],
+    ["application/octet-stream", "run.py", "CODE = 'BLUE-42'\n"],
+  ])("inlines %s as text", (mime, filename, body) => {
+    const result = ProviderTransform.message(
+      turn({ type: "file", data: `data:${mime};base64,${b64(body)}`, mediaType: mime, filename }),
+      caimexModel,
+      {},
+    )
+    expect(result[0].content[1]).toEqual({ type: "text", text: `[Document: ${filename}]\n\n${body}` })
+  })
+
+  test("reads raw bytes and bare base64 too", () => {
+    const bytes = ProviderTransform.message(
+      turn({ type: "file", data: new TextEncoder().encode("BLUE-42"), mediaType: "application/json" }),
+      caimexModel,
+      {},
+    )
+    expect(bytes[0].content[1]).toEqual({ type: "text", text: "[Document: attachment]\n\nBLUE-42" })
+    const bare = ProviderTransform.message(
+      turn({ type: "file", data: b64("BLUE-42"), mediaType: "application/json", filename: "a.json" }),
+      caimexModel,
+      {},
+    )
+    expect(bare[0].content[1]).toEqual({ type: "text", text: "[Document: a.json]\n\nBLUE-42" })
+  })
+
+  test("a binary the SDK cannot send becomes an error the model reports, not a thrown request", () => {
+    const docx = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0x00, 0x00, 0xff, 0xfe])
+    const mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    const result = ProviderTransform.message(
+      turn({ type: "file", data: `data:${mime};base64,${b64(docx)}`, mediaType: mime, filename: "brief.docx" }),
+      caimexModel,
+      {},
+    )
+    const part = result[0].content[1] as any
+    expect(part.type).toBe("text")
+    expect(part.text).toContain('Cannot read "brief.docx"')
+  })
+
+  test("images and PDFs are untouched", () => {
+    const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+    const image: any = { type: "file", data: `data:image/png;base64,${png}`, mediaType: "image/png", filename: "dot.png" }
+    expect(ProviderTransform.message(turn(image), caimexModel, {})[0].content[1]).toEqual(image)
+    const pdfModel = { ...caimexModel, capabilities: { ...caimexModel.capabilities, input: { ...caimexModel.capabilities.input, pdf: true } } }
+    const pdf: any = { type: "file", data: `data:application/pdf;base64,${b64("%PDF-1.4\n")}`, mediaType: "application/pdf", filename: "a.pdf" }
+    expect(ProviderTransform.message(turn(pdf), pdfModel, {})[0].content[1]).toEqual(pdf)
+  })
+
+  test("a remote URL is left for the provider", () => {
+    const part: any = { type: "file", data: "https://example.com/a.json", mediaType: "application/json", filename: "a.json" }
+    expect(ProviderTransform.message(turn(part), { ...caimexModel, api: { ...caimexModel.api, npm: "@ai-sdk/anthropic" } }, {})[0].content[1]).toEqual(part)
+  })
+})
