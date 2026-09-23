@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 import { app, ipcMain, safeStorage, type WebContents } from "electron"
@@ -159,6 +159,38 @@ async function stream(sender: WebContents, streamID: string, target: AgentTarget
   }
 }
 
+// Scheduled-job results. Hermes' API lists jobs but not what they produced; the scheduler
+// writes one Markdown file per run under <home>/cron/output/<job id>/. Only readable when
+// the agent runs on this Mac, so only loopback addresses are answered.
+const JOB_ID = /^[a-f0-9]{12}$/
+const OUTPUT_NAME = /^[\w.-]+\.md$/
+
+function outputDir(target: AgentTarget, jobID: string) {
+  const host = new URL(target.baseURL).hostname
+  if (!["127.0.0.1", "localhost", "[::1]", "::1"].includes(host) || !JOB_ID.test(jobID)) return undefined
+  if (target.profile && !/^[\w.-]+$/.test(target.profile)) return undefined
+  const home = target.profile ? join(HERMES_HOME, "profiles", target.profile) : HERMES_HOME
+  const dir = join(home, "cron", "output", jobID)
+  return existsSync(dir) ? dir : undefined
+}
+
+function jobOutputs(target: AgentTarget, jobID: string) {
+  const dir = outputDir(target, jobID)
+  if (!dir) return undefined
+  return readdirSync(dir)
+    .filter((name) => OUTPUT_NAME.test(name))
+    .map((name) => ({ name, time: statSync(join(dir, name)).mtimeMs }))
+    .sort((a, b) => b.time - a.time)
+    .slice(0, 30)
+}
+
+function jobOutput(target: AgentTarget, jobID: string, name: string) {
+  const dir = outputDir(target, jobID)
+  if (!dir || !OUTPUT_NAME.test(name)) return undefined
+  const text = readFileSync(join(dir, name), "utf8")
+  return text.length > 200_000 ? `${text.slice(0, 200_000)}\n\n… (truncated)` : text
+}
+
 const isTarget = (value: unknown): value is AgentTarget =>
   !!value &&
   typeof (value as AgentTarget).id === "string" &&
@@ -184,6 +216,12 @@ export function registerHermes() {
       return { status: 0, data: { error: { message: "Bad request" } } }
     return request(target, method, path, body)
   })
+  ipcMain.handle("hermes:jobOutputs", (_event, target: unknown, jobID: unknown) =>
+    isTarget(target) && typeof jobID === "string" ? jobOutputs(target, jobID) : undefined,
+  )
+  ipcMain.handle("hermes:jobOutput", (_event, target: unknown, jobID: unknown, name: unknown) =>
+    isTarget(target) && typeof jobID === "string" && typeof name === "string" ? jobOutput(target, jobID, name) : undefined,
+  )
   ipcMain.on("hermes:stream", (event, streamID: unknown, target: unknown, path: unknown) => {
     if (typeof streamID !== "string" || !isTarget(target) || typeof path !== "string") return
     void stream(event.sender, streamID, target, path).catch((error) =>

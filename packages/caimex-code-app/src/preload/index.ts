@@ -15,6 +15,9 @@ contextBridge.exposeInMainWorld("caimex", {
     useLocalKey: (id: string) => ipcRenderer.invoke("hermes:useLocalKey", id),
     request: (target: unknown, method: string, path: string, body?: unknown) =>
       ipcRenderer.invoke("hermes:request", target, method, path, body),
+    jobOutputs: (target: unknown, jobID: string) => ipcRenderer.invoke("hermes:jobOutputs", target, jobID),
+    jobOutput: (target: unknown, jobID: string, name: string) =>
+      ipcRenderer.invoke("hermes:jobOutput", target, jobID, name),
     // One listener pair for every stream; the renderer routes by stream id.
     stream: (streamID: string, target: unknown, path: string) => ipcRenderer.send("hermes:stream", streamID, target, path),
     cancel: (streamID: string) => ipcRenderer.send("hermes:cancel", streamID),

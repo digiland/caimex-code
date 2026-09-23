@@ -54,6 +54,9 @@ export function WorkSidebar(props: {
   selected: string | undefined
   onSelect: (id: string) => void
   onAdd: () => void
+  // The Scheduled tasks view is open instead of an agent.
+  scheduled: boolean
+  onScheduled: () => void
   tabs: JSX.Element
   footer: JSX.Element
 }) {
@@ -69,6 +72,19 @@ export function WorkSidebar(props: {
         >
           <span class="text-base leading-none">+</span> Add agent
         </button>
+        <Show when={state().profiles.length}>
+          <button
+            onClick={props.onScheduled}
+            classList={{ "bg-active text-text": props.scheduled, "text-muted hover:bg-hover hover:text-text": !props.scheduled }}
+            class="no-drag mt-0.5 flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-left text-[13px]"
+          >
+            <svg viewBox="0 0 16 16" class="size-3.5" fill="none" stroke="currentColor" stroke-width="1.4">
+              <circle cx="8" cy="8" r="5.8" />
+              <path d="M8 4.8V8l2.2 1.4" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            Scheduled
+          </button>
+        </Show>
       </div>
       <div class="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
         <Show when={state().profiles.length === 0}>
@@ -82,8 +98,8 @@ export function WorkSidebar(props: {
               <button
                 onClick={() => props.onSelect(profile.id)}
                 classList={{
-                  "bg-active": props.selected === profile.id,
-                  "hover:bg-hover": props.selected !== profile.id,
+                  "bg-active": !props.scheduled && props.selected === profile.id,
+                  "hover:bg-hover": props.scheduled || props.selected !== profile.id,
                 }}
                 class="mb-0.5 flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left"
               >

@@ -28,6 +28,7 @@ import { Sidebar } from "./components/sidebar"
 import { SettingsDialog } from "./components/settings-dialog"
 import { Status, type Gateway } from "./components/status"
 import { AgentEditor, AgentView, ModeTabs, WorkEmpty, WorkSidebar, type Mode } from "./components/work"
+import { ScheduledView } from "./components/scheduled"
 import { createSettings, type Settings } from "./settings"
 
 export function App() {
@@ -324,8 +325,15 @@ function Workspace(props: {
   // Code (sessions on the daemon) or Work (Hermes agents).
   const [mode, setMode] = createSignal<Mode>(stored<Mode>("caimex.mode") ?? "code")
   createEffect(() => store("caimex.mode", mode()))
-  const [agent, setAgent] = createSignal<string | undefined>(stored<string>("caimex.agent"))
+  const [agent, pickAgent] = createSignal<string | undefined>(stored<string>("caimex.agent"))
   createEffect(() => store("caimex.agent", agent()))
+  // Work shows an agent's conversation or the Scheduled tasks view.
+  const [scheduled, setScheduled] = createSignal(stored<boolean>("caimex.scheduled") ?? false)
+  createEffect(() => store("caimex.scheduled", scheduled()))
+  const setAgent = (id: string | undefined) => {
+    setScheduled(false)
+    pickAgent(id)
+  }
   const shownAgent = () => {
     const id = agent()
     return id && props.agents.profileOf(id) ? id : props.agents.sorted()[0]?.id
@@ -359,6 +367,16 @@ function Workspace(props: {
         run: () => setMode(mode() === "code" ? "work" : "code"),
       },
       { id: "add-agent", group: "Actions", label: "Add an agent…", run: () => setEditing(null) },
+      {
+        id: "scheduled",
+        group: "Actions",
+        label: "Scheduled tasks",
+        detail: "agents' recurring jobs",
+        run: () => {
+          setMode("work")
+          setScheduled(true)
+        },
+      },
       { id: "settings", group: "Actions", label: "Settings", shortcut: "⌘,", run: () => setSettingsOpen(true) },
     ]
     if (current) {
@@ -711,17 +729,21 @@ function Workspace(props: {
           selected={shownAgent()}
           onSelect={setAgent}
           onAdd={() => setEditing(null)}
+          scheduled={scheduled() && props.agents.state.profiles.length > 0}
+          onScheduled={() => setScheduled(true)}
           tabs={tabs()}
           footer={footer()}
         />
       </div>
       <main classList={{ hidden: mode() !== "work" }} class="min-w-0 flex-1">
+        <Show when={!(scheduled() && props.agents.state.profiles.length)} fallback={<ScheduledView agents={props.agents} />}>
         <Show
           when={shownAgent()}
           keyed
           fallback={<WorkEmpty agents={props.agents} onAdd={() => setEditing(null)} onCreated={setAgent} />}
         >
           {(id) => <AgentView agents={props.agents} id={id} onEdit={() => setEditing(id)} />}
+        </Show>
         </Show>
       </main>
       <main classList={{ hidden: mode() !== "code" }} class="min-w-0 flex-1">

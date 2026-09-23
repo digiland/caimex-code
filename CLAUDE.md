@@ -286,6 +286,10 @@ than reusing `packages/app`. It shares the daemon binary staged in
   (`src/main/hermes.ts`) because Hermes only answers allow-listed browser origins; keys
   are stored with `safeStorage` in `userData/agent-keys.json` and never reach the page.
   "Connect this Mac's Hermes" reads `~/.hermes/.env` and `~/.hermes/profiles` there.
+  **Scheduled** (`components/scheduled.tsx`) lists Hermes cron jobs (`/api/jobs`) per
+  server+profile, with run now / pause / resume / edit / delete. Hermes has no API for
+  job results; the main process reads the per-run Markdown files from
+  `<hermes home>/cron/output/<job id>/` (or `profiles/<p>/cron/…`), loopback agents only.
 - Sessions run by the v1 engine have their history only in the v1 tables; the app reads
   it through `legacy-message` and shows it read-only above any new messages.
 - It re-finds the daemon after two failed health checks (`service start` returns the

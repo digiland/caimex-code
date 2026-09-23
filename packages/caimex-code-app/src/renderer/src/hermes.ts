@@ -10,6 +10,9 @@ export type HermesBridge = {
   setKey(id: string, key: string | undefined): Promise<void>
   useLocalKey(id: string): Promise<boolean>
   request(target: AgentTarget, method: string, path: string, body?: unknown): Promise<{ status: number; data: unknown }>
+  // Undefined when the agent isn't on this Mac (or the job has no runs yet).
+  jobOutputs(target: AgentTarget, jobID: string): Promise<{ name: string; time: number }[] | undefined>
+  jobOutput(target: AgentTarget, jobID: string, name: string): Promise<string | undefined>
   stream(streamID: string, target: AgentTarget, path: string): void
   cancel(streamID: string): void
   onEvent(listener: (payload: { streamID: string; data: Record<string, unknown> }) => void): () => void
@@ -178,6 +181,45 @@ export type RunStatus = {
   clarify_id?: string
   output?: string
   error?: unknown
+}
+
+// A scheduled job (Hermes cron, /api/jobs).
+export type Job = {
+  id: string
+  name: string
+  prompt: string
+  schedule_display?: string
+  schedule?: { kind?: string; expr?: string; display?: string }
+  enabled?: boolean
+  // scheduled | paused | running | completed | error
+  state?: string
+  next_run_at?: string | null
+  last_run_at?: string | null
+  last_status?: string | null
+  last_error?: string | null
+  last_delivery_error?: string | null
+  repeat?: { times?: number | null; completed?: number }
+  // A script job runs a shell script with no model turn.
+  no_agent?: boolean
+  script?: string | null
+  skills?: string[]
+  deliver?: string
+  created_at?: string
+}
+
+const jobPath = (id: string) => `api/jobs/${encodeURIComponent(id)}`
+
+export const jobs = {
+  list: async (target: AgentTarget) =>
+    (await call<{ jobs?: Job[] }>(target, "GET", "api/jobs?include_disabled=true")).jobs ?? [],
+  create: async (target: AgentTarget, input: { name: string; schedule: string; prompt: string }) =>
+    (await call<{ job: Job }>(target, "POST", "api/jobs", { ...input, deliver: "local" })).job,
+  update: async (target: AgentTarget, id: string, patch: Partial<Pick<Job, "name" | "prompt">> & { schedule?: string }) =>
+    (await call<{ job: Job }>(target, "PATCH", jobPath(id), patch)).job,
+  remove: (target: AgentTarget, id: string) => call(target, "DELETE", jobPath(id)),
+  pause: async (target: AgentTarget, id: string) => (await call<{ job: Job }>(target, "POST", `${jobPath(id)}/pause`, {})).job,
+  resume: async (target: AgentTarget, id: string) => (await call<{ job: Job }>(target, "POST", `${jobPath(id)}/resume`, {})).job,
+  run: async (target: AgentTarget, id: string) => (await call<{ job: Job }>(target, "POST", `${jobPath(id)}/run`, {})).job,
 }
 
 export const hermes = {
