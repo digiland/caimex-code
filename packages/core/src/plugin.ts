@@ -14,6 +14,8 @@ import { KeyedMutex } from "./effect/keyed-mutex"
 import { PluginHost } from "./plugin/host"
 import { Reference } from "./reference"
 import { SkillV2 } from "./skill"
+import { PermissionV2 } from "./permission"
+import { ToolRegistry } from "./tool/registry"
 import { State } from "./state"
 
 export const ID = Plugin.ID
@@ -163,5 +165,8 @@ export const node = makeLocationNode({
     Integration.node,
     Reference.node,
     SkillV2.node,
+    // Plugin tools register through these (see PluginHost's tool domain).
+    ToolRegistry.node,
+    PermissionV2.node,
   ],
 })

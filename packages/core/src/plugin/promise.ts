@@ -85,6 +85,28 @@ export function fromPromise(plugin: Plugin) {
             transform: transform(host.skill),
             reload: () => run(host.skill.reload()),
           },
+          tool: {
+            register: (tools) =>
+              register(
+                host.tool.register(
+                  Object.fromEntries(
+                    Object.entries(tools).map(([name, spec]) => [
+                      name,
+                      {
+                        description: spec.description,
+                        parameters: spec.parameters,
+                        resources: spec.resources,
+                        execute: (input: unknown, toolContext: Parameters<typeof spec.execute>[1]) =>
+                          Effect.tryPromise({
+                            try: () => Promise.resolve(spec.execute(input, toolContext)),
+                            catch: (error) => error,
+                          }),
+                      },
+                    ]),
+                  ),
+                ),
+              ),
+          },
         }
 
         yield* Effect.promise(() => Promise.resolve(plugin.setup(context2)))

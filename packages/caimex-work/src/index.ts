@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import type { Plugin } from "@opencode-ai/plugin/v2/promise"
+import { TOOLS } from "./tools"
 
 // Work modes for the Caimex v2 daemon: four agents (Research, Analyst, Writer, Ops), the
 // slash commands that start common jobs with them, and the skills they load for house
@@ -30,6 +31,10 @@ function permissions(input: { bash: "ask" | "deny"; outputs: string[] }): Rule[]
     { action: "todowrite", resource: "*", effect: "allow" },
     { action: "question", resource: "*", effect: "allow" },
     { action: "skill", resource: "*", effect: "allow" },
+    // This plugin's tools: reading documents and notifying are safe; API calls are asked
+    // about per host (the default "ask" above covers http_request).
+    { action: "read_document", resource: "*", effect: "allow" },
+    { action: "notify", resource: "*", effect: "allow" },
     { action: "edit", resource: "*", effect: "ask" },
     ...input.outputs.map((resource): Rule => ({ action: "edit", resource, effect: "allow" })),
     { action: "external_directory", resource: "*", effect: "ask" },
@@ -204,7 +209,17 @@ function readSkills(): SkillFile[] {
 const plugin: Plugin = {
   id: "caimex-work",
   setup: async (ctx) => {
+    // Tools need the Caimex fork's tool hook; on a daemon without it, the modes and
+    // commands still load.
+    if ("tool" in ctx) await ctx.tool.register(TOOLS)
     await ctx.agent.transform((draft) => {
+      // The code modes allow everything by default; an outgoing API call should still
+      // be asked about there.
+      for (const id of ["build", "plan"])
+        if (draft.get(id))
+          draft.update(id, (item) => {
+            item.permissions = [...item.permissions, { action: "http_request", resource: "*", effect: "ask" }]
+          })
       for (const agent of AGENTS)
         draft.update(agent.id, (item) => {
           item.description = agent.description

@@ -10,7 +10,7 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "typecheck": "tsgo -b",
-    "package": "electron-vite build && electron-builder --mac --dir"
+    "package": "bun run --cwd ../caimex-work build && electron-vite build && electron-builder --mac --dir"
   },
   "devDependencies": {
     "@opencode-ai/ui": "workspace:*",

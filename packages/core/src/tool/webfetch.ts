@@ -96,6 +96,27 @@ const collectBody = (response: HttpClientResponse.HttpClientResponse) =>
     () => new Error(`Response too large (exceeds ${MAX_RESPONSE_BYTES} byte limit)`),
   )
 
+// Caimex fork: say why a fetch failed. A bare "Unable to fetch" left the model unable to
+// tell a bot wall (try another source) from a PDF (use a document reader) or a timeout.
+const reason = (error: unknown): string => {
+  if (error && typeof error === "object" && "reason" in error) {
+    const inner = (error as { reason?: { _tag?: string; response?: { status?: number } } }).reason
+    if (inner?._tag === "StatusCodeError" && inner.response?.status) {
+      const status = inner.response.status
+      if (status === 401 || status === 403) return `HTTP ${status} (the site refused automated access)`
+      if (status === 404) return "HTTP 404 (not found)"
+      return `HTTP ${status}`
+    }
+    if (inner?._tag === "TransportError") return "couldn't connect"
+  }
+  if (error instanceof Error) {
+    if (error.message.startsWith("Unsupported fetched file content type: application/pdf"))
+      return "it's a PDF, which this tool can't read"
+    return error.message
+  }
+  return "unknown error"
+}
+
 const mimeFrom = (contentType: string) => contentType.split(";", 1)[0]?.trim().toLowerCase() ?? ""
 const isImageAttachment = (mime: string) =>
   mime.startsWith("image/") && mime !== "image/svg+xml" && mime !== "image/vnd.fastbidsheet"
@@ -165,7 +186,7 @@ const layer = Layer.effectDiscard(
               const content = new TextDecoder().decode(body)
               const output = yield* Effect.try({
                 try: () => convert(content, contentType, input.format),
-                catch: (error) => error,
+                catch: () => new Error("the page couldn't be converted to text"),
               })
               return {
                 url: input.url,
@@ -173,7 +194,7 @@ const layer = Layer.effectDiscard(
                 format: input.format,
                 output,
               }
-            }).pipe(Effect.mapError(() => new ToolFailure({ message: `Unable to fetch ${input.url}` }))),
+            }).pipe(Effect.mapError((error) => new ToolFailure({ message: `Unable to fetch ${input.url}: ${reason(error)}` }))),
         }),
       })
       .pipe(Effect.orDie)

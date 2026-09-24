@@ -18,7 +18,7 @@
       "from": "../caimex-work",
       "to": "caimex-work",
       "filter": [
-        "src/**/*",
+        "dist/**/*",
         "skills/**/*",
         "package.json"
       ]

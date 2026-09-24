@@ -320,6 +320,34 @@ than reusing `packages/app`. It shares the daemon binary staged in
 - It re-finds the daemon after two failed health checks (`service start` returns the
   current URL), so a daemon restart on a new port doesn't strand it.
 
+## Plugin tools (fork change to core)
+
+Upstream's v2 plugins can't add tools on `dev` (the plan is in the comment in
+`core/src/tool/builtins.ts`). This fork adds the smallest version, **re-check it after
+every merge** — upstream's own version will conflict and should replace it:
+
+- `core/src/tool/tool.ts` — `Tool.fromJsonSchema`, a tool from a JSON Schema instead of
+  an Effect Schema (for plugins now, MCP later).
+- `core/src/plugin/host.ts` — the `tool` domain. Every call goes through
+  `PermissionV2.assert` with the tool's name as the action and the spec's `resources`
+  (also what "always allow" saves). Tools, permissions and location are looked up when
+  the host is built — a plugin's own effects run without the Location's services — and
+  optionally, so tests that build the plugin layer alone still work.
+- `core/src/plugin.ts` — the plugin node depends on `ToolRegistry.node` and
+  `PermissionV2.node` so those services exist when the host is built.
+- `core/src/plugin/promise.ts` and `plugin/src/v2/{effect,promise}/tool.ts` — the
+  promise adapter and the public types (`ToolSpec`, `ToolContext` with `directory`).
+- `core/src/tool/webfetch.ts` — failures now say why (HTTP 403, timeout, "it's a PDF")
+  instead of a bare "Unable to fetch"; tests in `core/test/tool-webfetch.test.ts`.
+
+`packages/caimex-work` uses it for `read_document` (PDF/DOCX/PPTX/HTML from a URL or
+path, via unpdf), `http_request` (any API; `{{secret:NAME}}` filled from
+`~/.config/caimex-code/secrets.json` or `CAIMEX_SECRET_NAME`, masked in the output;
+approval per method and host), and `notify` (macOS notification). The work modes allow
+the first and last and ask for API calls; the plugin also makes build/plan ask for
+`http_request`. Packaged builds load `caimex-work/dist/index.js`, a bundle
+(`bun run build` in the package), because Resources has no node_modules.
+
 ## Rebranding conventions
 
 Keep the rebrand **minimal and upstream-mergeable** — we pull from `upstream`

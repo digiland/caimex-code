@@ -1,7 +1,8 @@
 export * as PluginHost from "./host"
 
 import type { PluginContext as Interface } from "@opencode-ai/plugin/v2/effect"
-import { Effect, Schema } from "effect"
+import { ToolFailure } from "@opencode-ai/llm"
+import { Effect, Exit, Option, Schema, Scope, type JsonSchema } from "effect"
 import { AgentV2 } from "../agent"
 import { AISDK } from "../aisdk"
 import { Catalog } from "../catalog"
@@ -14,6 +15,10 @@ import { ProviderV2 } from "../provider"
 import { Reference } from "../reference"
 import type { DeepMutable } from "../schema"
 import { SkillV2 } from "../skill"
+import { PermissionV2 } from "../permission"
+import { Location } from "../location"
+import { Tool } from "../tool/tool"
+import { Tools } from "../tool/tools"
 
 const mutable = <T>(value: T) => value as DeepMutable<T>
 
@@ -25,6 +30,12 @@ export const make = Effect.fn("PluginHost.make")(function* (plugin: PluginV2.Int
   const integration = yield* Integration.Service
   const reference = yield* Reference.Service
   const skill = yield* SkillV2.Service
+  // Looked up here, where the Location's services are in scope (a plugin's own effects
+  // run without them), and optionally, so building the plugin layer alone (tests) still
+  // works; the Location node provides all three.
+  const tools = Option.getOrUndefined(yield* Effect.serviceOption(Tools.Service))
+  const permission = Option.getOrUndefined(yield* Effect.serviceOption(PermissionV2.Service))
+  const location = Option.getOrUndefined(yield* Effect.serviceOption(Location.Service))
 
   return {
     options: {},
@@ -204,6 +215,64 @@ export const make = Effect.fn("PluginHost.make")(function* (plugin: PluginV2.Int
             list: draft.list,
           }),
         ),
+    },
+    // Caimex fork: plugin tools. Upstream plans plugin and MCP tools as separate scoped
+    // registrations (see tool/builtins.ts); this is the smallest version of that. Every
+    // call is checked against the agent's permission rules first, with the tool's name as
+    // the action, so a mode decides whether a plugin tool runs, asks, or is refused.
+    tool: {
+      register: (specs) =>
+        Effect.gen(function* () {
+          if (!tools || !permission) return yield* Effect.die(new Error("Plugin tools aren't available here"))
+          const registered = Object.fromEntries(
+            Object.entries(specs).map(([name, spec]) => [
+              name,
+              Tool.fromJsonSchema({
+                description: spec.description,
+                parameters: spec.parameters as JsonSchema.JsonSchema,
+                execute: (input, context) =>
+                  Effect.gen(function* () {
+                    const resources = (() => {
+                      try {
+                        return [...(spec.resources?.(input) ?? ["*"])]
+                      } catch {
+                        return ["*"]
+                      }
+                    })()
+                    yield* permission
+                      .assert({
+                        action: name,
+                        resources,
+                        // "Always allow" remembers these resources, e.g. one API host.
+                        save: resources,
+                        metadata: input && typeof input === "object" ? (input as Record<string, unknown>) : { input },
+                        sessionID: context.sessionID,
+                        agent: context.agent,
+                        source: { type: "tool", messageID: context.assistantMessageID, callID: context.toolCallID },
+                      })
+                      .pipe(Effect.mapError(() => new ToolFailure({ message: `Permission denied: ${name}` })))
+                    return yield* Effect.suspend(() =>
+                      spec.execute(input, {
+                        directory: location?.directory ?? process.cwd(),
+                        sessionID: context.sessionID,
+                        agent: context.agent,
+                        callID: context.toolCallID,
+                      }),
+                    ).pipe(
+                      Effect.catchDefect((defect) => Effect.fail(defect)),
+                      Effect.mapError(
+                        (error) => new ToolFailure({ message: error instanceof Error ? error.message : String(error) }),
+                      ),
+                    )
+                  }),
+              }),
+            ]),
+          )
+          const scope = yield* Scope.make()
+          yield* Effect.addFinalizer(() => Scope.close(scope, Exit.void))
+          yield* tools.register(registered).pipe(Scope.provide(scope), Effect.orDie)
+          return { dispose: Scope.close(scope, Exit.void) }
+        }),
     },
     skill: {
       reload: skill.reload,

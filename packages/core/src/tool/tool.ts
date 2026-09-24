@@ -131,6 +131,32 @@ export function make<
   return tool
 }
 
+// A tool described by a JSON Schema instead of an Effect Schema, for tools defined
+// outside core (plugins, and later MCP servers). Input arrives as the model sent it;
+// the tool validates what it needs. Output is text for the model.
+export function fromJsonSchema(config: {
+  readonly description: string
+  readonly parameters: JsonSchema.JsonSchema
+  readonly execute: (input: unknown, context: Context) => Effect.Effect<string, ToolFailure>
+}): AnyTool {
+  const tool = Object.freeze({}) as AnyTool
+  const definitions = new Map<string, ToolDefinition>()
+  runtimes.set(tool, {
+    definition: (name) => {
+      const cached = definitions.get(name)
+      if (cached) return cached
+      const definition = new ToolDefinition({ name, description: config.description, inputSchema: config.parameters })
+      definitions.set(name, definition)
+      return definition
+    },
+    settle: (call, context) =>
+      config
+        .execute(call.input, context)
+        .pipe(Effect.map((text) => ({ structured: text, content: [{ type: "text" as const, text }] }))),
+  })
+  return tool
+}
+
 export const validateName = (name: string) =>
   /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(name)
     ? Effect.void

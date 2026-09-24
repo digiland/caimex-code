@@ -9,11 +9,15 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsgo --noEmit"
+    "typecheck": "tsgo --noEmit",
+    "build": "bun build src/index.ts --target bun --outfile dist/index.js"
   },
   "devDependencies": {
     "@opencode-ai/plugin": "workspace:*",
     "@types/node": "catalog:",
     "@typescript/native-preview": "catalog:"
+  },
+  "dependencies": {
+    "unpdf": "1.8.1"
   }
 }

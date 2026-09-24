@@ -7,11 +7,12 @@ import { app, ipcMain } from "electron"
 // the Code tab can leave them out and a task's reports and drafts stay together.
 export const workRoot = () => process.env.CAIMEX_WORK_ROOT || join(homedir(), "Caimex Work")
 
-// The work-modes plugin (packages/caimex-work): the source tree in development, a copy
-// in Resources when packaged. The daemon imports it directly; it has no build step.
+// The work-modes plugin (packages/caimex-work): the source tree in development (its
+// dependencies resolve from the workspace), a single bundled file in Resources when
+// packaged, since the copy there has no node_modules.
 const pluginPath = () =>
   app.isPackaged
-    ? join(process.resourcesPath, "caimex-work", "src", "index.ts")
+    ? join(process.resourcesPath, "caimex-work", "dist", "index.js")
     : join(app.getAppPath(), "..", "caimex-work", "src", "index.ts")
 
 const slug = (name: string) =>

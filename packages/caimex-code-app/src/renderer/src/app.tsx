@@ -386,7 +386,9 @@ function Workspace(props: {
     const prepared = await prepare(input, root)
     if (prepared === undefined) return
     const agentID = prepared.agent ?? workMode()
-    const directory = await window.caimex.work.newFolder(firstLine(input.replace(/^\/[\w-]+\s*/, "")) || agentID)
+    // Named after the task, without the command or any URLs in it.
+    const name = firstLine(input.replace(/^\/[\w-]+\s*/, "").replace(/https?:\/\/\S+/g, " ").replace(/\s+/g, " "))
+    const directory = await window.caimex.work.newFolder(name || agentID)
     const model = draft.model ?? (gateway.latest?.defaultModel && ref(gateway.latest.defaultModel))
     const created = await props.api.createSession({ directory, model, agent: agentID })
     setTitles(created.id, firstLine(input))
