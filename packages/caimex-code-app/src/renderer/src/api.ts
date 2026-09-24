@@ -20,6 +20,17 @@ declare global {
       work: {
         info(): Promise<{ root: string; plugin: string; pluginExists: boolean }>
         newFolder(name: string): Promise<string>
+        onOpenTask(listener: (sessionID: string) => void): () => void
+      }
+      schedules: {
+        list(): Promise<LocalSchedule[]>
+        preview(when: string): Promise<{ ok: true; times: number[] } | { ok: false; error: string }>
+        save(input: ScheduleInput): Promise<LocalSchedule>
+        remove(id: string): Promise<void>
+        pause(id: string, paused: boolean): Promise<void>
+        run(id: string): Promise<void>
+        login(value?: boolean): Promise<boolean>
+        onChange(listener: (list: LocalSchedule[]) => void): () => void
       }
       plugins: {
         list(): Promise<PluginConfig>
@@ -28,6 +39,26 @@ declare global {
     }
   }
 }
+
+// A scheduled work task kept by the app (src/main/schedules.ts).
+export type LocalSchedule = {
+  id: string
+  name: string
+  when: string
+  mode: string
+  prompt: string
+  folder: "new" | "same"
+  directory?: string
+  enabled: boolean
+  createdAt: number
+  nextRunAt?: number
+  lastRunAt?: number
+  lastStatus?: "running" | "done" | "failed"
+  lastError?: string
+  lastSessionID?: string
+  runs: { at: number; sessionID?: string; status: "running" | "done" | "failed"; error?: string }[]
+}
+export type ScheduleInput = Pick<LocalSchedule, "name" | "when" | "mode" | "prompt" | "folder"> & { id?: string }
 
 export type PluginEntry = { package: string; options?: Record<string, unknown> }
 // The daemon's plugin setup, from the global config folder (see src/main/plugins.ts).

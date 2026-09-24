@@ -313,6 +313,17 @@ than reusing `packages/app`. It shares the daemon binary staged in
     since a command's text alone doesn't change the mode.
   - The app's command cache drops empty answers: a freshly opened folder answers before
     its plugins have loaded.
+- **Scheduled work tasks** (`src/main/schedules.ts`, `schedule-parse.ts`): the v2 daemon
+  has no scheduler, so the app's main process keeps schedules in
+  `userData/schedules.json` and, when one is due, starts a work task over the daemon's
+  HTTP API (warm the folder and wait 2.5s first — the first-prompt stall — then create
+  the session in the mode, rename it, prompt; resend once if it never starts), watches
+  `/api/session/active`, and posts a notification that opens the task. Runs only while
+  the app is open (closing the window doesn't quit it on macOS; "Open at login" starts
+  it hidden); anything due while it was closed runs once at start. Schedules use the same
+  phrases as Hermes' cron ("every day at 8am", "weekdays at 9am", "every 2h", "in 30m",
+  5-field cron, ISO time), in the Mac's time zone. The Scheduled view lists these first,
+  then each Hermes server's jobs.
 - The pane's terminal outlives the pane: it reattaches to its running pty (`GET /api/pty`,
   title "Caimex Code") and only "New shell"/"End" remove one.
 - Sessions run by the v1 engine have their history only in the v1 tables; the app reads

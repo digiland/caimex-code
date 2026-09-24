@@ -5,6 +5,7 @@ import { app, BrowserWindow, dialog, ipcMain, nativeImage, net, protocol, shell 
 import { connect, stop } from "./daemon"
 import { registerHermes } from "./hermes"
 import { registerPlugins } from "./plugins"
+import { registerSchedules } from "./schedules"
 import { registerWork } from "./work"
 
 // Set before ready so userData, the single-instance lock and the Dock label are this
@@ -70,6 +71,7 @@ ipcMain.handle("daemon:connect", () => connect())
 registerHermes()
 registerPlugins()
 registerWork()
+registerSchedules(() => window)
 ipcMain.handle("daemon:stop", () => stop())
 ipcMain.handle("dialog:folder", async () => {
   if (!window) return undefined

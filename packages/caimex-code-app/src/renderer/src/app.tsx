@@ -379,6 +379,13 @@ function Workspace(props: {
     // with the new modes when the client is swapped in.
     props.onLost()
   }
+  // A scheduled run (from its list, or its notification) opens as a work task.
+  async function openTask(sessionID: string) {
+    setMode("work")
+    if (!sessions.latest?.some((item) => item.id === sessionID)) await refreshSessions()
+    setWorkView({ kind: "task", id: sessionID })
+  }
+  onMount(() => onCleanup(window.caimex.work.onOpenTask((id) => void openTask(id))))
   const modeOfTask = (id: string) =>
     choices[id]?.agent ?? conversations.state[id]?.messages.filter(isAssistant).at(-1)?.agent
   async function startTask(input: string, files: Attachment[]) {
@@ -886,7 +893,7 @@ function Workspace(props: {
       <main classList={{ hidden: mode() !== "work" }} class="min-w-0 flex-1">
         <Switch>
           <Match when={workView().kind === "scheduled"}>
-            <ScheduledView agents={props.agents} />
+            <ScheduledView agents={props.agents} onOpenTask={openTask} />
           </Match>
           <Match when={workTask()} keyed>
             {(id) => sessionPanel(id)}

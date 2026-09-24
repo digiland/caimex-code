@@ -12,6 +12,26 @@ contextBridge.exposeInMainWorld("caimex", {
   work: {
     info: () => ipcRenderer.invoke("work:info"),
     newFolder: (name: string) => ipcRenderer.invoke("work:newFolder", name),
+    // A notification was clicked: show that task.
+    onOpenTask: (listener: (sessionID: string) => void) => {
+      const wrapped = (_event: unknown, id: string) => listener(id)
+      ipcRenderer.on("work:open-task", wrapped)
+      return () => void ipcRenderer.removeListener("work:open-task", wrapped)
+    },
+  },
+  schedules: {
+    list: () => ipcRenderer.invoke("schedules:list"),
+    preview: (when: string) => ipcRenderer.invoke("schedules:preview", when),
+    save: (input: unknown) => ipcRenderer.invoke("schedules:save", input),
+    remove: (id: string) => ipcRenderer.invoke("schedules:remove", id),
+    pause: (id: string, paused: boolean) => ipcRenderer.invoke("schedules:pause", id, paused),
+    run: (id: string) => ipcRenderer.invoke("schedules:run", id),
+    login: (value?: boolean) => ipcRenderer.invoke("schedules:login", value),
+    onChange: (listener: (list: unknown) => void) => {
+      const wrapped = (_event: unknown, list: unknown) => listener(list)
+      ipcRenderer.on("schedules:changed", wrapped)
+      return () => void ipcRenderer.removeListener("schedules:changed", wrapped)
+    },
   },
   plugins: {
     list: () => ipcRenderer.invoke("plugins:list"),

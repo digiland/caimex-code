@@ -25,7 +25,7 @@ const slug = (name: string) =>
     .slice(0, 48) || "task"
 
 // A new folder for a task; a name already taken gets a numeric suffix.
-function newFolder(name: string) {
+export function newFolder(name: string) {
   const root = workRoot()
   mkdirSync(root, { recursive: true })
   const base = slug(name)

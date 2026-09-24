@@ -1,5 +1,7 @@
 import { createMemo, createResource, createSignal, For, type JSX, Match, onCleanup, onMount, Show, Switch } from "solid-js"
 import type { AgentProfile, Agents } from "../agents"
+import type { LocalSchedule } from "../api"
+import { MODE_COLORS } from "./work"
 import { fullTime, relativeTime } from "../format"
 import { jobs, type AgentTarget, type Job } from "../hermes"
 import { ask } from "./confirm"
@@ -48,15 +50,23 @@ const STATES: Record<string, { label: string; tone: string }> = {
   error: { label: "Failed", tone: "text-bad bg-bad/15" },
 }
 
-export function ScheduledView(props: { agents: Agents }) {
+export function ScheduledView(props: { agents: Agents; onOpenTask: (sessionID: string) => void }) {
   const sources = createMemo(() => sourcesOf(props.agents))
-  // undefined: closed; null: new; a job: editing it.
+  // Hermes jobs: undefined closed, otherwise the job being edited (none: a new one).
   const [editing, setEditing] = createSignal<{ source?: Source; job?: Job } | undefined>()
+  // The app's own schedules: undefined closed, null new, or the one being edited.
+  const [editingLocal, setEditingLocal] = createSignal<LocalSchedule | null>()
   const [tick, setTick] = createSignal(0)
+  const [local, { mutate: setLocal }] = createResource(() => window.caimex.schedules.list())
+  const [login, { mutate: setLogin }] = createResource(() => window.caimex.schedules.login())
   // Jobs change on their own (they run); refresh while this view is open.
   onMount(() => {
     const timer = setInterval(() => setTick((value) => value + 1), 20_000)
-    onCleanup(() => clearInterval(timer))
+    const off = window.caimex.schedules.onChange((list) => setLocal(list))
+    onCleanup(() => {
+      clearInterval(timer)
+      off()
+    })
   })
 
   return (
@@ -64,8 +74,19 @@ export function ScheduledView(props: { agents: Agents }) {
       <header class="drag flex h-[52px] shrink-0 items-center gap-3 border-b border-line px-6">
         <div class="min-w-0 flex-1">
           <div class="text-[13px] font-medium">Scheduled</div>
-          <div class="text-[10.5px] text-faint">Tasks your agents run on a schedule</div>
+          <div class="text-[10.5px] text-faint">Work tasks that run on their own</div>
         </div>
+        <label
+          class="no-drag flex items-center gap-1.5 text-[11.5px] text-muted"
+          title="Start Caimex Code hidden at login, so schedules keep running after a restart"
+        >
+          <input
+            type="checkbox"
+            checked={!!login()}
+            onChange={async (event) => setLogin(await window.caimex.schedules.login(event.currentTarget.checked))}
+          />
+          Open at login
+        </label>
         <button
           onClick={() => setTick((value) => value + 1)}
           title="Refresh"
@@ -76,25 +97,54 @@ export function ScheduledView(props: { agents: Agents }) {
           </svg>
         </button>
         <button
-          disabled={!sources().length}
-          onClick={() => setEditing({})}
-          class="no-drag h-7 rounded-md bg-text px-3 text-[12px] font-medium text-bg disabled:opacity-40"
+          onClick={() => setEditingLocal(null)}
+          class="no-drag h-7 rounded-md bg-text px-3 text-[12px] font-medium text-bg"
         >
-          New task
+          New scheduled task
         </button>
       </header>
       <div class="min-h-0 flex-1 overflow-y-auto">
         <div class="mx-auto flex max-w-[820px] flex-col gap-8 px-8 py-6">
-          <Show when={!sources().length}>
-            <div class="py-16 text-center text-[13px] text-muted">Add an agent first; its scheduled tasks show here.</div>
-          </Show>
+          <section>
+            <div class="mb-2 text-[12px] font-medium text-muted">Caimex work tasks</div>
+            <Show
+              when={local.latest?.length}
+              fallback={
+                <div class="rounded-lg border border-dashed border-line px-4 py-6 text-center text-[12.5px] leading-relaxed text-faint">
+                  Nothing scheduled yet. A scheduled task starts a work task in the mode you choose, like a daily news brief
+                  or a weekly report, and notifies you when it's done.
+                </div>
+              }
+            >
+              <div class="flex flex-col divide-y divide-[var(--border)] overflow-hidden rounded-xl border border-line">
+                <For each={(local.latest ?? []).map((item) => item.id)}>
+                  {(id) => (
+                    <Show when={local.latest?.find((item) => item.id === id)}>
+                      {(schedule) => (
+                        <LocalRow
+                          schedule={schedule()}
+                          onEdit={() => setEditingLocal(schedule())}
+                          onOpenTask={props.onOpenTask}
+                        />
+                      )}
+                    </Show>
+                  )}
+                </For>
+              </div>
+            </Show>
+            <div class="mt-2 px-1 text-[11px] text-faint">
+              Runs while Caimex Code is open (closing the window keeps it running); anything missed while it was closed runs
+              when it next opens.
+            </div>
+          </section>
           <For each={sources()}>
             {(source) => (
               <SourceJobs
                 source={source}
                 tick={tick()}
-                showHeading={sources().length > 1}
+                showHeading
                 onEdit={(job) => setEditing({ source, job })}
+                onNew={() => setEditing({ source })}
               />
             )}
           </For>
@@ -111,11 +161,316 @@ export function ScheduledView(props: { agents: Agents }) {
           />
         )}
       </Show>
+      <Show when={editingLocal() !== undefined}>
+        <LocalEditor schedule={editingLocal() ?? undefined} onClose={() => setEditingLocal(undefined)} />
+      </Show>
     </div>
   )
 }
 
-function SourceJobs(props: { source: Source; tick: number; showHeading: boolean; onEdit: (job: Job) => void }) {
+const LOCAL_MODES = [
+  { id: "research", label: "Research" },
+  { id: "analyst", label: "Analyst" },
+  { id: "writer", label: "Writer" },
+  { id: "ops", label: "Ops" },
+] as const
+
+function LocalRow(props: { schedule: LocalSchedule; onEdit: () => void; onOpenTask: (sessionID: string) => void }) {
+  const [open, setOpen] = createSignal(false)
+  const [error, setError] = createSignal<string>()
+  const state = () =>
+    props.schedule.lastStatus === "running"
+      ? STATES.running
+      : !props.schedule.enabled
+        ? props.schedule.nextRunAt === undefined && props.schedule.lastRunAt
+          ? STATES.completed
+          : STATES.paused
+        : STATES.scheduled
+  const act = async (action: () => Promise<unknown>) => {
+    setError(undefined)
+    try {
+      await action()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    }
+  }
+  return (
+    <div class="group bg-bg">
+      <div class="flex items-center gap-3 px-4 py-3">
+        <button onClick={() => setOpen(!open())} class="flex min-w-0 flex-1 items-center gap-3 text-left">
+          <svg
+            viewBox="0 0 16 16"
+            classList={{ "rotate-90": open() }}
+            class="size-3 shrink-0 text-faint transition-transform"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+          >
+            <path d="m6 3.5 4.5 4.5L6 12.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span class="min-w-0 flex-1">
+            <span class="flex items-center gap-2">
+              <span class="size-1.5 shrink-0 rounded-full" style={{ background: MODE_COLORS[props.schedule.mode] ?? "var(--faint)" }} />
+              <span class="truncate text-[13.5px] text-text">{props.schedule.name}</span>
+              <span class={`shrink-0 rounded-full px-1.5 py-px text-[10.5px] ${state().tone}`}>{state().label}</span>
+            </span>
+            <span class="mt-0.5 block truncate text-[11.5px] text-faint">
+              <span class="font-mono">{props.schedule.when}</span>
+              <Show when={props.schedule.enabled && props.schedule.nextRunAt}>
+                {(ms) => <span title={fullTime(ms())}> · next {when(ms())}</span>}
+              </Show>
+              <Show when={props.schedule.lastRunAt}>
+                {(ms) => (
+                  <span title={fullTime(ms())}>
+                    {" "}
+                    · last {when(ms())}
+                    <Show when={props.schedule.lastStatus && props.schedule.lastStatus !== "running"}>
+                      <span classList={{ "text-bad": props.schedule.lastStatus === "failed", "text-ok": props.schedule.lastStatus === "done" }}>
+                        {" "}
+                        {props.schedule.lastStatus === "done" ? "ok" : "failed"}
+                      </span>
+                    </Show>
+                  </span>
+                )}
+              </Show>
+            </span>
+          </span>
+        </button>
+        <div class="flex shrink-0 items-center gap-1 opacity-60 group-hover:opacity-100">
+          <Show when={props.schedule.lastSessionID}>
+            {(id) => <RowButton onClick={() => props.onOpenTask(id())}>Open last</RowButton>}
+          </Show>
+          <RowButton
+            disabled={props.schedule.lastStatus === "running"}
+            onClick={() => void act(() => window.caimex.schedules.run(props.schedule.id))}
+          >
+            Run now
+          </RowButton>
+          <Show when={state() !== STATES.completed}>
+            <RowButton onClick={() => void act(() => window.caimex.schedules.pause(props.schedule.id, props.schedule.enabled))}>
+              {props.schedule.enabled ? "Pause" : "Resume"}
+            </RowButton>
+          </Show>
+          <RowButton onClick={props.onEdit}>Edit</RowButton>
+          <RowButton
+            danger
+            onClick={async () => {
+              if (
+                await ask({
+                  message: `Delete “${props.schedule.name}”?`,
+                  detail: "It stops running. Tasks it already created stay in the Work tab.",
+                  confirm: "Delete",
+                  danger: true,
+                })
+              )
+                await act(() => window.caimex.schedules.remove(props.schedule.id))
+            }}
+          >
+            Delete
+          </RowButton>
+        </div>
+      </div>
+      <Show when={error() || (props.schedule.lastStatus === "failed" && props.schedule.lastError)}>
+        <div class="px-4 pb-3 pl-10 text-[12px] text-bad select-text">{error() ?? props.schedule.lastError}</div>
+      </Show>
+      <Show when={open()}>
+        <div class="flex flex-col gap-4 border-t border-line bg-sidebar px-4 py-4 pl-10">
+          <Detail label={`Prompt · ${LOCAL_MODES.find((mode) => mode.id === props.schedule.mode)?.label ?? props.schedule.mode} mode`}>
+            <pre class="max-h-[180px] overflow-auto rounded-md border border-line bg-bg px-3 py-2 font-mono text-[11.5px] whitespace-pre-wrap text-muted select-text">
+              {props.schedule.prompt}
+            </pre>
+          </Detail>
+          <div class="text-[11.5px] text-faint">
+            {props.schedule.folder === "same"
+              ? `Every run works in one folder${props.schedule.directory ? `: ${props.schedule.directory.replace(/^\/Users\/[^/]+/, "~")}` : ""}.`
+              : "Each run gets its own task folder."}
+          </div>
+          <Detail label="Runs">
+            <Show when={props.schedule.runs.length} fallback={<div class="text-[12px] text-faint">Hasn't run yet.</div>}>
+              <div class="flex flex-col gap-0.5">
+                <For each={props.schedule.runs.slice(0, 10)}>
+                  {(entry) => (
+                    <div class="flex items-center gap-3 text-[12px]">
+                      <span class="w-40 shrink-0 text-muted" title={fullTime(entry.at)}>
+                        {fullTime(entry.at)}
+                      </span>
+                      <span
+                        classList={{ "text-ok": entry.status === "done", "text-bad": entry.status === "failed", "text-warn": entry.status === "running" }}
+                        class="w-16 shrink-0"
+                      >
+                        {entry.status === "done" ? "done" : entry.status}
+                      </span>
+                      <span class="min-w-0 flex-1 truncate text-faint">{entry.error}</span>
+                      <Show when={entry.sessionID}>
+                        {(id) => (
+                          <button onClick={() => props.onOpenTask(id())} class="shrink-0 text-muted underline hover:text-text">
+                            Open
+                          </button>
+                        )}
+                      </Show>
+                    </div>
+                  )}
+                </For>
+              </div>
+            </Show>
+          </Detail>
+        </div>
+      </Show>
+    </div>
+  )
+}
+
+function LocalEditor(props: { schedule?: LocalSchedule; onClose: () => void }) {
+  const [name, setName] = createSignal(props.schedule?.name ?? "")
+  const [whenText, setWhen] = createSignal(props.schedule?.when ?? "")
+  const [mode, setMode] = createSignal(props.schedule?.mode ?? "research")
+  const [prompt, setPrompt] = createSignal(props.schedule?.prompt ?? "")
+  const [folder, setFolder] = createSignal<"new" | "same">(props.schedule?.folder ?? "new")
+  const [busy, setBusy] = createSignal(false)
+  const [error, setError] = createSignal<string>()
+  // Shows when it would run, as you type.
+  const [preview] = createResource(
+    () => whenText().trim() || undefined,
+    (text) => window.caimex.schedules.preview(text),
+  )
+  onMount(() => {
+    const onKey = (event: KeyboardEvent) => event.key === "Escape" && props.onClose()
+    window.addEventListener("keydown", onKey)
+    onCleanup(() => window.removeEventListener("keydown", onKey))
+  })
+  const save = async () => {
+    setBusy(true)
+    setError(undefined)
+    try {
+      await window.caimex.schedules.save({
+        id: props.schedule?.id,
+        name: name(),
+        when: whenText(),
+        mode: mode(),
+        prompt: prompt(),
+        folder: folder(),
+      })
+      props.onClose()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, "") : String(cause))
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <div
+      class="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-8"
+      onMouseDown={(event) => event.target === event.currentTarget && props.onClose()}
+    >
+      <div class="flex max-h-full w-full max-w-[560px] flex-col overflow-hidden rounded-2xl border border-line bg-elevated shadow-[0_20px_60px_rgb(0_0_0/0.35)]">
+        <div class="flex items-center justify-between border-b border-line px-5 py-3.5">
+          <div class="text-[14px] font-medium">{props.schedule ? "Edit scheduled task" : "New scheduled task"}</div>
+          <button onClick={props.onClose} class="rounded-md px-2 py-1 text-[12px] text-muted hover:bg-hover hover:text-text">
+            Cancel
+          </button>
+        </div>
+        <div class="flex flex-col gap-4 overflow-y-auto px-5 py-5">
+          <Field label="Name">
+            <input value={name()} onInput={(event) => setName(event.currentTarget.value)} placeholder="Morning news brief" class={INPUT} />
+          </Field>
+          <Field label="Mode">
+            <div class="flex gap-1 rounded-lg bg-active p-0.5">
+              <For each={LOCAL_MODES}>
+                {(item) => (
+                  <button
+                    onClick={() => setMode(item.id)}
+                    classList={{ "bg-elevated text-text shadow-[0_1px_3px_rgb(0_0_0/0.15)]": mode() === item.id, "text-muted": mode() !== item.id }}
+                    class="flex h-7 flex-1 items-center justify-center gap-1.5 rounded-md text-[12px]"
+                  >
+                    <span class="size-1.5 rounded-full" style={{ background: MODE_COLORS[item.id] }} />
+                    {item.label}
+                  </button>
+                )}
+              </For>
+            </div>
+          </Field>
+          <Field label="When">
+            <input
+              value={whenText()}
+              onInput={(event) => setWhen(event.currentTarget.value)}
+              placeholder="every day at 8am"
+              class={`${INPUT} font-mono`}
+            />
+            <div class="flex flex-wrap gap-1.5">
+              <For each={EXAMPLES}>
+                {(example) => (
+                  <button
+                    onClick={() => setWhen(example)}
+                    class="rounded-full border border-line px-2 py-0.5 font-mono text-[11px] text-muted hover:bg-hover hover:text-text"
+                  >
+                    {example}
+                  </button>
+                )}
+              </For>
+            </div>
+            <Show when={preview.latest}>
+              {(value) => (
+                <span classList={{ "text-bad": !value().ok, "text-muted": value().ok }} class="text-[11.5px]">
+                  {(() => {
+                    const result = value()
+                    if (!result.ok) return result.error
+                    return result.times.length
+                      ? `Next: ${result.times.map((ms) => fullTime(ms)).join(" · ")}`
+                      : "That time has passed."
+                  })()}
+                </span>
+              )}
+            </Show>
+          </Field>
+          <Field label="What to do" hint="Sent as the task's prompt each time it runs, in the mode above.">
+            <textarea
+              value={prompt()}
+              onInput={(event) => setPrompt(event.currentTarget.value)}
+              rows={6}
+              placeholder="Summarise the top tech and telecoms news in Zimbabwe and the region from the last 24 hours, with links. Save it to reports/."
+              class={`${INPUT} h-auto resize-none py-2 leading-relaxed`}
+            />
+          </Field>
+          <Field label="Folder">
+            <div class="flex gap-1 rounded-lg bg-active p-0.5">
+              <For each={[["new", "New folder each run"], ["same", "One folder for every run"]] as const}>
+                {([value, label]) => (
+                  <button
+                    onClick={() => setFolder(value)}
+                    classList={{ "bg-elevated text-text shadow-[0_1px_3px_rgb(0_0_0/0.15)]": folder() === value, "text-muted": folder() !== value }}
+                    class="h-7 flex-1 rounded-md text-[12px]"
+                  >
+                    {label}
+                  </button>
+                )}
+              </For>
+            </div>
+          </Field>
+          <Show when={error()}>
+            <div class="text-[12px] whitespace-pre-wrap text-bad select-text">{error()}</div>
+          </Show>
+        </div>
+        <div class="flex items-center justify-end gap-2 border-t border-line px-5 py-3.5">
+          <button
+            disabled={busy()}
+            onClick={() => void save()}
+            class="h-8 rounded-md bg-text px-3.5 text-[12.5px] font-medium text-bg disabled:opacity-50"
+          >
+            {busy() ? "Saving…" : props.schedule ? "Save" : "Schedule it"}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SourceJobs(props: {
+  source: Source
+  tick: number
+  showHeading: boolean
+  onEdit: (job: Job) => void
+  onNew: () => void
+}) {
   const [list, { refetch, mutate }] = createResource(
     () => [props.source.target, props.tick] as const,
     ([target]) => jobs.list(target),
@@ -137,6 +492,11 @@ function SourceJobs(props: { source: Source; tick: number; showHeading: boolean;
           <Show when={props.source.profile.profile}>
             <span class="font-mono font-normal text-faint">{props.source.profile.profile}</span>
           </Show>
+          <span class="font-normal text-faint">· Hermes</span>
+          <div class="flex-1" />
+          <button onClick={props.onNew} class="rounded px-1.5 py-0.5 font-normal text-faint hover:bg-hover hover:text-text">
+            + Hermes job
+          </button>
         </div>
       </Show>
       <Switch>
