@@ -9,6 +9,10 @@ contextBridge.exposeInMainWorld("caimex", {
   setZoom: (factor: number) => webFrame.setZoomFactor(factor),
   info: () => ipcRenderer.invoke("app:info"),
   stopDaemon: () => ipcRenderer.invoke("daemon:stop"),
+  work: {
+    info: () => ipcRenderer.invoke("work:info"),
+    newFolder: (name: string) => ipcRenderer.invoke("work:newFolder", name),
+  },
   plugins: {
     list: () => ipcRenderer.invoke("plugins:list"),
     save: (entries: unknown) => ipcRenderer.invoke("plugins:save", entries),

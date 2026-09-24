@@ -1,4 +1,5 @@
 import { createEffect, createMemo, createResource, createSignal, For, type JSX, Match, on, onCleanup, onMount, Show, Switch } from "solid-js"
+import type { Session } from "../api"
 import { newProfile, preview, type AgentItem, type AgentProfile, type Agents, type ApprovalPolicy } from "../agents"
 import { hermes } from "../hermes"
 import { relativeTime } from "../format"
@@ -49,46 +50,95 @@ function Avatar(props: { profile: AgentProfile; size?: "sm" | "lg" }) {
   )
 }
 
+// What the Work tab shows: a task (a daemon session in the work folder), the new-task
+// screen, a Hermes agent, or the scheduled tasks.
+export type WorkView =
+  | { kind: "task"; id: string }
+  | { kind: "new" }
+  | { kind: "agent"; id: string }
+  | { kind: "scheduled" }
+
 export function WorkSidebar(props: {
   agents: Agents
-  selected: string | undefined
-  onSelect: (id: string) => void
-  onAdd: () => void
-  // The Scheduled tasks view is open instead of an agent.
-  scheduled: boolean
-  onScheduled: () => void
+  view: WorkView
+  onView: (view: WorkView) => void
+  onAddAgent: () => void
+  tasks: Session[]
+  titleOf: (session: Session) => string
+  busy: (id: string) => boolean
+  // Colour per work mode, from the session's agent.
+  modeOf: (id: string) => string | undefined
+  onDeleteTask: (session: Session) => void
   tabs: JSX.Element
   footer: JSX.Element
 }) {
   const state = () => props.agents.state
+  const is = (kind: WorkView["kind"], id?: string) =>
+    props.view.kind === kind && (id === undefined || ("id" in props.view && props.view.id === id))
   return (
     <aside class="flex h-full w-[272px] shrink-0 flex-col border-r border-line bg-sidebar">
       <div class="drag h-[52px] shrink-0" />
       {props.tabs}
-      <div class="px-3 pb-3">
-        <button
-          onClick={props.onAdd}
-          class="no-drag flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-left text-[13px] text-muted hover:bg-hover hover:text-text"
-        >
-          <span class="text-base leading-none">+</span> Add agent
-        </button>
-        <Show when={state().profiles.length}>
-          <button
-            onClick={props.onScheduled}
-            classList={{ "bg-active text-text": props.scheduled, "text-muted hover:bg-hover hover:text-text": !props.scheduled }}
-            class="no-drag mt-0.5 flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-left text-[13px]"
-          >
-            <svg viewBox="0 0 16 16" class="size-3.5" fill="none" stroke="currentColor" stroke-width="1.4">
-              <circle cx="8" cy="8" r="5.8" />
-              <path d="M8 4.8V8l2.2 1.4" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-            Scheduled
-          </button>
-        </Show>
+      <div class="flex flex-col gap-0.5 px-3 pb-3">
+        <SidebarButton active={is("new")} onClick={() => props.onView({ kind: "new" })} title="New work task">
+          <span class="text-base leading-none">+</span> New task
+        </SidebarButton>
+        <SidebarButton active={is("scheduled")} onClick={() => props.onView({ kind: "scheduled" })}>
+          <svg viewBox="0 0 16 16" class="size-3.5" fill="none" stroke="currentColor" stroke-width="1.4">
+            <circle cx="8" cy="8" r="5.8" />
+            <path d="M8 4.8V8l2.2 1.4" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          Scheduled
+        </SidebarButton>
       </div>
       <div class="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+        <div class="px-2 pb-1 pt-1 text-[11px] font-medium text-faint">Tasks</div>
+        <Show when={props.tasks.length === 0}>
+          <div class="px-2 pb-2 text-[12px] text-faint">No tasks yet.</div>
+        </Show>
+        <For each={props.tasks}>
+          {(task) => (
+            <div class="group relative">
+              <button
+                onClick={() => props.onView({ kind: "task", id: task.id })}
+                classList={{
+                  "bg-active text-text": is("task", task.id),
+                  "text-muted hover:bg-hover hover:text-text": !is("task", task.id),
+                }}
+                class="flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-[13px]"
+              >
+                <span
+                  class="size-1.5 shrink-0 rounded-full"
+                  style={{ background: MODE_COLORS[props.modeOf(task.id) ?? ""] ?? "var(--faint)" }}
+                />
+                <span class="min-w-0 flex-1 truncate">{props.titleOf(task)}</span>
+                <Show
+                  when={props.busy(task.id)}
+                  fallback={
+                    <span class="shrink-0 text-[11px] text-faint group-hover:invisible">{relativeTime(task.time.updated)}</span>
+                  }
+                >
+                  <span title="Working" class="mr-1 size-1.5 shrink-0 animate-pulse rounded-full bg-warn group-hover:invisible" />
+                </Show>
+              </button>
+              <button
+                title="Delete task"
+                onClick={() => props.onDeleteTask(task)}
+                class="absolute top-1 right-1 hidden size-6 items-center justify-center rounded text-faint group-hover:flex hover:bg-active hover:text-bad"
+              >
+                ×
+              </button>
+            </div>
+          )}
+        </For>
+        <div class="mt-3 flex items-center px-2 pb-1 pt-1">
+          <span class="flex-1 text-[11px] font-medium text-faint">Hermes agents</span>
+          <button onClick={props.onAddAgent} title="Add a Hermes agent" class="rounded px-1 text-[13px] leading-none text-faint hover:text-text">
+            +
+          </button>
+        </div>
         <Show when={state().profiles.length === 0}>
-          <div class="px-2 py-3 text-[12px] text-faint">No agents yet.</div>
+          <div class="px-2 text-[11.5px] leading-snug text-faint">Optional. Connect Hermes for agents with their own tools and schedules.</div>
         </Show>
         <For each={props.agents.sorted()}>
           {(profile) => {
@@ -96,10 +146,10 @@ export function WorkSidebar(props: {
             const thread = () => state().threads[profile.id]
             return (
               <button
-                onClick={() => props.onSelect(profile.id)}
+                onClick={() => props.onView({ kind: "agent", id: profile.id })}
                 classList={{
-                  "bg-active": !props.scheduled && props.selected === profile.id,
-                  "hover:bg-hover": props.scheduled || props.selected !== profile.id,
+                  "bg-active": is("agent", profile.id),
+                  "hover:bg-hover": !is("agent", profile.id),
                 }}
                 class="mb-0.5 flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left"
               >
@@ -139,6 +189,27 @@ export function WorkSidebar(props: {
       </div>
       <div class="shrink-0 border-t border-line px-3 py-3">{props.footer}</div>
     </aside>
+  )
+}
+
+// The work modes' colours, as the plugin declares them.
+export const MODE_COLORS: Record<string, string> = {
+  research: "#7FD6FF",
+  analyst: "#14E0A1",
+  writer: "#A855F7",
+  ops: "#FF9F0A",
+}
+
+function SidebarButton(props: { active: boolean; onClick: () => void; title?: string; children: JSX.Element }) {
+  return (
+    <button
+      onClick={props.onClick}
+      title={props.title}
+      classList={{ "bg-active text-text": props.active, "text-muted hover:bg-hover hover:text-text": !props.active }}
+      class="no-drag flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-left text-[13px]"
+    >
+      {props.children}
+    </button>
   )
 }
 

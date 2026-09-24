@@ -299,6 +299,20 @@ than reusing `packages/app`. It shares the daemon binary staged in
   `core/src/config/plugin/external.ts`); what it adds shows in the side pane's Library
   (skills, modes, commands, references), which reads the same list endpoints. v2 plugins
   have no tool hook and v2 doesn't read `mcp` on dev yet.
+- **Work tasks** (Work tab): ordinary daemon sessions in their own folder under
+  `~/Caimex Work/` (`CAIMEX_WORK_ROOT`), started in one of the modes from
+  `packages/caimex-work` — a v2 plugin (Research, Analyst, Writer, Ops agents; /research,
+  /brief, /compare, /analyse, /summarise, /draft, /weekly-report, /incident, /digest;
+  six skills). The app turns it on by adding the plugin's path to the global plugins
+  list and restarting the daemon; packaged builds carry it in Resources. The Code tab
+  hides sessions under the work root. Hermes agents stay as a second section.
+  - A plugin must call `reload()` for each domain it transforms: plugins load in the
+    background, and a location that already built its agent list (the app asks as soon
+    as a folder opens) won't rebuild it for a transform registered later.
+  - Commands carry an `agent`; the app switches the session to it before sending,
+    since a command's text alone doesn't change the mode.
+  - The app's command cache drops empty answers: a freshly opened folder answers before
+    its plugins have loaded.
 - The pane's terminal outlives the pane: it reattaches to its running pty (`GET /api/pty`,
   title "Caimex Code") and only "New shell"/"End" remove one.
 - Sessions run by the v1 engine have their history only in the v1 tables; the app reads

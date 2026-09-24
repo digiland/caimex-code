@@ -17,6 +17,10 @@ declare global {
       info(): Promise<{ version: string; packaged: boolean }>
       hermes: import("./hermes").HermesBridge
       stopDaemon(): Promise<string>
+      work: {
+        info(): Promise<{ root: string; plugin: string; pluginExists: boolean }>
+        newFolder(name: string): Promise<string>
+      }
       plugins: {
         list(): Promise<PluginConfig>
         save(entries: PluginEntry[]): Promise<PluginConfig>

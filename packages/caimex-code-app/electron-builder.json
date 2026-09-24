@@ -13,6 +13,15 @@
     {
       "from": "../desktop/resources/caimex-cli",
       "to": "caimex-cli"
+    },
+    {
+      "from": "../caimex-work",
+      "to": "caimex-work",
+      "filter": [
+        "src/**/*",
+        "skills/**/*",
+        "package.json"
+      ]
     }
   ],
   "mac": {

@@ -5,6 +5,7 @@ import { app, BrowserWindow, dialog, ipcMain, nativeImage, net, protocol, shell 
 import { connect, stop } from "./daemon"
 import { registerHermes } from "./hermes"
 import { registerPlugins } from "./plugins"
+import { registerWork } from "./work"
 
 // Set before ready so userData, the single-instance lock and the Dock label are this
 // app's own. Dev runs get a separate name so they never contend with an installed build.
@@ -68,6 +69,7 @@ function createWindow() {
 ipcMain.handle("daemon:connect", () => connect())
 registerHermes()
 registerPlugins()
+registerWork()
 ipcMain.handle("daemon:stop", () => stop())
 ipcMain.handle("dialog:folder", async () => {
   if (!window) return undefined

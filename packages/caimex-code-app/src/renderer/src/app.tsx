@@ -27,7 +27,8 @@ import { SessionView } from "./components/session-view"
 import { Sidebar } from "./components/sidebar"
 import { SettingsDialog } from "./components/settings-dialog"
 import { Status, type Gateway } from "./components/status"
-import { AgentEditor, AgentView, ModeTabs, WorkEmpty, WorkSidebar, type Mode } from "./components/work"
+import { AgentEditor, AgentView, ModeTabs, WorkEmpty, WorkSidebar, type Mode, type WorkView } from "./components/work"
+import { NewTaskView, WORK_MODES, type WorkMode } from "./components/new-task"
 import { ScheduledView } from "./components/scheduled"
 import { createSettings, type Settings } from "./settings"
 
@@ -172,8 +173,8 @@ function Workspace(props: {
         void refreshCatalog()
         void refreshAccount()
         refreshActive()
-        const id = selected()
-        if (id && id !== NEW) void conversations.load(id, { force: true, directory: directoryOf(id) })
+        for (const id of [selected(), workTask()])
+          if (id && id !== NEW) void conversations.load(id, { force: true, directory: directoryOf(id) })
       },
       { defer: true },
     ),
@@ -216,16 +217,15 @@ function Workspace(props: {
   // Model and mode per session. The list endpoint omits them, so read the session
   // itself the first time it's opened; after that, local choices lead.
   const [choices, setChoices] = createStore<Record<string, { model?: ModelRef; agent?: string }>>({})
-  createEffect(
-    on(selected, (id) => {
-      if (!id || id === NEW || id in choices) return
-      setChoices(id, {})
-      void props.api
-        .session(id)
-        .then((detail) => setChoices(id, (current) => ({ model: detail.model, agent: detail.agent, ...current })))
-        .catch(() => {})
-    }),
-  )
+  const ensureChoices = (id: string | undefined) => {
+    if (!id || id === NEW || id in choices) return
+    setChoices(id, {})
+    void props.api
+      .session(id)
+      .then((detail) => setChoices(id, (current) => ({ model: detail.model, agent: detail.agent, ...current })))
+      .catch(() => {})
+  }
+  createEffect(on(selected, ensureChoices))
   const modelOf = (id: string) =>
     choices[id]?.model ??
     conversations.state[id]?.messages.filter(isAssistant).at(-1)?.model ??
@@ -268,10 +268,15 @@ function Workspace(props: {
   const { commands, suggest } = createSuggestions(() => props.api)
 
   // Turns what was typed into the prompt to send: app commands run here and send
-  // nothing (undefined); project commands expand their template.
-  async function prepare(text: string, directory: string | undefined, sessionID?: string) {
+  // nothing (undefined); project commands expand their template, and a command tied to a
+  // mode (/research → research) switches the session to it first.
+  async function prepare(
+    text: string,
+    directory: string | undefined,
+    sessionID?: string,
+  ): Promise<{ text: string; agent?: string } | undefined> {
     const command = parseCommand(text)
-    if (!command) return text
+    if (!command) return { text }
     if (isBuiltin(command.name)) {
       if (command.name === "new") setSelected(NEW)
       else if (command.name === "settings") setSettingsOpen(true)
@@ -281,7 +286,8 @@ function Workspace(props: {
     }
     const found = directory ? (await commands(directory)).find((item) => item.name === command.name) : undefined
     if (!found) throw new Error(`There's no /${command.name} command in this project.`)
-    return expand(found.template, command.args)
+    if (found.agent && sessionID && choices[sessionID]?.agent !== found.agent) await chooseAgent(sessionID, found.agent)
+    return { text: expand(found.template, command.args), agent: found.agent }
   }
 
   // Rewind hands the removed message back to the composer, per session.
@@ -335,18 +341,61 @@ function Workspace(props: {
   // Code (sessions on the daemon) or Work (Hermes agents).
   const [mode, setMode] = createSignal<Mode>(stored<Mode>("caimex.mode") ?? "code")
   createEffect(() => store("caimex.mode", mode()))
-  const [agent, pickAgent] = createSignal<string | undefined>(stored<string>("caimex.agent"))
-  createEffect(() => store("caimex.agent", agent()))
-  // Work shows an agent's conversation or the Scheduled tasks view.
-  const [scheduled, setScheduled] = createSignal(stored<boolean>("caimex.scheduled") ?? false)
-  createEffect(() => store("caimex.scheduled", scheduled()))
-  const setAgent = (id: string | undefined) => {
-    setScheduled(false)
-    pickAgent(id)
+  const [workView, setWorkView] = createSignal<WorkView>(stored<WorkView>("caimex.work-view") ?? { kind: "new" })
+  createEffect(() => store("caimex.work-view", workView()))
+  const workTask = () => {
+    const view = workView()
+    return view.kind === "task" ? view.id : undefined
   }
-  const shownAgent = () => {
-    const id = agent()
-    return id && props.agents.profileOf(id) ? id : props.agents.sorted()[0]?.id
+  const agent = () => {
+    const view = workView()
+    return view.kind === "agent" ? view.id : undefined
+  }
+  const setAgent = (id: string | undefined) => setWorkView(id ? { kind: "agent", id } : { kind: "new" })
+  createEffect(on(workTask, ensureChoices))
+  const [workMode, setWorkMode] = createSignal<WorkMode>(stored<WorkMode>("caimex.work-mode") ?? "research")
+  createEffect(() => store("caimex.work-mode", workMode()))
+  // Where work tasks live, and the plugin that adds the work modes.
+  const [workInfo] = createResource(() => window.caimex.work.info())
+  const isWork = (session: Session) => {
+    const root = workInfo.latest?.root
+    return !!root && session.location.directory.startsWith(`${root}/`)
+  }
+  const codeSessions = () => sessions.latest?.filter((item) => !isWork(item))
+  const workTasks = () => [...(sessions.latest ?? [])].filter(isWork).sort((a, b) => b.time.updated - a.time.updated)
+  // The work modes are there once the daemon has loaded the plugin.
+  const workReady = () => {
+    const agents = catalog.latest?.agents
+    return agents ? agents.some((item) => item.id === "research") : undefined
+  }
+  async function enableWork() {
+    const info = await window.caimex.work.info()
+    if (!info.pluginExists) throw new Error(`The work-modes plugin isn't where it should be: ${info.plugin}`)
+    const config = await window.caimex.plugins.list()
+    if (!config.entries.some((entry) => entry.package === info.plugin))
+      await window.caimex.plugins.save([...config.entries, { package: info.plugin }])
+    await window.caimex.stopDaemon()
+    // Reconnecting starts the daemon again, which loads the plugin; the catalog reloads
+    // with the new modes when the client is swapped in.
+    props.onLost()
+  }
+  const modeOfTask = (id: string) =>
+    choices[id]?.agent ?? conversations.state[id]?.messages.filter(isAssistant).at(-1)?.agent
+  async function startTask(input: string, files: Attachment[]) {
+    const root = workInfo.latest?.root
+    const prepared = await prepare(input, root)
+    if (prepared === undefined) return
+    const agentID = prepared.agent ?? workMode()
+    const directory = await window.caimex.work.newFolder(firstLine(input.replace(/^\/[\w-]+\s*/, "")) || agentID)
+    const model = draft.model ?? (gateway.latest?.defaultModel && ref(gateway.latest.defaultModel))
+    const created = await props.api.createSession({ directory, model, agent: agentID })
+    setTitles(created.id, firstLine(input))
+    setChoices(created.id, { model: created.model ?? model, agent: created.agent ?? agentID })
+    await refreshSessions()
+    await conversations.load(created.id, { directory })
+    setWorkView({ kind: "task", id: created.id })
+    markActive(created.id)
+    await conversations.send(created.id, prepared.text, { files, fresh: { directory } })
   }
   // undefined: closed; null: adding; an id: editing that agent.
   const [editing, setEditing] = createSignal<string | null>()
@@ -376,15 +425,24 @@ function Workspace(props: {
         shortcut: mode() === "code" ? "⌘2" : "⌘1",
         run: () => setMode(mode() === "code" ? "work" : "code"),
       },
-      { id: "add-agent", group: "Actions", label: "Add an agent…", run: () => setEditing(null) },
+      {
+        id: "new-task",
+        group: "Actions",
+        label: "New work task",
+        detail: "research, analysis, writing, ops",
+        run: () => {
+          setMode("work")
+          setWorkView({ kind: "new" })
+        },
+      },
+      { id: "add-agent", group: "Actions", label: "Add a Hermes agent…", run: () => setEditing(null) },
       {
         id: "scheduled",
         group: "Actions",
         label: "Scheduled tasks",
-        detail: "agents' recurring jobs",
         run: () => {
           setMode("work")
-          setScheduled(true)
+          setWorkView({ kind: "scheduled" })
         },
       },
       { id: "settings", group: "Actions", label: "Settings", shortcut: "⌘,", run: () => setSettingsOpen(true) },
@@ -428,10 +486,15 @@ function Workspace(props: {
         id: `session-${item.id}`,
         group: "Sessions",
         label: titleOf(item),
-        detail: projectName(item.location.directory),
+        detail: isWork(item) ? "work task" : projectName(item.location.directory),
         run: () => {
-          setMode("code")
-          setSelected(item.id)
+          if (isWork(item)) {
+            setMode("work")
+            setWorkView({ kind: "task", id: item.id })
+          } else {
+            setMode("code")
+            setSelected(item.id)
+          }
         },
       })
     for (const profile of props.agents.sorted())
@@ -464,12 +527,13 @@ function Workspace(props: {
 
   async function startSession(input: string, files: Attachment[]) {
     const directory = draft.directory
-    const text = await prepare(input, directory)
-    if (text === undefined) return
+    const prepared = await prepare(input, directory)
+    if (prepared === undefined) return
+    const { text } = prepared
     if (!directory) throw new Error("Choose a project folder first.")
     if (!(await window.caimex.exists(directory))) throw new Error(`That folder no longer exists: ${directory}`)
     const model = draft.model ?? (gateway.latest?.defaultModel && ref(gateway.latest.defaultModel))
-    const created = await props.api.createSession({ directory, model, agent: draft.agent })
+    const created = await props.api.createSession({ directory, model, agent: prepared.agent ?? draft.agent })
     setTitles(created.id, firstLine(text))
     setChoices(created.id, { model: created.model ?? model, agent: created.agent ?? draft.agent })
     await refreshSessions()
@@ -522,6 +586,11 @@ function Workspace(props: {
       if (id && id !== NEW && list) void conversations.load(id, { directory: directoryOf(id) })
     }),
   )
+  createEffect(
+    on([workTask, () => sessions.latest] as const, ([id, list]) => {
+      if (id && list) void conversations.load(id, { directory: directoryOf(id) })
+    }),
+  )
 
   // Events after which a run may have started or finished.
   const RUN_EDGES = new Set([
@@ -561,6 +630,7 @@ function Workspace(props: {
 
   function dropSession(id: string) {
     if (selected() === id) setSelected(undefined)
+    if (workTask() === id) setWorkView({ kind: "new" })
     conversations.forget(id)
   }
 
@@ -682,6 +752,69 @@ function Workspace(props: {
     })
   })
 
+  // A session's conversation and side pane; the Code and Work tabs both show sessions.
+  const sessionPanel = (id: string) => (
+    <Show when={sessions.latest?.find((item) => item.id === id)}>
+      {(value) => (
+        <div class="flex h-full">
+        <div class="min-w-0 flex-1">
+        <SessionView
+          session={value()}
+          title={titleOf(value())}
+          conversation={conversations.state[id]}
+          running={active().has(id)}
+          controls={controls({
+            model: () => modelOf(id),
+            agent: () => choices[id]?.agent,
+            onModel: (model) => chooseModel(id, model),
+            onAgent: (agent) => chooseAgent(id, agent),
+          })}
+          contextLimit={contextLimitOf(id)}
+          loadContext={() => props.api.context(id)}
+          draft={drafts[id]}
+          paneOpen={paneOpen()}
+          onTogglePane={() => setPaneOpen(!paneOpen())}
+          suggest={suggest(value().location.directory)}
+          userActions={rewindButton(id)}
+          onRetry={() => void conversations.load(id, { force: true, directory: value().location.directory })}
+          onRetrySend={() =>
+            void reportFailure("Couldn't resend the message", () => conversations.retry(id))
+          }
+          onSend={async (input, files) => {
+            const prepared = await prepare(input, value().location.directory, id)
+            if (prepared !== undefined) await conversations.send(id, prepared.text, { files })
+          }}
+          onStop={async () => {
+            await props.api.interrupt(id)
+            refreshActive()
+          }}
+          onAnswer={async (requestID, answers) => {
+            await props.api.answer(id, requestID, answers)
+            conversations.settle(id, "questions", requestID)
+          }}
+          onDismiss={async (requestID) => {
+            await props.api.dismiss(id, requestID)
+            conversations.settle(id, "questions", requestID)
+          }}
+          onDecide={async (requestID, reply) => {
+            await props.api.decide(id, requestID, reply)
+            conversations.settle(id, "permissions", requestID)
+          }}
+        />
+        </div>
+        <Show when={paneOpen()}>
+          <RightPane
+            api={props.api}
+            directory={value().location.directory}
+            conversation={conversations.state[id]}
+            onClose={() => setPaneOpen(false)}
+          />
+        </Show>
+        </div>
+      )}
+    </Show>
+  )
+
   const footer = () => (
       <div class="flex items-center gap-1">
         <button
@@ -714,7 +847,7 @@ function Workspace(props: {
     <div class="flex h-full">
       <div classList={{ hidden: mode() !== "code" }} class="h-full">
         <Sidebar
-          sessions={sessions.latest}
+          sessions={codeSessions()}
           loading={sessions.loading}
           error={sessions.error ? String(sessions.error.message ?? sessions.error) : undefined}
           selected={selected()}
@@ -736,25 +869,54 @@ function Workspace(props: {
       <div classList={{ hidden: mode() !== "work" }} class="h-full">
         <WorkSidebar
           agents={props.agents}
-          selected={shownAgent()}
-          onSelect={setAgent}
-          onAdd={() => setEditing(null)}
-          scheduled={scheduled() && props.agents.state.profiles.length > 0}
-          onScheduled={() => setScheduled(true)}
+          view={workView()}
+          onView={setWorkView}
+          onAddAgent={() => (props.agents.state.profiles.length ? setEditing(null) : setWorkView({ kind: "agent", id: "" }))}
+          tasks={workTasks()}
+          titleOf={titleOf}
+          busy={(id) => isBusy(conversations.state[id], active().has(id))}
+          modeOf={modeOfTask}
+          onDeleteTask={(target) => void reportFailure("Couldn't delete the task", () => deleteSession(target))}
           tabs={tabs()}
           footer={footer()}
         />
       </div>
       <main classList={{ hidden: mode() !== "work" }} class="min-w-0 flex-1">
-        <Show when={!(scheduled() && props.agents.state.profiles.length)} fallback={<ScheduledView agents={props.agents} />}>
-        <Show
-          when={shownAgent()}
-          keyed
-          fallback={<WorkEmpty agents={props.agents} onAdd={() => setEditing(null)} onCreated={setAgent} />}
-        >
-          {(id) => <AgentView agents={props.agents} id={id} onEdit={() => setEditing(id)} />}
-        </Show>
-        </Show>
+        <Switch>
+          <Match when={workView().kind === "scheduled"}>
+            <ScheduledView agents={props.agents} />
+          </Match>
+          <Match when={workTask()} keyed>
+            {(id) => sessionPanel(id)}
+          </Match>
+          <Match when={workView().kind === "agent"}>
+            <Show
+              when={agent() && props.agents.profileOf(agent()!) ? agent() : undefined}
+              keyed
+              fallback={<WorkEmpty agents={props.agents} onAdd={() => setEditing(null)} onCreated={setAgent} />}
+            >
+              {(id) => <AgentView agents={props.agents} id={id} onEdit={() => setEditing(id)} />}
+            </Show>
+          </Match>
+          <Match when={true}>
+            <NewTaskView
+              agents={catalog.latest?.agents}
+              mode={workMode()}
+              onMode={setWorkMode}
+              ready={workReady()}
+              onEnable={enableWork}
+              controls={
+                <ModelPicker
+                  models={catalog.latest?.models ?? []}
+                  value={draft.model ?? (gateway.latest?.defaultModel && ref(gateway.latest.defaultModel))}
+                  onChange={(model) => void setDraft("model", ref(model))}
+                />
+              }
+              onSend={startTask}
+              suggest={suggest(workInfo.latest?.root)}
+            />
+          </Match>
+        </Switch>
       </main>
       <main classList={{ hidden: mode() !== "code" }} class="min-w-0 flex-1">
         {/* Keyed on the id, not the session object, so refreshing the list doesn't
@@ -794,65 +956,7 @@ function Workspace(props: {
                 />
               }
             >
-            <Show when={session()}>
-              {(value) => (
-                <div class="flex h-full">
-                <div class="min-w-0 flex-1">
-                <SessionView
-                  session={value()}
-                  title={titleOf(value())}
-                  conversation={conversations.state[id]}
-                  running={active().has(id)}
-                  controls={controls({
-                    model: () => modelOf(id),
-                    agent: () => choices[id]?.agent,
-                    onModel: (model) => chooseModel(id, model),
-                    onAgent: (agent) => chooseAgent(id, agent),
-                  })}
-                  contextLimit={contextLimitOf(id)}
-                  loadContext={() => props.api.context(id)}
-                  draft={drafts[id]}
-                  paneOpen={paneOpen()}
-                  onTogglePane={() => setPaneOpen(!paneOpen())}
-                  suggest={suggest(value().location.directory)}
-                  userActions={rewindButton(id)}
-                  onRetry={() => void conversations.load(id, { force: true, directory: value().location.directory })}
-                  onRetrySend={() =>
-                    void reportFailure("Couldn't resend the message", () => conversations.retry(id))
-                  }
-                  onSend={async (input, files) => {
-                    const text = await prepare(input, value().location.directory, id)
-                    if (text !== undefined) await conversations.send(id, text, { files })
-                  }}
-                  onStop={async () => {
-                    await props.api.interrupt(id)
-                    refreshActive()
-                  }}
-                  onAnswer={async (requestID, answers) => {
-                    await props.api.answer(id, requestID, answers)
-                    conversations.settle(id, "questions", requestID)
-                  }}
-                  onDismiss={async (requestID) => {
-                    await props.api.dismiss(id, requestID)
-                    conversations.settle(id, "questions", requestID)
-                  }}
-                  onDecide={async (requestID, reply) => {
-                    await props.api.decide(id, requestID, reply)
-                    conversations.settle(id, "permissions", requestID)
-                  }}
-                />
-                </div>
-                <Show when={paneOpen()}>
-                  <RightPane
-                    api={props.api}
-                    directory={value().location.directory}
-                    conversation={conversations.state[id]}
-                    onClose={() => setPaneOpen(false)}
-                  />
-                </Show>
-                </div>
-              )}
-            </Show>
+            {sessionPanel(id)}
             </Show>
           )}
         </Show>

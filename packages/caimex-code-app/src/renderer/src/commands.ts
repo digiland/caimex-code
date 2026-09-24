@@ -26,20 +26,24 @@ export function expand(template: string, args: string) {
 }
 
 export function createSuggestions(api: () => Api) {
-  // A folder's commands rarely change; fetch once per folder.
-  const cache = new Map<string, Promise<Command[]>>()
+  // A folder's commands rarely change, so keep them briefly. A folder the daemon has just
+  // opened answers before its plugins finish loading, so an empty answer isn't kept.
+  const cache = new Map<string, { at: number; value: Promise<Command[]> }>()
   const commands = (directory: string) => {
-    let found = cache.get(directory)
-    if (!found) {
-      found = api()
-        .commands(directory)
-        .catch(() => {
-          cache.delete(directory)
-          return []
-        })
-      cache.set(directory, found)
-    }
-    return found
+    const found = cache.get(directory)
+    if (found && Date.now() - found.at < 60_000) return found.value
+    const value = api()
+      .commands(directory)
+      .then((list) => {
+        if (!list.length) cache.delete(directory)
+        return list
+      })
+      .catch(() => {
+        cache.delete(directory)
+        return [] as Command[]
+      })
+    cache.set(directory, { at: Date.now(), value })
+    return value
   }
 
   const suggest =
