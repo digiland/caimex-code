@@ -23,8 +23,11 @@ export function resolve(target: Target): Entrypoints {
       try {
         return resolveModule(specifier, target.directory)
       } catch (error) {
+        // Caimex Desktop: Bun's resolver throws a ResolveMessage, which carries the code but
+        // isn't an Error, so a missing optional entry (tui, rpc) used to fail the whole plugin.
         if (
-          !(error instanceof Error) ||
+          !error ||
+          typeof error !== "object" ||
           !("code" in error) ||
           ![
             "ENOENT",
