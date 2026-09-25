@@ -56,6 +56,7 @@
     "vite-plugin-solid": "2.11.14"
   },
   "dependencies": {
+    "@caimex/voice": "workspace:*",
     "@corvu/drawer": "catalog:",
     "@dnd-kit/abstract": "0.5.0",
     "@dnd-kit/dom": "0.5.0",
@@ -64,8 +65,8 @@
     "@ibm/plex": "6.4.1",
     "@kobalte/core": "catalog:",
     "@opencode/client": "workspace:*",
-    "@opencode/schema": "workspace:*",
     "@opencode/plugin-browser": "workspace:*",
+    "@opencode/schema": "workspace:*",
     "@opencode/session-ui": "workspace:*",
     "@opencode/ui": "workspace:*",
     "@opencode/util": "workspace:*",

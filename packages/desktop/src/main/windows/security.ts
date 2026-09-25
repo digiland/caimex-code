@@ -5,15 +5,23 @@ import { isRendererUrl } from "./scheme"
 
 const rendererPermissions = new Set(["clipboard-sanitized-write", "notifications"])
 
+// Caimex Desktop: the microphone, for voice (packages/caimex-voice). Audio only, and only
+// for the app's own renderer; cameras and screen capture stay refused.
+const isMicrophoneOnly = (permission: string, details: { mediaTypes?: readonly string[]; mediaType?: string }) =>
+  permission === "media" &&
+  ((details.mediaTypes?.length ?? 0) > 0 ? details.mediaTypes!.every((type) => type === "audio") : details.mediaType === "audio")
+
 export function allowRendererPermissions(win: BrowserWindow) {
   const webContentsId = win.webContents.id
   win.webContents.session.setPermissionRequestHandler((webContents, permission, callback, details) => {
     callback(
-      rendererPermissions.has(permission) && isRendererUrl(details.requestingUrl) && webContents.id === webContentsId,
+      (rendererPermissions.has(permission) || isMicrophoneOnly(permission, details as never)) &&
+        isRendererUrl(details.requestingUrl) &&
+        webContents.id === webContentsId,
     )
   })
   win.webContents.session.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
-    if (!rendererPermissions.has(permission)) return false
+    if (!rendererPermissions.has(permission) && !isMicrophoneOnly(permission, details as never)) return false
     if (webContents && webContents.id !== webContentsId) return false
     return isRendererUrl(details.requestingUrl) || isRendererUrl(requestingOrigin)
   })

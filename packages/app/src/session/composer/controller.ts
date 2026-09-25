@@ -44,6 +44,8 @@ export function createSessionComposerController(input: {
   createEffect(on(editable, () => composer.onDragLeave()))
 
   return {
+    // Caimex Desktop: the voice control needs the session it talks to.
+    sessionID: input.sessionID,
     region,
     queue,
     composer,

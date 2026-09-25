@@ -6,6 +6,7 @@ import { makeEventListener } from "@solid-primitives/event-listener"
 import { useNavigate } from "@solidjs/router"
 import { createEffect, createMemo, on, onMount, type Accessor } from "solid-js"
 import { Composer } from "@/composer/composer"
+import { VoiceControl } from "./voice"
 import { useComposerState } from "@/composer/persistence"
 import { createComposerControls } from "@/composer/selection"
 import { setCursorPosition } from "@/composer/editor/dom"
@@ -224,7 +225,12 @@ export function ActiveSessionComposerRegion(props: {
         <div class="relative">
           <SessionQueuePanel queue={props.model.queue} />
           <div class="relative z-10">
-            <Composer model={props.model.composer} borderUnderlay suggestionBoundary={props.suggestionBoundary} />
+            <Composer
+              model={props.model.composer}
+              borderUnderlay
+              suggestionBoundary={props.suggestionBoundary}
+              extraControls={<VoiceControl sessionID={props.model.sessionID} />}
+            />
           </div>
         </div>
       }

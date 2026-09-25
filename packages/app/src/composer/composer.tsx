@@ -1,4 +1,4 @@
-import { Show, createMemo } from "solid-js"
+import { Show, createMemo, type JSX } from "solid-js"
 import { Button } from "@opencode/ui/button"
 import { useDialog } from "@opencode/ui/context/dialog"
 import { Icon } from "@opencode/ui/icon"
@@ -17,6 +17,8 @@ export function Composer(props: {
   model: ComposerModel
   borderUnderlay?: boolean
   suggestionBoundary?: () => HTMLElement | undefined
+  // Caimex Desktop: controls shown after the model picker (the voice control).
+  extraControls?: JSX.Element
 }) {
   const dialog = useDialog()
   const command = useCommand()
@@ -47,6 +49,7 @@ export function Composer(props: {
             onUnpaidClick={() => dialog.show(() => <DialogSelectModelUnpaid model={props.model.model.selection} />)}
           />
         }
+        extraControls={props.extraControls}
       />
     </div>
   )

@@ -67,6 +67,8 @@ export type ComposerEditorProps = {
   class?: string
   modelControl?: JSX.Element
   modelControlsVisible?: boolean
+  // Caimex Desktop: controls after the model and variant pickers (the voice control).
+  extraControls?: JSX.Element
   attachKeybind?: string[]
   attachShortcut?: string
   alternateKeybind?: string[]
@@ -325,6 +327,7 @@ export function ComposerEditor(props: ComposerEditorProps) {
                   )}
                 </Show>
               </Show>
+              {props.extraControls}
             </div>
           </div>
           <div data-slot="composer-actions" class="flex shrink-0 items-center">

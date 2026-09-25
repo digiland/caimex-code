@@ -1,0 +1,23 @@
+{
+  "name": "@caimex/voice",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Turn-by-turn voice for Caimex Desktop through the Caimex gateway: speech-to-text, a voice agent that drives your session, and text-to-speech. Design after opencode-gpt-live (MIT).",
+  "exports": {
+    ".": "./server.ts",
+    "./rpc": "./rpc.ts"
+  },
+  "scripts": {
+    "typecheck": "tsgo --noEmit"
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@opencode/plugin": "workspace:*",
+    "@tsconfig/bun": "catalog:",
+    "@types/node": "catalog:",
+    "@typescript/native-preview": "catalog:"
+  }
+}

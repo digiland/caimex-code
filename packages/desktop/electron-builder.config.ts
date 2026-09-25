@@ -112,6 +112,8 @@ const getBase = (appId: string): Configuration => ({
     icon: `resources/icons/icon.icns`,
     extendInfo: {
       NSAutoFillRequiresTextContentTypeForOneTimeCodeOnMac: true,
+      // Caimex Desktop: voice.
+      NSMicrophoneUsageDescription: "Caimex Desktop listens when you turn on voice, to hear what you say to your session.",
     },
     hardenedRuntime: true,
     gatekeeperAssess: false,
