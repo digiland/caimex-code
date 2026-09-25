@@ -155,7 +155,8 @@ export const stop = Effect.fn("service.stop")(function* (options: StopOptions = 
 
 function fallback() {
   const state = process.env["XDG_STATE_HOME"] ?? join(homedir(), ".local", "state")
-  return join(state, "opencode", "service.json")
+  // Caimex Desktop: the CLI keeps its state under its app id (util/src/global.ts).
+  return join(state, "caimex-desktop", "service.json")
 }
 
 /** Create HTTP authentication headers for a service endpoint. */

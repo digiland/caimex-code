@@ -1,5 +1,6 @@
 import { AmazonBedrockPlugin } from "./provider/amazon-bedrock.js"
 import { AzurePlugin } from "./provider/azure.js"
+import { CaimexPlugin } from "./provider/caimex.js"
 import { CerebrasPlugin } from "./provider/cerebras.js"
 import { CloudflareAIGatewayPlugin } from "./provider/cloudflare-ai-gateway.js"
 import { CloudflareWorkersAIPlugin } from "./provider/cloudflare-workers-ai.js"
@@ -34,6 +35,8 @@ import type { PluginInternal } from "./internal.js"
 export const ProviderPlugins: PluginInternal.InternalPlugin[] = [
   AmazonBedrockPlugin,
   AzurePlugin,
+  // Caimex Desktop: the gateway every model comes from.
+  CaimexPlugin,
   CerebrasPlugin,
   CloudflareAIGatewayPlugin,
   CloudflareWorkersAIPlugin,

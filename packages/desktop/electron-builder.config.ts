@@ -50,14 +50,15 @@ const channel = (() => {
   return "dev"
 })()
 
+// Caimex Desktop: kept in step with APP_ID in src/main/constants.ts.
 const APP_IDS = {
-  dev: "ai.opencode.desktop.dev",
-  beta: "ai.opencode.desktop.beta",
-  prod: "ai.opencode.desktop",
+  dev: "zw.co.econetai.caimexdesktop.dev",
+  beta: "zw.co.econetai.caimexdesktop.beta",
+  prod: "zw.co.econetai.caimexdesktop",
 } as const
 
 const getBase = (appId: string): Configuration => ({
-  artifactName: "opencode-desktop-${os}-${arch}.${ext}",
+  artifactName: "caimex-desktop-${os}-${arch}.${ext}",
   directories: {
     output: "dist",
     buildResources: "resources",
@@ -120,12 +121,9 @@ const getBase = (appId: string): Configuration => ({
       const { sign } = await import("app-builder-lib/out/codeSign/macCodeSign")
       await sign(macSignOptions(options))
     },
-    notarize: true,
+    // Caimex Desktop: unsigned until signing is set up.
+    notarize: false,
     target: ["dmg", "zip"],
-  },
-  protocols: {
-    name: "OpenCode",
-    schemes: ["opencode"],
   },
   win: {
     icon: `resources/icons/icon.ico`,
@@ -157,50 +155,18 @@ const getBase = (appId: string): Configuration => ({
   },
 })
 
+// Caimex Desktop: no update feed and no URL scheme (opencode:// is OpenCode's).
 function getConfig() {
   const appId = APP_IDS[channel]
   const base = getBase(appId)
-
-  switch (channel) {
-    case "dev": {
-      return {
-        ...base,
-        appId,
-        productName: "OpenCode Dev",
-        deb: { fpm: [metainfoFpm(appId)] },
-        rpm: { packageName: "opencode-dev", fpm: [metainfoFpm(appId)] },
-      }
-    }
-    case "beta": {
-      return {
-        ...base,
-        appId,
-        productName: "OpenCode Beta",
-        protocols: { name: "OpenCode Beta", schemes: ["opencode"] },
-        publish: {
-          provider: "generic",
-          url: "https://opencode.ai/update/api/beta/desktop/opencode/",
-          channel: "latest",
-        },
-        deb: { fpm: [metainfoFpm(appId)] },
-        rpm: { packageName: "opencode-beta", fpm: [metainfoFpm(appId)] },
-      }
-    }
-    case "prod": {
-      return {
-        ...base,
-        appId,
-        productName: "OpenCode",
-        protocols: { name: "OpenCode", schemes: ["opencode"] },
-        publish: {
-          provider: "generic",
-          url: "https://opencode.ai/update/api/latest/desktop/opencode/",
-          channel: "latest",
-        },
-        deb: { fpm: [metainfoFpm(appId), legacyDesktopEntryFpm] },
-        rpm: { packageName: "opencode", fpm: [metainfoFpm(appId), legacyDesktopEntryFpm] },
-      }
-    }
+  const names = { dev: "Caimex Desktop Dev", beta: "Caimex Desktop Beta", prod: "Caimex Desktop" } as const
+  const packages = { dev: "caimex-desktop-dev", beta: "caimex-desktop-beta", prod: "caimex-desktop" } as const
+  return {
+    ...base,
+    appId,
+    productName: names[channel],
+    deb: { fpm: [metainfoFpm(appId)] },
+    rpm: { packageName: packages[channel], fpm: [metainfoFpm(appId)] },
   }
 }
 

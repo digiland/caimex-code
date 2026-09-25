@@ -271,13 +271,9 @@ export const OpencodePlugin = define<HttpClient.HttpClient | Bus.Service | Manag
 
       const item = providers.get(Provider.ID.opencode)
       if (!item) return
-      const hasKey = Boolean(process.env.OPENCODE_API_KEY || snapshot.connection || item.provider.settings?.apiKey)
-      providers.update(item.provider.id, (provider) => {
-        if (!hasKey) {
-          provider.activation = "enabled"
-          provider.settings = { ...provider.settings, apiKey: "public" }
-        }
-      })
+      // Caimex Desktop: upstream enables OpenCode Zen's free tier without an account
+      // (activation "enabled" with a public key). Here it stays hidden until someone
+      // actually connects it; Caimex is the provider this build offers.
     })
     yield* ctx.model.transform((models) => {
       const item = models.provider.get(Provider.ID.opencode)
@@ -288,8 +284,8 @@ export const OpencodePlugin = define<HttpClient.HttpClient | Bus.Service | Manag
           (item.provider.settings?.apiKey && item.provider.settings.apiKey !== "public"),
       )
       if (hasKey) return
+      // Caimex Desktop: all of them, not only the paid ones (see above).
       for (const model of models.list(item.provider.id)) {
-        if (!model.cost.some((cost) => cost.input > 0)) continue
         models.update(item.provider.id, model.id, (draft) => {
           draft.enabled = false
         })

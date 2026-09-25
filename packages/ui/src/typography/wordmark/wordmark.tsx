@@ -1,5 +1,6 @@
 import { createUniqueId, type ComponentProps } from "solid-js"
 
+// Caimex Desktop: the "caimex code" wordmark (glyphs from the Caimex CLI fork's Logo).
 export function Wordmark(
   props: Pick<ComponentProps<"svg">, "class"> & { fade?: boolean; muted?: boolean; outline?: boolean },
 ) {
@@ -9,7 +10,7 @@ export function Wordmark(
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 720 129"
+      viewBox="0 0 294 36"
       fill="none"
       classList={{
         [props.class ?? ""]: !!props.class,
@@ -24,46 +25,24 @@ export function Wordmark(
             stroke={props.outline ? "currentColor" : undefined}
             stroke-width={props.outline ? 1 : undefined}
           >
-            <path
-              pathLength={props.outline ? 1 : undefined}
-              d="M55.3846 36.4286H18.4615V91.7143H55.3846V36.4286ZM73.8462 110.143H0V18H73.8462V110.143Z"
-            />
-            <path
-              pathLength={props.outline ? 1 : undefined}
-              d="M110.462 91.7143H147.385V36.4286H110.462V91.7143ZM165.846 110.143H110.462V128.571H92V18H165.846V110.143Z"
-            />
-            <path
-              pathLength={props.outline ? 1 : undefined}
-              d="M258.846 73.2857H203.462V91.7143H258.846V110.143H185V18H258.846V73.2857ZM203.462 54.8571H240.385V36.4286H203.462V54.8571Z"
-            />
-            <path
-              pathLength={props.outline ? 1 : undefined}
-              d="M332.385 36.4286H295.462V110.143H277V18H332.385V36.4286ZM350.846 110.143H332.385V36.4286H350.846V110.143Z"
-            />
-            <path
-              pathLength={props.outline ? 1 : undefined}
-              d="M442.846 36.4286H387.462V91.7143H442.846V110.143H369V18H442.846V36.4286Z"
-            />
-            <path
-              pathLength={props.outline ? 1 : undefined}
-              d="M517.385 36.4286H480.462V91.7143H517.385V36.4286ZM535.846 110.143H462V18H535.846V110.143Z"
-            />
-            <path
-              pathLength={props.outline ? 1 : undefined}
-              d="M609.385 36.8571H572.462V92.1429H609.385V36.8571ZM627.846 110.571H554V18.4286H609.385V0H627.846V110.571Z"
-            />
-            <path
-              pathLength={props.outline ? 1 : undefined}
-              d="M664.462 36.4286V54.8571H701.385V36.4286H664.462ZM719.846 73.2857H664.462V91.7143H719.846V110.143H646V18H719.846V73.2857Z"
-            />
+            <path pathLength={props.outline ? 1 : undefined} d="M24 12H6V30H24V36H0V6H24V12Z" />
+            <path pathLength={props.outline ? 1 : undefined} d="M48 24H36V30H48V24ZM30 6H54V36H30V18H48V12H30V6Z" />
+            <path pathLength={props.outline ? 1 : undefined} d="M66 6H60V0H66V6ZM66 36H60V12H66V36Z" />
+            <path pathLength={props.outline ? 1 : undefined} d="M96 12H78V36H72V6H96V12ZM90 36H84V12H90V36ZM102 36H96V12H102V36Z" />
+            <path pathLength={props.outline ? 1 : undefined} d="M132 24H114V30H132V36H108V6H132V24ZM114 18H126V12H114V18Z" />
+            <path pathLength={props.outline ? 1 : undefined} d="M138 6H144L162 36H156ZM156 6H162L144 36H138Z" />
+            <path pathLength={props.outline ? 1 : undefined} d="M204 12H186V30H204V36H180V6H204V12Z" />
+            <path pathLength={props.outline ? 1 : undefined} d="M228 12H216V30H228V12ZM234 36H210V6H234V36Z" />
+            <path pathLength={props.outline ? 1 : undefined} d="M258 12H246V30H258V12ZM264 36H240V6H258V0H264V36Z" />
+            <path pathLength={props.outline ? 1 : undefined} d="M294 24H276V30H294V36H270V6H294V24ZM276 18H288V12H276V18Z" />
           </g>
         </g>
       </g>
       <defs>
-        <mask id={mask} style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="720" height="129">
-          <rect width="720" height="129" fill={`url(#${maskGradient})`} />
+        <mask id={mask} style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="294" height="36">
+          <rect width="294" height="36" fill={`url(#${maskGradient})`} />
         </mask>
-        <linearGradient id={maskGradient} x1="360" y1="68" x2="360" y2="129" gradientUnits="userSpaceOnUse">
+        <linearGradient id={maskGradient} x1="147" y1="18" x2="147" y2="36" gradientUnits="userSpaceOnUse">
           <stop stop-color="white" stop-opacity="0.7" />
           <stop offset="1" stop-color="white" stop-opacity="0" />
         </linearGradient>

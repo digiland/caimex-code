@@ -41,7 +41,8 @@ const connect = Effect.fn("BackgroundService.connect")(function* (mode: "initial
     client.Service.ensure({
       file:
         isolated && process.env.OPENCODE_DESKTOP_SERVER_CHANNEL === "local"
-          ? path.join(app.getPath("userData"), "opencode", "service-local.json")
+          ? // Caimex Desktop: the CLI names this folder after its app id (util/src/global.ts).
+            path.join(app.getPath("userData"), "caimex-desktop", "service-local.json")
           : undefined,
       version,
       command: [...cli.command, "serve", "--service", ...(isolated ? ["--hostname", "0.0.0.0", "--port", "0"] : [])],

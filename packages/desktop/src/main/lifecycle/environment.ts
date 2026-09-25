@@ -36,8 +36,8 @@ export const preferApplicationEnvironment = Effect.gen(function* () {
 export const prepareDesktop = Effect.gen(function* () {
   const path = yield* Path.Path
   const paths = yield* DesktopPaths.resolve
-  if (app.isPackaged || process.env.OPENCODE_DESKTOP_DISABLE_PROTOCOL_REGISTRATION !== "1")
-    app.setAsDefaultProtocolClient("opencode")
+  // Caimex Desktop: opencode:// belongs to OpenCode (it only carries Console sign-in,
+  // which this build doesn't offer), so it isn't claimed here.
   const runFork = Effect.runForkWith(yield* Effect.context())
   setProtocolReporter((level, message, data) =>
     runFork(scoped("protocol", level === "error" ? Effect.logError(message, data) : Effect.logWarning(message, data))),

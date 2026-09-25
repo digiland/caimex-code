@@ -125,7 +125,8 @@ export async function stop(options: StopOptions = {}) {
 }
 
 function fallback() {
-  return join(process.env["XDG_STATE_HOME"] ?? join(homedir(), ".local", "state"), "opencode", "service.json")
+  // Caimex Desktop: the CLI keeps its state under its app id (util/src/global.ts).
+  return join(process.env["XDG_STATE_HOME"] ?? join(homedir(), ".local", "state"), "caimex-desktop", "service.json")
 }
 
 /** Create HTTP authentication headers for a service endpoint. */
