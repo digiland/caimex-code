@@ -2,6 +2,14 @@
 
 Guidance for Claude Code (and other agents) working in this repository.
 
+> **This is the 1.x line (branch `caimex`), in maintenance.** Since v2.0.0 (2026-09-28)
+> the `caimex` CLI and Caimex Desktop are built from OpenCode's 2.x line on the
+> **`caimex-v2`** branch, which merges `upstream/v2` (not `upstream/dev`). New work,
+> releases and upstream syncing happen there: read `CLAUDE.md` and `CAIMEX.md` on
+> `caimex-v2` (checked out locally in `../caimex-desktop`). Tag releases only from
+> `caimex-v2`; a `vX.Y.Z` tag here would publish a 1.x build over 2.x. Upstream's tags
+> are not fetched (`remote.upstream.tagOpt --no-tags`): they clash with ours.
+
 ## What this is
 
 **Caimex Code** — a Bun/TypeScript fork of [OpenCode](https://github.com/anomalyco/opencode)
