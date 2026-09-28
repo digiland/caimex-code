@@ -90,23 +90,6 @@ Both must ship together: the npm package downloads its binary from the release.
 
 ## Syncing with upstream
 
-```bash
-git fetch upstream
-git merge upstream/v2
-```
-
-Then:
-
-1. `bun install`, `bun run typecheck`.
-2. `cd packages/cli && bun test`. Upstream's service tests time out on a busy machine,
-   and `debug paths` and `debug config` fail on a machine with a real config; check
-   against a stash of the merge before chasing them.
-3. The provider narrowing: on a clean profile `caimex models` lists only `caimex/`
-   models (plus a local Ollama, if one is running), and upstream hasn't brought back a
-   parked key in `opencode.ts`.
-4. `caimex auth login` reaches the gateway's device flow; `caimex --help` says `caimex`.
-5. The updater still reads GitHub (`updater.ts`), and `build.ts` still names the binary
-   `caimex`.
-6. Rebrand new user-facing strings in `packages/cli` and `packages/tui`.
-7. Desktop: Settings → Providers lists Caimex, the work modes and `/research` appear, and
-   the microphone shows next to the model picker.
+`git fetch upstream && git merge upstream/v2` onto `caimex-v2`, then the checklist in
+[CLAUDE.md](./CLAUDE.md#staying-in-sync-with-upstream). Keep this file's inventory
+current as part of every merge.
