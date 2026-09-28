@@ -10,7 +10,18 @@ export function action(current: string, latest: string, policy: Policy): Action 
   const currentVersion = parseReleaseVersion(current)
   const latestVersion = parseReleaseVersion(latest)
   if (!currentVersion || !latestVersion || sameRelease(currentVersion, latestVersion)) return "none"
+  // Caimex: "latest" is GitHub's latest release, not an update server that may roll
+  // clients back, so an older release is never offered (a 2.x build must not be
+  // "updated" to the 1.x that is still the latest release).
+  if (olderCore(latestVersion.core, currentVersion.core)) return "none"
   return policy
+}
+
+function olderCore(candidate: string, reference: string) {
+  const a = candidate.split(".").map(BigInt)
+  const b = reference.split(".").map(BigInt)
+  for (let i = 0; i < 3; i++) if (a[i] !== b[i]) return a[i] < b[i]
+  return false
 }
 
 export function parseReleaseVersion(input: string) {
