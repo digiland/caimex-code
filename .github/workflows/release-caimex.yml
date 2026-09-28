@@ -28,6 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v4
 
@@ -43,6 +44,12 @@ jobs:
           else
             echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
           fi
+          # A version with a suffix (2.0.0-beta.1) is a pre-release: it must not become
+          # GitHub's "latest" release, which install.sh and `caimex upgrade` follow.
+          case "$(grep '^version=' "$GITHUB_OUTPUT" | tail -1)" in
+            *-*) echo "prerelease=true" >> "$GITHUB_OUTPUT" ;;
+            *) echo "prerelease=false" >> "$GITHUB_OUTPUT" ;;
+          esac
 
       - run: bun install
 
@@ -57,9 +64,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="v${{ steps.version.outputs.version }}"
-          gh release create "$TAG" \
+          if [ "${{ steps.version.outputs.prerelease }}" = "true" ]; then
+            FLAGS="--prerelease --latest=false"
+            NOTES="Pre-release. Install: \`CAIMEXCODE_CHANNEL=$TAG curl -fsSL https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG/install.sh | bash\` or \`npm i -g caimex@next\`"
+          else
+            FLAGS="--latest"
+            NOTES="Install: \`curl -fsSL https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/install.sh | bash\` or \`npm i -g caimex\`"
+          fi
+          gh release create "$TAG" $FLAGS \
             --title "Caimex Code $TAG" \
-            --notes "Install: \`curl -fsSL https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/install.sh | bash\` or \`npm i -g caimex\`" \
+            --notes "$NOTES" \
             || echo "release $TAG already exists, uploading assets"
           gh release upload "$TAG" packages/caimex/* install.sh --clobber
 
@@ -98,4 +112,10 @@ jobs:
           # not changed" when re-running a release whose version is already in
           # package.json, which would fail the job for no reason.
           npm pkg set version="${{ needs.release.outputs.version }}"
-          npm publish --access public
+          # Pre-releases go to the `next` dist-tag, so `npm i -g caimex` and a 1.x
+          # `caimex upgrade` keep getting the stable release.
+          if [ "${{ needs.release.outputs.prerelease }}" = "true" ]; then
+            npm publish --access public --tag next
+          else
+            npm publish --access public
+          fi
