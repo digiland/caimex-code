@@ -156,10 +156,10 @@ const readDocument: ToolSpec = {
 
 // ---------------------------------------------------------------------------
 // http_request: call any HTTP API. Secrets are written as {{secret:NAME}} and filled in
-// here, from ~/.config/caimex-code/secrets.json or CAIMEX_SECRET_NAME in the daemon's
+// here, from ~/.config/caimex/secrets.json or CAIMEX_SECRET_NAME in the daemon's
 // environment, so keys never pass through the conversation.
 
-const configDir = () => join(process.env.XDG_CONFIG_HOME || join(homedir(), ".config"), "caimex-desktop")
+const configDir = () => join(process.env.XDG_CONFIG_HOME || join(homedir(), ".config"), "caimex")
 const secretsFile = () => join(configDir(), "secrets.json")
 // {"hosts": ["jira.example.com", ...]}: hosts http_request may send writes to.
 const allowFile = () => join(configDir(), "http-allow.json")

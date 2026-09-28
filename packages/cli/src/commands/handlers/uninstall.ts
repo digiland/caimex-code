@@ -14,7 +14,7 @@ import { errorMessage } from "../../util/error"
 export default Runtime.handler(
   Commands.commands.uninstall,
   Effect.fn("cli.uninstall")(function* (input) {
-    intro("Uninstall OpenCode")
+    intro("Uninstall Caimex")
     const fs = yield* FileSystem.FileSystem
     const global = yield* Global.Service
     const updater = yield* Updater.Service
@@ -34,7 +34,7 @@ export default Runtime.handler(
     const shell = method === "curl" ? yield* shellConfigs(global.home) : []
 
     log.info(`Installation method: ${method ?? "unknown"}`)
-    log.message("The following global files will be removed (shared by OpenCode versions and channels):")
+    log.message("The following global files will be removed (shared by Caimex versions and channels):")
     yield* Effect.forEach(directories, (directory) =>
       Effect.gen(function* () {
         if (!(yield* fs.exists(directory.path))) return
@@ -80,7 +80,7 @@ export default Runtime.handler(
       )
     }
 
-    // Links that keep an older OpenCode replaceable may still run; move them so the cache can go.
+    // Links that keep an older Caimex replaceable may still run; move them so the cache can go.
     if (process.platform === "win32") yield* RetainedImage.relocate(global.cache, global.tmp)
     const errors: string[] = []
     yield* Effect.forEach(directories, (directory) =>

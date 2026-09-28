@@ -36,7 +36,10 @@ const migration: DatabaseMigration.Migration = {
   up(tx) {
     return Effect.gen(function* () {
       const global = yield* Global.Service
-      return yield* importLegacyCredentials(tx, path.join(global.data, "auth.json"))
+      yield* importLegacyCredentials(tx, path.join(global.data, "auth.json"))
+      // Caimex: the v1 CLI kept its credentials under its own app id, so a v1 user
+      // upgrading keeps their Caimex sign-in. Entries already imported are skipped.
+      return yield* importLegacyCredentials(tx, path.join(path.dirname(global.data), "caimex-code", "auth.json"))
     })
   },
 }

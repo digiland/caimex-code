@@ -17,7 +17,14 @@ export default Runtime.handler(
       baseUrl: server.endpoint.url,
       headers: Service.headers(server.endpoint),
     })
-    const response = yield* Effect.promise(() => client.model.list({ location: { directory: process.cwd() } }))
+    const list = () => Effect.promise(() => client.model.list({ location: { directory: process.cwd() } }))
+    let response = yield* list()
+    // Caimex: a service that just started answers before its provider plugins have
+    // loaded, so an empty list is asked again for a few seconds before it's believed.
+    for (let attempt = 0; attempt < 10 && response.data.length === 0; attempt++) {
+      yield* Effect.sleep("500 millis")
+      response = yield* list()
+    }
     const models = response.data
       .map((model) => `${model.providerID}/${model.id}`)
       .toSorted((a, b) => a.localeCompare(b))

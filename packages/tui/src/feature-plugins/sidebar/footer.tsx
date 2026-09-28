@@ -54,9 +54,9 @@ export function SidebarOnboarding(props: { context: Plugin.Context; sessionID: s
               ✕
             </text>
           </box>
-          <text fg={props.context.theme.text.muted}>OpenCode includes free models so you can start immediately.</text>
+          <text fg={props.context.theme.text.muted}>Caimex gives you models from many providers through one sign-in.</text>
           <text fg={props.context.theme.text.muted}>
-            Connect from 75+ providers to use other models, including Claude, GPT, Gemini etc
+            Sign in to Caimex to start.
           </text>
           <box
             id="sidebar.footer.getting-started.connect"

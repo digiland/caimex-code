@@ -1,0 +1,101 @@
+# Builds caimex binaries for all platforms and publishes them to a GitHub
+# Release (plus install.sh, so the curl one-liner works via
+# releases/latest/download/install.sh), then publishes the `caimex` npm package
+# with trusted publishing (no token). Built from packages/cli, the 2.x CLI.
+#
+# Trigger: push a tag like v1.0.0, or run manually with a version input.
+#
+# Upstream OpenCode workflows are parked in .github/workflows-upstream/ — they
+# assume upstream's secrets, bots, and npm packages and must not run here.
+name: Release Caimex Code
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, without the v prefix (e.g. 1.0.0)"
+        required: true
+
+permissions:
+  contents: write
+
+concurrency: release-caimex
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.2"
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - run: bun install
+
+      - name: Build binaries for all targets
+        env:
+          OPENCODE_VERSION: ${{ steps.version.outputs.version }}
+          OPENCODE_CHANNEL: latest
+        run: ./build-caimex.sh
+
+      - name: Create release and upload artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v${{ steps.version.outputs.version }}"
+          gh release create "$TAG" \
+            --title "Caimex Code $TAG" \
+            --notes "Install: \`curl -fsSL https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/install.sh | bash\` or \`npm i -g caimex\`" \
+            || echo "release $TAG already exists, uploading assets"
+          gh release upload "$TAG" packages/caimex/* install.sh --clobber
+
+  publish-npm:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Lets npm mint a signed provenance attestation for the published tarball,
+      # so consumers can verify it was built by this workflow from this repo.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      # Trusted publishing needs npm >= 11.5.1; Node 22 still ships npm 10.x.
+      - name: Use an npm that speaks OIDC
+        run: npm install -g npm@latest
+
+      # No token. npm verifies this workflow's OIDC identity against the trusted
+      # publisher configured on the package (npmjs.com → caimex → Settings →
+      # Trusted publisher: digiland/caimex-code, release-caimex.yml), and mints
+      # provenance from the same exchange.
+      #
+      # npm deprecated 2FA-bypass access tokens for CI in July 2026 — direct
+      # publishing from them is removed around January 2027 — so a token here
+      # would be a credential to leak, rotate, and eventually replace anyway.
+      - name: Publish caimex to npm
+        working-directory: npm/caimex
+        run: |
+          # `npm pkg set`, not `npm version` — the latter errors with "Version
+          # not changed" when re-running a release whose version is already in
+          # package.json, which would fail the job for no reason.
+          npm pkg set version="${{ needs.release.outputs.version }}"
+          npm publish --access public

@@ -7,7 +7,7 @@ import { registerTools } from "./tools"
 // Work modes for Caimex Desktop: four agents (Research, Analyst, Writer, Ops), the
 // slash commands that start common jobs with them, the skills they load for house
 // formats, and tools for documents, APIs and notifications. Loaded like any plugin, from
-// the `plugins` list in the global config (~/.config/caimex-desktop/opencode.jsonc).
+// the `plugins` list in the global config (~/.config/caimex/opencode.jsonc).
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..")
 

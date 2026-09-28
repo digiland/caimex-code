@@ -15,7 +15,7 @@ import { ServiceConfig } from "./services/service-config"
 import { RetainedImage } from "./services/retained-image"
 import { ServiceRegistration } from "./services/service-registration"
 import { WebUi } from "./services/web-ui"
-import { databasePath } from "./database-path"
+import { adoptV1Database, databasePath } from "./database-path"
 
 export type Mode = "default" | "service" | "stdio"
 
@@ -98,7 +98,7 @@ const processEffect = Effect.fnUntraced(function* (options: Options) {
           pty: { handoff },
           simulation: truthy(process.env.OPENCODE_SIMULATE),
           database: {
-            path: databasePath(global.data),
+            path: adoptedDatabasePath(global.data),
           },
           models: {
             url: process.env.OPENCODE_MODELS_URL,
@@ -150,7 +150,7 @@ const processEffect = Effect.fnUntraced(function* (options: Options) {
                 : Effect.fail(
                     new Error(
                       `Managed service port ${port} on ${hostname} is already in use by another process. ` +
-                        "Configure another port with `opencode service set port <port>` and start the service again.",
+                        "Configure another port with `caimex service set port <port>` and start the service again.",
                       { cause: error },
                     ),
                   ),
@@ -207,4 +207,16 @@ function waitForStdinClose() {
       process.stdin.pause()
     })
   })
+}
+
+// Caimex: first start after v1 brings the v1 database over (see adoptV1Database). A
+// failed copy is logged and the service starts on a fresh database instead.
+function adoptedDatabasePath(data: string) {
+  const target = databasePath(data)
+  try {
+    adoptV1Database(data, target)
+  } catch (error) {
+    console.error("caimex: could not bring over the v1 database:", error)
+  }
+  return target
 }

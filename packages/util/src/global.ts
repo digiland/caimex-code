@@ -9,9 +9,11 @@ import { roots } from "#global-roots"
 import { Flock } from "./flock.js"
 import { makeGlobalNode } from "./effect/app-node.js"
 
-// Caimex Desktop: its own config, data and daemon, apart from OpenCode and from the
-// Caimex CLI fork (whose older daemon uses "caimex-code").
-const app = "caimex-desktop"
+// Caimex: one app id for the caimex CLI and Caimex Desktop, so both share one config,
+// sign-in, session store and background service, apart from OpenCode's. (The v1 CLI
+// used "caimex-code"; its credentials are imported on first run, see
+// core/src/database/migration/*_import_legacy_credentials.ts.)
+const app = "caimex"
 const { data, cache, config, state, tmp } = roots(app)
 
 const paths = {

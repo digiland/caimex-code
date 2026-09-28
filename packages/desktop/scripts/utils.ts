@@ -94,7 +94,12 @@ export async function copyBuiltCliToResources(root: string, dest = windowsify("r
 // 200 MB binary on first launch.
 async function copyCliToResources(pkg: string, dest: string) {
   const cli = getCurrentCli()
-  await copyFile(join(pkg, "bin", cli.os === "win32" ? "opencode.exe" : "opencode"), dest)
+  // Caimex: our CLI build names its binary `caimex`; upstream's npm packages say `opencode`.
+  const names = cli.os === "win32" ? ["caimex.exe", "opencode.exe"] : ["caimex", "opencode"]
+  const binaries = names.map((name) => join(pkg, "bin", name))
+  const binary = (await Promise.all(binaries.map((file) => Bun.file(file).exists()))).indexOf(true)
+  if (binary < 0) throw new Error(`No CLI binary in ${pkg}/bin`)
+  await copyFile(binaries[binary], dest)
   await prepareCli(dest)
   const manifest = (await Bun.file(join(pkg, "package.json")).json()) as { version?: string }
   if (!manifest.version) throw new Error(`Bundled CLI package has no version: ${pkg}`)

@@ -49,9 +49,11 @@ const login = Effect.fn("cli.auth.login.run")(function* (input: {
 }) {
   if (!input.target)
     yield* requireInteractive("Pass an integration ID or name when running without an interactive terminal")
-  intro("Connect an integration")
+  // Caimex: with no target this signs in to the gateway; other integrations are still
+  // reachable by name (`caimex auth login openai`).
+  intro(input.target ? "Connect an integration" : "Sign in to Caimex")
   const client = yield* createClient({ server: input.server, standalone: input.standalone })
-  const integration = yield* findIntegration(client, input.target)
+  const integration = yield* findIntegration(client, input.target ?? "caimex")
   const methods = connectMethods(integration)
   if (methods.length === 0) yield* Effect.fail(new Error(`${integration.name} has no interactive login methods`))
   const method = yield* chooseMethod(methods, input.method)

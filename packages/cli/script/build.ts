@@ -13,6 +13,9 @@ import { resolveOpencodePty } from "./opencode-pty"
 
 const dir = path.resolve(import.meta.dirname, "..")
 const binary = "opencode"
+// Caimex: the command users run. Target and package names keep upstream's `opencode-*`
+// so this file merges cleanly; script/build-caimex.ts repackages them as caimex-*.
+const command = "caimex"
 const outdir = path.resolve(
   dir,
   process.argv.find((arg) => arg.startsWith("--outdir="))?.slice("--outdir=".length) ?? "dist",
@@ -138,10 +141,10 @@ export default { path: file, version: ${JSON.stringify(opencodePty.version)}, sh
       autoloadPackageJson: true,
       target: target.replace(binary, "bun") as Bun.Build.CompileTarget,
       ...(executablePath ? { executablePath } : {}),
-      outfile: path.join(outdir, name, "bin", binary),
+      outfile: path.join(outdir, name, "bin", command),
       execArgv: [
         "--smol",
-        `--user-agent=opencode/${Script.channel}/${Script.version}/cli`,
+        `--user-agent=${command}/${Script.channel}/${Script.version}/cli`,
         "--use-system-ca",
         "--no-warnings",
         "--",
@@ -150,7 +153,7 @@ export default { path: file, version: ${JSON.stringify(opencodePty.version)}, sh
     },
     define: {
       OPENCODE_VERSION: `'${Script.version}'`,
-      OPENCODE_CLI_NAME: "'opencode'",
+      OPENCODE_CLI_NAME: `'${command}'`,
       OPENCODE_CHANNEL: `'${Script.channel}'`,
       OPENCODE_ARTIFACT: `'cli'`,
       OPENCODE_LIBC: item.os === "linux" ? `'${item.abi ?? "glibc"}'` : "undefined",

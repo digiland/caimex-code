@@ -12,6 +12,13 @@ import { errorMessage } from "../util/error"
 
 export const methods = ["curl", "npm", "pnpm", "bun", "yarn", "vp", "brew"] as const
 
+// Caimex: releases come from our GitHub Releases and the `caimex` npm package (whose
+// postinstall downloads the matching release binary), not from opencode.ai. install.sh
+// puts the binary in ~/.local/bin unless CAIMEXCODE_INSTALL_DIR says otherwise.
+const CAIMEX_GITHUB_REPO = "digiland/caimex-code"
+const CAIMEX_NPM_PACKAGE = "caimex"
+const CAIMEX_INSTALLER = `https://github.com/${CAIMEX_GITHUB_REPO}/releases/latest/download/install.sh`
+
 export type Method = (typeof methods)[number]
 export type RunResult = { readonly type: "available" | "installed"; readonly version: string }
 export type CheckResult = RunResult | { readonly type: "unavailable"; readonly message: string }
@@ -45,7 +52,7 @@ const decodeVpPackages = Schema.decodeUnknownOption(
 )
 
 const installNames: Record<Method, string> = {
-  curl: "The OpenCode installer",
+  curl: "The Caimex installer",
   npm: "npm",
   pnpm: "pnpm",
   bun: "Bun",
@@ -136,7 +143,7 @@ const make = Effect.gen(function* () {
       .readFileString(path.join(directory, "package.json"))
       .pipe(Effect.flatMap((text) => Effect.try(() => JSON.parse(text))))
     // Source invocations run inside Bun or Node, which may themselves be npm packages.
-    if (!/^@opencode(?:-ai)?\/cli(?:-node)?$/.test(manifest.name)) return
+    if (manifest.name !== CAIMEX_NPM_PACKAGE && !/^@opencode(?:-ai)?\/cli(?:-node)?$/.test(manifest.name)) return
     if (Object.values(manifest.bin ?? {}).some((bin) => path.resolve(directory, bin) === executable))
       return manifest.name
   }).pipe(Effect.orElseSucceed(() => undefined))
@@ -168,15 +175,15 @@ const make = Effect.gen(function* () {
   })
 
   const curlBinary = path.resolve(
-    global.home,
-    ".opencode",
-    "bin",
-    process.platform === "win32" ? "opencode.exe" : "opencode",
+    process.env.CAIMEXCODE_INSTALL_DIR ?? path.join(global.home, ".local", "bin"),
+    process.platform === "win32" ? "caimex.exe" : "caimex",
   )
 
   const method = Effect.fnUntraced(function* () {
     if (path.resolve(process.execPath) === curlBinary) return "curl"
     const executable = yield* fs.realPath(process.execPath).pipe(Effect.orElseSucceed(() => process.execPath))
+    // install.sh also links the pre-rename `caimexcode` command to the binary.
+    if (executable === (yield* fs.realPath(curlBinary).pipe(Effect.orElseSucceed(() => curlBinary)))) return "curl"
     if (
       ["opencode-beta", "opencode-v2"].some((name) =>
         executable.includes(`${path.sep}Cellar${path.sep}${name}${path.sep}`),
@@ -232,22 +239,19 @@ const make = Effect.gen(function* () {
     }
   }
 
-  const release = Effect.fnUntraced(function* (method?: Method) {
-    const distribution = method === "brew" ? "homebrew" : "npm"
+  const release = Effect.fnUntraced(function* (_method?: Method) {
     const response = yield* Effect.tryPromise({
       try: (signal) =>
-        fetch(
-          `https://opencode.ai/update/api/${encodeURIComponent(channel)}/${encodeURIComponent(OPENCODE_ARTIFACT)}/${distribution}?current=${encodeURIComponent(OPENCODE_VERSION)}`,
-          {
-            signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]),
-          },
-        ),
+        fetch(`https://api.github.com/repos/${CAIMEX_GITHUB_REPO}/releases/latest`, {
+          headers: { accept: "application/vnd.github+json", "user-agent": `caimex/${OPENCODE_VERSION}` },
+          signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]),
+        }),
       catch: (cause) =>
         new UpgradeError(
           {
-            title: "Could not check for OpenCode updates",
+            title: "Could not check for Caimex updates",
             detail: errorDetail(cause),
-            retry: "Check your network, then run opencode upgrade again.",
+            retry: "Check your network, then run caimex upgrade again.",
           },
           { cause },
         ),
@@ -255,32 +259,32 @@ const make = Effect.gen(function* () {
     if (!response.ok)
       return yield* Effect.fail(
         new UpgradeError({
-          title: "Could not check for OpenCode updates",
-          detail: `The update service returned HTTP ${response.status}.`,
+          title: "Could not check for Caimex updates",
+          detail: `GitHub returned HTTP ${response.status}.`,
           retry: "Try again in a few minutes.",
         }),
       )
-    const data: { version: string; metadata?: { package?: string } } = yield* Effect.tryPromise({
+    const data: { tag_name?: string } = yield* Effect.tryPromise({
       try: () => response.json(),
       catch: (cause) =>
         new UpgradeError(
           {
-            title: "Could not read the OpenCode update information",
+            title: "Could not read the Caimex update information",
             detail: errorDetail(cause),
             retry: "Try again in a few minutes.",
           },
           { cause },
         ),
     })
-    if (!data.metadata?.package)
+    if (!data.tag_name)
       return yield* Effect.fail(
         new UpgradeError({
-          title: "Could not read the OpenCode update information",
-          detail: "The update service returned incomplete release information.",
+          title: "Could not read the Caimex update information",
+          detail: "The latest release has no version tag.",
           retry: "Try again in a few minutes.",
         }),
       )
-    return { package: data.metadata.package, version: data.version }
+    return { package: CAIMEX_NPM_PACKAGE, version: data.tag_name.replace(/^v/, "") }
   })
 
   const latest = () =>
@@ -317,10 +321,10 @@ const make = Effect.gen(function* () {
     const failure = (detail: string, cause?: unknown) =>
       new UpgradeError(
         {
-          title: input.title ?? `${installNames[input.method]} could not install OpenCode`,
+          title: input.title ?? `${installNames[input.method]} could not install Caimex`,
           detail,
           command: (input.displayCommand ?? input.command).join(" "),
-          retry: input.retry ?? "Fix the issue above, then run opencode upgrade again.",
+          retry: input.retry ?? "Fix the issue above, then run caimex upgrade again.",
         },
         cause === undefined ? undefined : { cause },
       )
@@ -389,18 +393,18 @@ const make = Effect.gen(function* () {
           const installer = path.join(directory, "install")
           yield* runUpgrade({
             method,
-            command: ["curl", "-fsSL", "-o", installer, "https://opencode.ai/v2/install"],
-            displayCommand: ["curl", "-fsSL", "https://opencode.ai/v2/install"],
-            title: "Could not download the OpenCode installer",
-            retry: "Check your network, then run opencode upgrade again.",
+            command: ["curl", "-fsSL", "-o", installer, CAIMEX_INSTALLER],
+            displayCommand: ["curl", "-fsSL", CAIMEX_INSTALLER],
+            title: "Could not download the Caimex installer",
+            retry: "Check your network, then run caimex upgrade again.",
           })
           return yield* retaining(
             method,
             runUpgrade({
               method,
-              command: ["bash", installer, "--version", version, "--no-modify-path"],
-              displayCommand: ["opencode", "upgrade", version, "--method", "curl"],
-              title: "The OpenCode installer failed",
+              command: ["env", `CAIMEXCODE_CHANNEL=v${version}`, "bash", installer],
+              displayCommand: ["caimex", "upgrade", version, "--method", "curl"],
+              title: "The Caimex installer failed",
             }),
           )
         }
@@ -413,9 +417,9 @@ const make = Effect.gen(function* () {
           ? cause
           : new UpgradeError(
               {
-                title: "Could not prepare the OpenCode upgrade",
+                title: "Could not prepare the Caimex upgrade",
                 detail: errorDetail(cause),
-                retry: "Fix the issue above, then run opencode upgrade again.",
+                retry: "Fix the issue above, then run caimex upgrade again.",
               },
               { cause },
             ),
@@ -450,7 +454,7 @@ const make = Effect.gen(function* () {
       yield* Effect.logInfo("update check done", { action: "up-to-date" })
       return undefined
     }
-    yield* Effect.logInfo("OpenCode update available", { current, latest: version, action: next })
+    yield* Effect.logInfo("Caimex update available", { current, latest: version, action: next })
     return { policy, version }
   })
 
@@ -463,7 +467,7 @@ const make = Effect.gen(function* () {
     const current = yield* Ref.get(installedVersion)
     yield* upgrade(detected, version)
     yield* Ref.set(installedVersion, version)
-    yield* Effect.logInfo("updated OpenCode", { from: current, to: version, method: detected })
+    yield* Effect.logInfo("updated Caimex", { from: current, to: version, method: detected })
     return true
   })
 
@@ -475,7 +479,7 @@ const make = Effect.gen(function* () {
     if (OPENCODE_LOCAL)
       return {
         type: "unavailable" as const,
-        message: "This build runs from a source checkout. Use an installed OpenCode release to check for updates.",
+        message: "This build runs from a source checkout. Use an installed Caimex release to check for updates.",
       }
     const version = yield* latest()
     if (!parseReleaseVersion(version)) return yield* Effect.fail(new Error(`Invalid version: ${version}`))
