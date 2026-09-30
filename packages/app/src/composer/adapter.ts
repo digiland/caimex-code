@@ -30,6 +30,10 @@ export type ComposerControls = {
       opened: () => boolean
       open: () => void
     }
+    /** Present in sessions with a desktop browser pane. */
+    browser?: {
+      reveal: (tabID: string, ref?: string) => void
+    }
   }
 }
 
@@ -47,6 +51,7 @@ export type ComposerDelivery = "steer" | "queue"
 // is loaded in the editor.
 export type ComposerQueue = {
   count: Accessor<number>
+  undoing: Accessor<boolean>
   // Delivery a plain submit uses right now.
   delivery: Accessor<ComposerDelivery>
   // Delivery offered on Mod+Enter and the toolbar hint button; undefined hides the hint.

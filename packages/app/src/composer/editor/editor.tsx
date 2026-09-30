@@ -536,8 +536,11 @@ export function ComposerAttachments(props: {
                 >
                   <CommentCard
                     comment={comment.comment ?? ""}
-                    path={comment.path}
-                    selection={comment.selection}
+                    target={
+                      comment.type === "browser"
+                        ? { type: "browser", element: comment.element.label }
+                        : { type: "file", path: comment.path, selection: comment.selection }
+                    }
                     active={comment.key === props.activeCommentID}
                     onClick={() => props.onCommentClick?.(comment)}
                   />
