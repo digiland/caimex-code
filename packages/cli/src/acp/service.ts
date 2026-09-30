@@ -206,7 +206,7 @@ export function make(input: {
       capabilities.childSessionUpdates = params.clientCapabilities?._meta?.[ChildSessionUpdatesCapability] === true
       const authMethod: AuthMethod = {
         description: "Run `caimex auth login` in the terminal",
-        name: "Login with opencode",
+        name: "Login with Caimex",
         id: AuthMethodID,
       }
       if (params.clientCapabilities?._meta?.["terminal-auth"] === true) {

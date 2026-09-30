@@ -59,7 +59,8 @@ upstream merges stay easy.
 - `packages/caimex-work` (work modes, commands, skills, tools) and `packages/caimex-voice`
   (turn-by-turn voice; see its README). The desktop's voice control is
   `packages/app/src/session/composer/voice.tsx`, in the `extraControls` slot of
-  `composer/composer.tsx` and `composer/editor/editor.tsx`.
+  `composer/composer.tsx` and `composer/editor/editor.tsx`, filled in
+  `session/composer/region.tsx` (upstream edits that `<Composer>` often: keep its props).
 - `packages/plugin/src/host.ts`: Bun's ResolveMessage isn't an Error, so a plugin folder
   without optional tui/rpc entries used to fail to load. Worth sending upstream.
 

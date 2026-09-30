@@ -19,13 +19,14 @@ describe("acp session lifecycle over the wire", () => {
         sessionCapabilities: { close: {}, delete: {}, fork: {}, list: {}, resume: {} },
         _meta: { "opencode/child-session-updates": true },
       },
-      agentInfo: { name: "OpenCode" },
+      // Caimex: rebranded agent and login method (the method id stays upstream's).
+      agentInfo: { name: "Caimex" },
     })
     expect(plain.authMethods).toEqual([
-      { id: "opencode-login", name: "Login with opencode", description: "Run `opencode auth login` in the terminal" },
+      { id: "opencode-login", name: "Login with Caimex", description: "Run `caimex auth login` in the terminal" },
     ])
     expect(terminal.authMethods?.[0]?._meta).toEqual({
-      "terminal-auth": { command: "opencode", args: ["auth", "login"], label: "OpenCode Login" },
+      "terminal-auth": { command: "caimex", args: ["auth", "login"], label: "Caimex Login" },
     })
     expect(await acp.request("authenticate", { methodId: "opencode-login" })).toEqual({})
     expect(await rpcError(acp.request("authenticate", { methodId: "missing" }))).toMatchObject({
