@@ -151,7 +151,11 @@ export const CaimexPlugin = define<HttpClient.HttpClient | Bus.Service | Scope.S
 
     // Slow (the gateway probes its providers) and the one call that can fail while all
     // else works; a failure keeps the previous list rather than emptying the provider.
+    // Not before a connection exists (a saved sign-in or CAIMEX_API_KEY): the list only
+    // matters once requests can be made, signing in refreshes it, and a profile that never
+    // signs in (tests included) then never reaches the gateway.
     const load = Effect.fn("CaimexPlugin.load")(function* () {
+      if (!(yield* ctx.integration.connection.active(INTEGRATION_ID))) return
       const fetched = yield* fetchModels(http).pipe(
         Effect.catch((cause) =>
           Effect.logWarning("failed to load Caimex model catalog", { cause }).pipe(Effect.as(undefined)),

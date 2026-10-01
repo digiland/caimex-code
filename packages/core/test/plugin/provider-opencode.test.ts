@@ -1619,7 +1619,9 @@ describe("OpencodePlugin", () => {
     ),
   )
 
-  it.effect("uses a public key and disables paid models without credentials", () =>
+  // Caimex Desktop: upstream parks a "public" key and keeps free models without
+  // credentials; here OpenCode stays hidden until connected (see CAIMEX.md).
+  it.effect("parks no public key and disables paid models without credentials", () =>
     withEnv({ OPENCODE_API_KEY: undefined }, () =>
       Effect.gen(function* () {
         const catalog = yield* Provider.Service
@@ -1631,13 +1633,13 @@ describe("OpencodePlugin", () => {
           })
         })
         yield* addPlugin()
-        expect(required(yield* catalog.get(Provider.ID.opencode)).settings?.apiKey).toBe("public")
-        expect(required(yield* models.get(Provider.ID.opencode, Model.ID.make("paid"))).enabled).toBe(false)
+        expect(required(yield* catalog.get(Provider.ID.opencode)).settings?.apiKey).toBeUndefined()
+        expect((yield* models.available()).map((model) => model.id)).not.toContain(Model.ID.make("paid"))
       }),
     ),
   )
 
-  it.effect("keeps free models without credentials", () =>
+  it.effect("disables free models and stays unavailable without credentials", () =>
     withEnv({ OPENCODE_API_KEY: undefined }, () =>
       Effect.gen(function* () {
         const catalog = yield* Provider.Service
@@ -1649,15 +1651,14 @@ describe("OpencodePlugin", () => {
           })
         })
         yield* addPlugin()
-        expect(required(yield* catalog.get(Provider.ID.opencode)).settings?.apiKey).toBe("public")
-        expect(required(yield* catalog.get(Provider.ID.opencode)).activation).toBe("enabled")
-        expect((yield* catalog.available()).map((provider) => provider.id)).toContain(Provider.ID.opencode)
-        expect(required(yield* models.get(Provider.ID.opencode, Model.ID.make("free"))).enabled).toBe(true)
+        expect(required(yield* catalog.get(Provider.ID.opencode)).settings?.apiKey).toBeUndefined()
+        expect((yield* catalog.available()).map((provider) => provider.id)).not.toContain(Provider.ID.opencode)
+        expect((yield* models.available()).map((model) => model.id)).not.toContain(Model.ID.make("free"))
       }),
     ),
   )
 
-  it.effect("treats output-only cost as free without credentials", () =>
+  it.effect("disables output-only cost models without credentials", () =>
     withEnv({ OPENCODE_API_KEY: undefined }, () =>
       Effect.gen(function* () {
         const catalog = yield* Provider.Service
@@ -1669,8 +1670,7 @@ describe("OpencodePlugin", () => {
           })
         })
         yield* addPlugin()
-        expect(required(yield* catalog.get(Provider.ID.opencode)).settings?.apiKey).toBe("public")
-        expect(required(yield* models.get(Provider.ID.opencode, Model.ID.make("output-only"))).enabled).toBe(true)
+        expect((yield* models.available()).map((model) => model.id)).not.toContain(Model.ID.make("output-only"))
       }),
     ),
   )

@@ -14,8 +14,14 @@ upstream merges stay easy.
 - `packages/core/src/plugin/provider/caimex.ts` (+ registration in `provider.ts`): the
   gateway provider: device sign-in, key and env methods, model discovery. It is
   activated without a connection, so Caimex is listed (and can be signed in to) first.
+  Model discovery waits for a connection (a sign-in or `CAIMEX_API_KEY`); signing in
+  refreshes it. Core's tests forbid network access, so this is also what keeps them off
+  the gateway.
 - `packages/core/src/plugin/provider/opencode.ts`: OpenCode Zen's free tier stays hidden
-  (no parked "public" key, every opencode model disabled without one).
+  (no parked "public" key, every opencode model disabled without one). Its tests in
+  `test/plugin/provider-opencode.test.ts` assert that instead of upstream's behaviour.
+- Core's test environment: `script/test.ts` and `test/preload.test.ts` expect the
+  `caimex` config folder.
 
 **Identity**
 - `packages/util/src/global.ts`: app id `caimex`. `packages/client/src/{effect,promise}/service.ts`
