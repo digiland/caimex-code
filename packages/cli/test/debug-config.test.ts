@@ -21,7 +21,8 @@ describe("debug config command", () => {
   test("prints config entries from the invoking directory without reordering permissions", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-debug-config-"))
     const project = path.join(import.meta.dir, "..")
-    const registration = path.join(root, "state", "opencode", "service-local.json")
+    // Caimex: app folders are named after the app id ("caimex", util/src/global.ts).
+    const registration = path.join(root, "state", "caimex", "service-local.json")
     const entries = [
       {
         type: "document",

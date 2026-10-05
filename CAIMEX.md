@@ -24,16 +24,18 @@ upstream merges stay easy.
   `caimex` config folder.
 
 **Identity**
-- `packages/util/src/global.ts`: app id `caimex`. `packages/client/src/{effect,promise}/service.ts`
-  and `packages/desktop/src/main/service/background-service.ts` follow it.
+- `packages/util/src/global.ts`: app id `caimex`. `packages/client/src/service-probe.ts`
+  (the service registration path, shared by both clients) and
+  `packages/desktop/src/main/service/background-service.ts` follow it.
 - `packages/cli/src/services/service-config.ts`: service ports `0xca1e`/`0xca1f`, so a
   Caimex service never contends with an OpenCode one.
 - `packages/cli/script/build.ts`: the binary and `OPENCODE_CLI_NAME` are `caimex`.
 - CLI and TUI strings (`packages/cli/src`, `packages/tui/src`), the TUI wordmark
   (`tui/src/logo.ts`, wider breakpoints in `component/logo.tsx`), crash reports go to
   our repo.
-- Desktop: names, app ids, icons, updater off, no URL scheme, microphone allowed
-  (`packages/desktop`); the web wordmark (`packages/ui`, `packages/app/src/new-session`).
+- Desktop: names, app ids, icons, no URL scheme, microphone allowed (`packages/desktop`);
+  the web wordmark (`packages/ui`, `packages/app/src/new-session`). The updater is off in
+  `packages/gui-extensions/src/updater/main.ts` (upstream's would install stock OpenCode).
 
 **Coming from 1.x**
 - `packages/cli/src/database-path.ts` `adoptV1Database`, called from `server-process.ts`:
@@ -48,7 +50,9 @@ upstream merges stay easy.
 **Distribution**
 - `packages/cli/src/services/updater.ts`: releases come from GitHub
   (`digiland/caimex-code`, latest release) and npm (`caimex`); the curl method runs our
-  `install.sh`. Tests: `packages/cli/test/updater-install.test.ts`.
+  `install.sh` (version via `CAIMEXCODE_CHANNEL`). Upstream asks opencode.ai's update API
+  and Homebrew Core instead; keep ours in every conflict. Tests:
+  `packages/cli/test/updater-install.test.ts` (upstream's Homebrew tests are dropped).
 - `packages/cli/script/build-caimex.ts` (+ root `build-caimex.sh`): archives named
   `caimex-<target>` exactly as 1.x's, so a 1.x `caimex upgrade` lands on 2.x.
 - `install.sh`, `npm/caimex/` (postinstall downloads the release binary and checks

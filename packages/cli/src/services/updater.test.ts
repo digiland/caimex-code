@@ -36,8 +36,9 @@ describe("updater", () => {
     expect(action("1.2.3", "1.2.3", "notify")).toBe("none")
   })
 
-  test("reports when latest is lower (rollback)", () => {
-    expect(action("1.2.4", "1.2.3", "notify")).toBe("notify")
+  // Caimex: never offers an older release (see updater-action.ts); upstream notifies.
+  test("never offers a lower latest (no rollback)", () => {
+    expect(action("1.2.4", "1.2.3", "notify")).toBe("none")
   })
 
   test("accepts strict release version variants", () => {

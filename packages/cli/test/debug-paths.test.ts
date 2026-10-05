@@ -34,16 +34,17 @@ describe("debug paths command", () => {
       expect({ exitCode: result.exitCode, stderr: result.stderr }).toEqual({ exitCode: 0, stderr: "" })
       expect(paths).toMatchObject({
         home: os.homedir(),
-        data: path.join(root, "data", "opencode"),
-        config: path.join(root, "config", "opencode"),
-        cache: path.join(root, "cache", "opencode"),
-        state: path.join(root, "state", "opencode"),
-        bin: path.join(root, "cache", "opencode", "bin"),
-        log: path.join(root, "data", "opencode", "log"),
-        repos: path.join(root, "data", "opencode", "repos"),
+        // Caimex: app folders are named after the app id ("caimex", util/src/global.ts).
+        data: path.join(root, "data", "caimex"),
+        config: path.join(root, "config", "caimex"),
+        cache: path.join(root, "cache", "caimex"),
+        state: path.join(root, "state", "caimex"),
+        bin: path.join(root, "cache", "caimex", "bin"),
+        log: path.join(root, "data", "caimex", "log"),
+        repos: path.join(root, "data", "caimex", "repos"),
       })
       expect(paths.tmp).toBeTruthy()
-      expect(await Bun.file(path.join(root, "state", "opencode", "service-local.json")).exists()).toBe(false)
+      expect(await Bun.file(path.join(root, "state", "caimex", "service-local.json")).exists()).toBe(false)
     } finally {
       await fs.rm(root, { recursive: true, force: true })
     }

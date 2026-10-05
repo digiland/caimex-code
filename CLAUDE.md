@@ -83,12 +83,15 @@ why. Then, **every time**, before tagging:
 1. `bun install`, then `bun run typecheck` and `bun run lint`: both clean.
 2. Tests: `cd packages/cli && bun test`, `packages/tui`, and `cd packages/core && bun run test`
    (not bare `bun test`: core's script points HOME and XDG at a scratch folder; without
-   it tests read and write the real `~/.config/caimex`). Some fail on any machine: the
-   managed-service tests time out, `debug paths`/`debug config` read the real profile,
-   TUI `dialog-shell-output` times out; in core, ripgrep/search tests without a real `rg`
-   on PATH (they try to download it), and bash compound-syntax tests on macOS's bash 3.2.
-   Stash the merge and run the same file to confirm a failure is pre-existing before
-   chasing it.
+   it tests read and write the real `~/.config/caimex`). The CLI suite passes. A few fail
+   on this Mac for environmental reasons: TUI `dialog-shell-output` times out; in core,
+   ripgrep/search tests without a real `rg` on PATH (they try to download it), and bash
+   compound-syntax tests on macOS's bash 3.2. Stash the merge and run the same file to
+   confirm a failure is pre-existing before chasing it.
+   **New upstream tests often hardcode `opencode`** where our build says `caimex`: app
+   folders (`path.join(root, "state", "opencode", …)`, the temp folder), command names
+   in messages, agent names. Those are ours to update, not environmental; compare with a
+   pristine `upstream/v2` worktree when unsure.
 3. **Caimex must stay the only provider.** On a throwaway profile, `caimex models` lists
    only `caimex/` models (a local Ollama, if one is running, is fine). Upstream edits
    `packages/core/src/plugin/provider/opencode.ts` often: it must not park a `"public"`
