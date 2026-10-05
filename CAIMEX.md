@@ -14,9 +14,20 @@ upstream merges stay easy.
 - `packages/core/src/plugin/provider/caimex.ts` (+ registration in `provider.ts`): the
   gateway provider: device sign-in, key and env methods, model discovery. It is
   activated without a connection, so Caimex is listed (and can be signed in to) first.
-  Model discovery waits for a connection (a sign-in or `CAIMEX_API_KEY`); signing in
-  refreshes it. Core's tests forbid network access, so this is also what keeps them off
-  the gateway.
+  - **Model list:** the User-Agent is `caimex-code/<version>`. The gateway needs the
+    slash to treat the caller as the CLI (`_is_cli_user_agent` in the gateway's
+    `app/gateway/model_access.py`). It then lists only the models an admin enabled
+    for the CLI ("CLI access" in the portal), chat and code kinds only. A bare
+    `caimex-code` got the whole catalog (56 models against 10).
+  - **Sign-in:** discovery runs before sign-in too, so the picker has models. With a
+    connection the key is sent and the gateway narrows the list to that key and its
+    workspace; a refused key falls back to the signed-out list.
+    `OPENCODE_DISABLE_MODELS_FETCH` skips discovery, and core's `test/preload.ts` sets
+    it to keep tests offline.
+  - **Errors:** a 401 from the gateway (signed out, or a revoked key) is replaced in an
+    `http.response` hook with "You're not signed in to Caimex. Run `caimex auth login`…".
+  - `cli/src/commands/handlers/models.ts` waits up to 5s for Caimex models on a service
+    that has just started.
 - `packages/core/src/plugin/provider/opencode.ts`: OpenCode Zen's free tier stays hidden
   (no parked "public" key, every opencode model disabled without one). Its tests in
   `test/plugin/provider-opencode.test.ts` assert that instead of upstream's behaviour.

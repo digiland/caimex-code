@@ -8,6 +8,7 @@ import { Bus } from "../../bus.js"
 import { Credential } from "../../credential.js"
 import { Integration } from "../../integration.js"
 import { Model } from "../../model.js"
+import { Provider } from "../../provider.js"
 import type { PluginInternal } from "../internal.js"
 
 // Caimex Desktop: every model comes from the Caimex gateway, an OpenAI-compatible
@@ -52,9 +53,23 @@ const normalizeLoginUrl = (uri: string) => {
   }
 }
 
-// The gateway filters /v1/models by User-Agent: it serves the set an admin enabled for
-// the Caimex Code surface, and `caimex-code` is the token it matches on.
-const USER_AGENT = "caimex-code"
+// Set by the CLI build (cli/script/build.ts); source runs report "local".
+declare const OPENCODE_VERSION: string | undefined
+
+// The gateway treats a caller as Caimex Code when its User-Agent contains
+// `caimex-code/` (app/gateway/model_access.py, `_is_cli_user_agent`); the slash
+// matters. It then lists only the models an admin enabled for the CLI ("CLI access"
+// in the portal), chat and code kinds only. A bare `caimex-code` matched nothing, so
+// the picker got the whole catalog: voices, embeddings and rerankers included.
+const USER_AGENT = `caimex-code/${typeof OPENCODE_VERSION === "string" ? OPENCODE_VERSION : "local"}`
+
+// What a signed-out (or revoked) user sees instead of the gateway's "Invalid
+// authorization header" when a request is refused.
+const LOGIN_COMMAND = "caimex auth login"
+const signInMessage = (connected: boolean) =>
+  connected
+    ? `Your Caimex sign-in has expired or was revoked. Run \`${LOGIN_COMMAND}\` to sign in again, then retry.`
+    : `You're not signed in to Caimex. Run \`${LOGIN_COMMAND}\` to sign in, then retry.`
 
 const Device = Schema.Struct({
   device_code: Schema.String,
@@ -151,12 +166,18 @@ export const CaimexPlugin = define<HttpClient.HttpClient | Bus.Service | Scope.S
 
     // Slow (the gateway probes its providers) and the one call that can fail while all
     // else works; a failure keeps the previous list rather than emptying the provider.
-    // Not before a connection exists (a saved sign-in or CAIMEX_API_KEY): the list only
-    // matters once requests can be made, signing in refreshes it, and a profile that never
-    // signs in (tests included) then never reaches the gateway.
+    // Fetched before sign-in too, so the picker offers the CLI models and a request then
+    // explains how to sign in (see the http.response hook below). With a connection the
+    // key goes along, and the gateway narrows the list to what that key and its workspace
+    // may call. OPENCODE_DISABLE_MODELS_FETCH (set by the test environments) skips it.
     const load = Effect.fn("CaimexPlugin.load")(function* () {
-      if (!(yield* ctx.integration.connection.active(INTEGRATION_ID))) return
-      const fetched = yield* fetchModels(http).pipe(
+      if (truthy(process.env["OPENCODE_DISABLE_MODELS_FETCH"])) return
+      const connection = yield* ctx.integration.connection.active(INTEGRATION_ID)
+      const credential = connection
+        ? yield* ctx.integration.connection.resolve(connection).pipe(Effect.orElseSucceed(() => undefined))
+        : undefined
+      const key = credential?.type === "key" ? credential.key : credential?.type === "oauth" ? credential.access : undefined
+      const fetched = yield* fetchModels(http, key).pipe(
         Effect.catch((cause) =>
           Effect.logWarning("failed to load Caimex model catalog", { cause }).pipe(Effect.as(undefined)),
         ),
@@ -222,6 +243,22 @@ export const CaimexPlugin = define<HttpClient.HttpClient | Bus.Service | Scope.S
       }
     })
 
+    // A refused request (401: no key, or one the gateway no longer accepts) reads as
+    // "Invalid authorization header"; say how to sign in instead.
+    yield* ctx.session.hook(
+      "http.response",
+      (event) =>
+        Effect.gen(function* () {
+          if (event.response.status !== 401) return
+          const connected = (yield* ctx.integration.connection.active(INTEGRATION_ID)) !== undefined
+          event.response = Response.json(
+            { error: { message: signInMessage(connected), type: "authentication_error", code: "authentication_error" } },
+            { status: 401, statusText: event.response.statusText },
+          )
+        }),
+      { providerID: Provider.ID.make(PROVIDER_ID) },
+    )
+
     const refresh = () => loading.withPermit(load().pipe(Effect.andThen(ctx.provider.reload())))
     yield* bus.subscribe(Credential.Event.Switched).pipe(
       Stream.filter((event) => event.data.integrationID === INTEGRATION_ID),
@@ -236,19 +273,28 @@ function interval(seconds: number | undefined) {
   return seconds !== undefined && Number.isFinite(seconds) && seconds > 0 ? Duration.seconds(seconds) : DEFAULT_INTERVAL
 }
 
-function fetchModels(http: HttpClient.HttpClient) {
-  return HttpClient.filterStatusOk(http)
-    .execute(
-      HttpClientRequest.get(`${apiBase()}/models`).pipe(
-        HttpClientRequest.acceptJson,
-        HttpClientRequest.setHeaders({ "User-Agent": USER_AGENT }),
-      ),
-    )
-    .pipe(
-      Effect.flatMap(HttpClientResponse.schemaBodyJson(CatalogResponse)),
-      Effect.map((body) => body.data ?? []),
-      Effect.timeout("60 seconds"),
-    )
+const truthy = (value: string | undefined) => value === "1" || value?.toLowerCase() === "true"
+
+// With a key the gateway narrows the list to that key and its workspace; a key it
+// refuses (revoked, expired) falls back to the signed-out list rather than none.
+function fetchModels(http: HttpClient.HttpClient, key?: string) {
+  const request = (key?: string) =>
+    HttpClient.filterStatusOk(http)
+      .execute(
+        HttpClientRequest.get(`${apiBase()}/models`).pipe(
+          HttpClientRequest.acceptJson,
+          HttpClientRequest.setHeaders({
+            "User-Agent": USER_AGENT,
+            ...(key ? { Authorization: `Bearer ${key}` } : {}),
+          }),
+        ),
+      )
+      .pipe(
+        Effect.flatMap(HttpClientResponse.schemaBodyJson(CatalogResponse)),
+        Effect.map((body) => body.data ?? []),
+        Effect.timeout("60 seconds"),
+      )
+  return key ? request(key).pipe(Effect.catch(() => request())) : request()
 }
 
 function poll(http: HttpClient.HttpClient, deviceCode: string, wait: Duration.Duration): Effect.Effect<Credential.OAuth, unknown> {

@@ -20,8 +20,11 @@ export default Runtime.handler(
     const list = () => Effect.promise(() => client.model.list({ location: { directory: process.cwd() } }))
     let response = yield* list()
     // Caimex: a service that just started answers before its provider plugins have
-    // loaded, so an empty list is asked again for a few seconds before it's believed.
-    for (let attempt = 0; attempt < 10 && response.data.length === 0; attempt++) {
+    // loaded and before the gateway's catalog arrives, so a list without Caimex models is
+    // asked again for a few seconds before it's believed (a local Ollama alone used to
+    // end the wait early).
+    const ready = () => response.data.some((model) => model.providerID === "caimex")
+    for (let attempt = 0; attempt < 10 && !ready(); attempt++) {
       yield* Effect.sleep("500 millis")
       response = yield* list()
     }
