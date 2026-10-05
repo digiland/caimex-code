@@ -64,12 +64,14 @@ declare const OPENCODE_VERSION: string | undefined
 const USER_AGENT = `caimex-code/${typeof OPENCODE_VERSION === "string" ? OPENCODE_VERSION : "local"}`
 
 // What a signed-out (or revoked) user sees instead of the gateway's "Invalid
-// authorization header" when a request is refused.
+// authorization header" when a request is refused. The same service answers the CLI and
+// the desktop app, and desktop users may not have the command, so both ways are named.
 const LOGIN_COMMAND = "caimex auth login"
+const DESKTOP_SIGN_IN = "Settings → Providers"
 const signInMessage = (connected: boolean) =>
   connected
-    ? `Your Caimex sign-in has expired or was revoked. Run \`${LOGIN_COMMAND}\` to sign in again, then retry.`
-    : `You're not signed in to Caimex. Run \`${LOGIN_COMMAND}\` to sign in, then retry.`
+    ? `Your Caimex sign-in has expired or was revoked. Run \`${LOGIN_COMMAND}\` to sign in again (in the desktop app: ${DESKTOP_SIGN_IN}), then retry.`
+    : `You're not signed in to Caimex. Run \`${LOGIN_COMMAND}\` to sign in (in the desktop app: ${DESKTOP_SIGN_IN}), then retry.`
 
 const Device = Schema.Struct({
   device_code: Schema.String,

@@ -25,7 +25,8 @@ upstream merges stay easy.
     `OPENCODE_DISABLE_MODELS_FETCH` skips discovery, and core's `test/preload.ts` sets
     it to keep tests offline.
   - **Errors:** a 401 from the gateway (signed out, or a revoked key) is replaced in an
-    `http.response` hook with "You're not signed in to Caimex. Run `caimex auth login`…".
+    `http.response` hook with "You're not signed in to Caimex. Run `caimex auth login`… (in the
+    desktop app: Settings → Providers)".
   - `cli/src/commands/handlers/models.ts` waits up to 5s for Caimex models on a service
     that has just started.
 - `packages/core/src/plugin/provider/opencode.ts`: OpenCode Zen's free tier stays hidden
