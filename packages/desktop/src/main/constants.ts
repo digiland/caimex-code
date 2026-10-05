@@ -5,12 +5,9 @@ const raw = import.meta.env.OPENCODE_CHANNEL
 export const CHANNEL: Channel = raw === "local" || raw === "dev" || raw === "beta" || raw === "prod" ? raw : "dev"
 export const VERSION = app.isPackaged ? app.getVersion() : (process.env.OPENCODE_VERSION ?? app.getVersion())
 
-// Caimex Desktop: no update server yet, and upstream's would replace this build with
-// stock OpenCode.
-export const UPDATER_ENABLED = false
-
 // Caimex Desktop: its own names and ids, so it never shares state, the single-instance
-// lock or a Dock entry with OpenCode or with the Caimex CLI fork's apps.
+// lock or a Dock entry with OpenCode or with the Caimex CLI fork's apps. (The updater is
+// switched off in gui-extensions/src/updater/main.ts.)
 const appNames: Record<string, string> = {
   dev: "Caimex Desktop Dev",
   beta: "Caimex Desktop Beta",

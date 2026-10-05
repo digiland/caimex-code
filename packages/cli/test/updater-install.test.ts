@@ -1,8 +1,10 @@
 import { NodeServices } from "@effect/platform-node"
+import { EffectFlock } from "@opencode/util/effect-flock"
+import { LayerNode } from "@opencode/util/effect/layer-node"
 import { Global } from "@opencode/util/global"
 import { AppProcess } from "@opencode/util/process"
-import { expect, spyOn, test } from "bun:test"
-import { Effect, FileSystem, PlatformError, Stream } from "effect"
+import { expect, spyOn } from "bun:test"
+import { Effect, FileSystem, Layer, PlatformError, Stream } from "effect"
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
 import { existsSync, readdirSync, readFileSync } from "node:fs"
 import path from "node:path"
@@ -53,9 +55,21 @@ function fixture(
       log: path.join(root, "log"),
       repos: path.join(root, "repos"),
     })
+    // Windows locates the installer's Git Bash through `git --exec-path`; answer it with a fixture install.
+    const git = path.join(root, "Git")
+    const bash = process.platform === "win32" ? path.join(git, "bin", "bash.exe") : "bash"
+    if (process.platform === "win32") {
+      yield* fs.makeDirectory(path.dirname(bash), { recursive: true })
+      yield* fs.writeFileString(bash, "bash")
+    }
     const commands: string[][] = []
     const updater = yield* Updater.Service.pipe(
       Effect.provide(Updater.layer),
+      Effect.provide(
+        LayerNode.compile(EffectFlock.node, {
+          replacements: [Global.node.replace(Layer.succeed(Global.Service, global))],
+        }),
+      ),
       Effect.provideService(Global.Service, global),
       Effect.provideService(FileSystem.FileSystem, {
         ...fs,
@@ -79,8 +93,11 @@ function fixture(
           run: (command) =>
             Effect.suspend(() => {
               if (command._tag !== "StandardCommand") return Effect.die("Unexpected piped install command")
-              commands.push([command.command, ...command.args])
-              const result = respond(command)
+              const lookup = command.command === "git" && command.args[0] === "--exec-path"
+              if (!lookup) commands.push([command.command, ...command.args])
+              const result = lookup
+                ? { stdout: Buffer.from(`${path.join(git, "mingw64", "libexec", "git-core")}\n`) }
+                : respond(command)
               if (result.error) return Effect.fail(result.error)
               return Effect.succeed({
                 command: command.command,
@@ -96,7 +113,7 @@ function fixture(
         }),
       ),
     )
-    return { updater, commands, global, fs, executable }
+    return { updater, commands, global, fs, executable, bash }
   })
 }
 
@@ -270,6 +287,9 @@ it.live("vp detection ignores no-match output that repeats the package name", ()
     expect(yield* test.updater.method()).toBeUndefined()
   }),
 )
+
+// Caimex: upstream's Homebrew tests (Core formula, anomalyco/tap) are dropped: Caimex has
+// no Homebrew distribution, and releases come from GitHub and npm (see updater.ts).
 
 // Links are named opencode-upgrade-<pid>-<random>.exe; read them from inside the installer run.
 const links = (directory: string) =>

@@ -1,6 +1,5 @@
 import http from "node:http"
 import { getCACertificates, setDefaultCACertificates } from "node:tls"
-import { app } from "electron"
 import { Effect, Path } from "effect"
 import { DesktopPaths } from "../paths"
 import { getUserShell, loadShellEnv } from "../service/shell-env"
