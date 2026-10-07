@@ -134,6 +134,8 @@ const CatalogModel = Schema.Struct({
   modalities: Modalities,
   tool_call: nullish(Schema.Boolean),
   supports_tools: nullish(Schema.Boolean),
+  // The gateway's own signal: "tools" is listed for models that take tool calls.
+  capability_tags: nullish(Schema.Array(Schema.String)),
 })
 const CatalogResponse = Schema.Struct({ data: nullish(Schema.Array(CatalogModel)) })
 
@@ -219,8 +221,9 @@ export const CaimexPlugin = define<HttpClient.HttpClient | Bus.Service | Scope.S
               cache: { read: Money.USDPerMillionTokens.zero, write: Money.USDPerMillionTokens.zero },
             },
           ]
+          const tools = supportsTools(model)
           draft.capabilities = {
-            tools: model.tool_call ?? model.supports_tools ?? true,
+            tools,
             input: modalities(model.input_modalities ?? model.modalities, "text"),
             output: modalities(model.output_modalities, "text"),
           }
@@ -239,7 +242,10 @@ export const CaimexPlugin = define<HttpClient.HttpClient | Bus.Service | Scope.S
               firstPositive(model.max_output_tokens, model.max_tokens, model.limit?.output) ?? DEFAULT_OUTPUT,
             ),
           }
-          draft.enabled = true
+          // Every agent request carries tools, and the gateway refuses a model without
+          // them ("None of the requested or fallback models support tool calls"), so such a
+          // model could only ever fail here: it stays out of the picker.
+          draft.enabled = tools
           draft.status = "active"
         })
       }
@@ -273,6 +279,12 @@ export const CaimexPlugin = define<HttpClient.HttpClient | Bus.Service | Scope.S
 
 function interval(seconds: number | undefined) {
   return seconds !== undefined && Number.isFinite(seconds) && seconds > 0 ? Duration.seconds(seconds) : DEFAULT_INTERVAL
+}
+
+// Explicit flags win; otherwise the gateway's capability tags decide, and a model that
+// sends no tags at all is assumed capable (older gateways sent none).
+function supportsTools(model: typeof CatalogModel.Type) {
+  return model.tool_call ?? model.supports_tools ?? (model.capability_tags ? model.capability_tags.includes("tools") : true)
 }
 
 const truthy = (value: string | undefined) => value === "1" || value?.toLowerCase() === "true"

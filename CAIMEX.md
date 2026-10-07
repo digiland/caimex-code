@@ -27,6 +27,9 @@ upstream merges stay easy.
   - **Errors:** a 401 from the gateway (signed out, or a revoked key) is replaced in an
     `http.response` hook with "You're not signed in to Caimex. Run `caimex auth login`… (in the
     desktop app: Settings → Providers)".
+  - **Tool support:** a model the gateway doesn't tag `tools` (`capability_tags`) stays
+    out of the picker: every agent request carries tools and the gateway refuses such a
+    model. Explicit `tool_call`/`supports_tools` win; no tags at all means capable.
   - `cli/src/commands/handlers/models.ts` waits up to 5s for Caimex models on a service
     that has just started.
 - `packages/core/src/plugin/provider/opencode.ts`: OpenCode Zen's free tier stays hidden
