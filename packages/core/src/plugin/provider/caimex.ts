@@ -166,7 +166,10 @@ export const CaimexPlugin = define<HttpClient.HttpClient | Bus.Service | Scope.S
     const bus = yield* Bus.Service
     const http = yield* HttpClient.HttpClient
     const loading = Semaphore.makeUnsafe(1)
-    let models: readonly (typeof CatalogModel.Type)[] = []
+    // Seeded from the catalog another location in this process already fetched: each
+    // project folder loads its own copy of this plugin, and a folder that started with an
+    // empty list refused its first prompt ("Model unavailable") until its own fetch landed.
+    let models: readonly (typeof CatalogModel.Type)[] = sharedCatalog ?? []
 
     // Slow (the gateway probes its providers) and the one call that can fail while all
     // else works; a failure keeps the previous list rather than emptying the provider.
@@ -186,7 +189,9 @@ export const CaimexPlugin = define<HttpClient.HttpClient | Bus.Service | Scope.S
           Effect.logWarning("failed to load Caimex model catalog", { cause }).pipe(Effect.as(undefined)),
         ),
       )
-      if (fetched !== undefined) models = fetched
+      if (fetched === undefined) return
+      models = fetched
+      sharedCatalog = fetched
     })
 
     yield* ctx.integration.transform((draft) => {
@@ -273,9 +278,18 @@ export const CaimexPlugin = define<HttpClient.HttpClient | Bus.Service | Scope.S
       Stream.runForEach(refresh),
       Effect.forkScoped({ startImmediately: true }),
     )
-    yield* refresh().pipe(Effect.repeat(Schedule.spaced("15 minutes")), Effect.forkScoped)
+    // The first location in a process waits for the catalog (at most 10s, so a gateway
+    // that's down only delays it); later ones start from the shared copy and refresh in
+    // the background.
+    if (sharedCatalog === undefined)
+      yield* loading.withPermit(load()).pipe(Effect.timeout("10 seconds"), Effect.ignore)
+    else yield* refresh().pipe(Effect.forkScoped)
+    yield* refresh().pipe(Effect.delay("15 minutes"), Effect.repeat(Schedule.spaced("15 minutes")), Effect.forkScoped)
   }),
 } satisfies PluginInternal.InternalPlugin)
+
+// Shared by every location's copy of the plugin in this process (see `models` above).
+let sharedCatalog: readonly (typeof CatalogModel.Type)[] | undefined
 
 function interval(seconds: number | undefined) {
   return seconds !== undefined && Number.isFinite(seconds) && seconds > 0 ? Duration.seconds(seconds) : DEFAULT_INTERVAL

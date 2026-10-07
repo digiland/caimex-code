@@ -30,6 +30,9 @@ upstream merges stay easy.
   - **Tool support:** a model the gateway doesn't tag `tools` (`capability_tags`) stays
     out of the picker: every agent request carries tools and the gateway refuses such a
     model. Explicit `tool_call`/`supports_tools` win; no tags at all means capable.
+  - **Shared catalog:** every project folder loads its own copy of the plugin; they share
+    one catalog per process, and the first waits (≤10s) for it, so a new folder's first
+    prompt doesn't fail with "Model unavailable".
   - `cli/src/commands/handlers/models.ts` waits up to 5s for Caimex models on a service
     that has just started.
 - `packages/core/src/plugin/provider/opencode.ts`: OpenCode Zen's free tier stays hidden
