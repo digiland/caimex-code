@@ -1,6 +1,7 @@
 import { resolveChannel } from "./utils"
 
 const arg = process.argv[2]
+
 const channel = arg === "dev" || arg === "beta" || arg === "prod" ? arg : resolveChannel()
 
 // Caimex Desktop: kept in step with APP_IDS in electron-builder.config.ts.
@@ -45,4 +46,5 @@ const xml = `<?xml version="1.0" encoding="UTF-8"?>
 `
 
 await Bun.write(`resources/${appId}.metainfo.xml`, xml)
+
 console.log(`Generated metainfo for ${channel} at resources/${appId}.metainfo.xml`)

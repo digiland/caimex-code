@@ -39,3 +39,4 @@ tsconfig.tsbuildinfo
 
 # Caimex release archives (build-caimex.sh)
 packages/caimex
+/artifacts/
