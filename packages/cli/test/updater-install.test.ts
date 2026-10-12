@@ -19,6 +19,8 @@ function fixture(
   } = () => ({}),
   name = "caimex",
   failCleanup = false,
+  // The installed binary's path, for installs that aren't the npm package (e.g. install.sh's).
+  executableOverride?: (root: string, home: string) => Effect.Effect<string, PlatformError.PlatformError, FileSystem.FileSystem>,
 ) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem
@@ -26,13 +28,16 @@ function fixture(
     const root = yield* fs.makeTempDirectoryScoped({ prefix: "opencode-updater-" })
     const execPath = process.execPath
     const modules = path.join(root, "node_modules")
-    const executable = path.join(modules, "caimex", "bin", "caimex.exe")
+    const executable = executableOverride
+      ? yield* executableOverride(root, path.join(root, "home"))
+      : path.join(modules, "caimex", "bin", "caimex.exe")
     yield* fs.makeDirectory(path.dirname(executable), { recursive: true })
     yield* fs.writeFileString(executable, "binary")
-    yield* fs.writeFileString(
-      path.join(modules, "caimex", "package.json"),
-      JSON.stringify({ name, bin: { caimex: "bin/caimex.exe" } }),
-    )
+    if (!executableOverride)
+      yield* fs.writeFileString(
+        path.join(modules, "caimex", "package.json"),
+        JSON.stringify({ name, bin: { caimex: "bin/caimex.exe" } }),
+      )
     // The updater uses global fetch (GitHub's latest release); scope this replacement to each install test.
     yield* Effect.acquireRelease(
       Effect.sync(() =>
@@ -84,7 +89,7 @@ function fixture(
                 }),
               )
             : fs.remove(target, options),
-        realPath: (input) => (input === execPath ? Effect.succeed(executable) : fs.realPath(input)),
+        realPath: (input) => (input === execPath ? fs.realPath(executable) : fs.realPath(input)),
       }),
       Effect.provideService(
         AppProcess.Service,
@@ -366,8 +371,6 @@ windows("windows links the curl binary before the installer replaces it", () =>
     })
     layout.executable = path.join(test.global.home, ".local", "bin", "caimex.exe")
     layout.cache = test.global.cache
-    yield* test.fs.makeDirectory(path.dirname(layout.executable), { recursive: true })
-    yield* test.fs.writeFileString(layout.executable, "binary")
     const original = process.execPath
     process.execPath = layout.executable
     yield* Effect.addFinalizer(() => Effect.sync(() => (process.execPath = original)))
@@ -376,6 +379,28 @@ windows("windows links the curl binary before the installer replaces it", () =>
     expect(test.commands.map((command) => command[0])).toEqual(["curl", "env"])
     expect(yield* test.fs.readFileString(layout.executable)).toBe("binary")
     expect(links(test.global.cache)).toEqual([])
+  }),
+)
+
+unix("curl method detection resolves symlinked home directories", () =>
+  Effect.gen(function* () {
+    // Caimex: install.sh's binary is ~/.local/bin/caimex (upstream: ~/.opencode/bin/opencode).
+    const test = yield* fixture(
+      () => ({}),
+      "caimex",
+      false,
+      (root, home) =>
+        Effect.gen(function* () {
+          const fs = yield* FileSystem.FileSystem
+          const realHome = path.join(root, "real-home")
+          const bin = path.join(realHome, ".local", "bin", "caimex")
+          yield* fs.makeDirectory(path.dirname(bin), { recursive: true })
+          yield* fs.symlink(realHome, home)
+          return bin
+        }),
+    )
+    expect(yield* test.updater.method()).toBe("curl")
+    expect(test.commands).toEqual([])
   }),
 )
 

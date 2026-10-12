@@ -26,9 +26,10 @@ Three docs, each with one job:
 
 ## Branches and remotes
 
-- **`caimex-v2`** is our trunk: all work and all releases. (Upstream's `AGENTS.md`
-  says the default branch is `v2`; for us that means `upstream/v2`, the branch we
-  merge *from*.)
+- **`caimex-v2`** is our trunk: all work and all releases. We merge *from*
+  **`upstream/dev`**: since 2026-10 upstream's 2.x line lives there (it merged `v2` into
+  `dev`, which is its default branch, at 2.0.27). `upstream/v2` stopped at 2.0.26 and was
+  merged up to then. Upstream has no `main` or `master`.
 - `origin` = `github.com/digiland/caimex-code`. `upstream` = `github.com/anomalyco/opencode`.
 - `caimex` is the old 1.x line (`packages/opencode`, merged from `upstream/dev`).
   Maintenance only; don't port new work there.
@@ -74,7 +75,7 @@ Merge often: small merges are easy, big ones aren't.
 ```bash
 git fetch upstream
 git switch caimex-v2
-git merge upstream/v2
+git merge upstream/dev
 ```
 
 Conflicts are mostly in our marked `// Caimex:` edits; `CAIMEX.md` lists each one and
@@ -91,7 +92,7 @@ why. Then, **every time**, before tagging:
    **New upstream tests often hardcode `opencode`** where our build says `caimex`: app
    folders (`path.join(root, "state", "opencode", …)`, the temp folder), command names
    in messages, agent names. Those are ours to update, not environmental; compare with a
-   pristine `upstream/v2` worktree when unsure.
+   pristine `upstream/dev` worktree when unsure.
 3. **Caimex must stay the only provider.** On a throwaway profile, `caimex models` lists
    only `caimex/` models (a local Ollama, if one is running, is fine). Upstream edits
    `packages/core/src/plugin/provider/opencode.ts` often: it must not park a `"public"`

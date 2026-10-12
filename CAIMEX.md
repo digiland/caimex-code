@@ -1,6 +1,6 @@
 # Caimex Code 2.x: the fork
 
-This branch (`caimex-v2`) is OpenCode's 2.x line (`upstream/v2`) with the Caimex gateway
+This branch (`caimex-v2`) is OpenCode's 2.x line (`upstream/dev`, which took over from `upstream/v2` at 2.0.27) with the Caimex gateway
 as its provider. It builds both the `caimex` CLI and Caimex Desktop, which share one app
 id, `caimex`: one config (`~/.config/caimex`), one sign-in, one session store and one
 background service. The 1.x CLI lives on the `caimex` branch.
@@ -119,6 +119,6 @@ Both must ship together: the npm package downloads its binary from the release.
 
 ## Syncing with upstream
 
-`git fetch upstream && git merge upstream/v2` onto `caimex-v2`, then the checklist in
+`git fetch upstream && git merge upstream/dev` onto `caimex-v2`, then the checklist in
 [CLAUDE.md](./CLAUDE.md#staying-in-sync-with-upstream). Keep this file's inventory
 current as part of every merge.
