@@ -256,6 +256,21 @@ export const CaimexPlugin = define<HttpClient.HttpClient | Bus.Service | Scope.S
       }
     })
 
+    // Every model request is sent with the app's generic User-Agent
+    // (`opencode/<channel>/<version>/<client>`, session/model-request.ts), which since v2.0.26
+    // wins over `provider.headers`. The gateway tells Caimex Code apart by `caimex-code/` and
+    // applies the CLI's model access and limits to it; without it a request was treated as
+    // another surface and refused ("Budget limit reached (too many concurrent requests)",
+    // "The request was rejected as invalid"). Set it last, as the Azure plugin does.
+    yield* ctx.session.hook(
+      "http.request",
+      (event) =>
+        Effect.sync(() => {
+          event.request.headers.set("user-agent", USER_AGENT)
+        }),
+      { providerID: Provider.ID.make(PROVIDER_ID) },
+    )
+
     // A refused request (401: no key, or one the gateway no longer accepts) reads as
     // "Invalid authorization header"; say how to sign in instead.
     yield* ctx.session.hook(
