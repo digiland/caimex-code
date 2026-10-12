@@ -3,14 +3,15 @@ import type { OpenCodeEvent, SessionMessageInfo } from "@opencode/client/promise
 import { Permission } from "@opencode/schema/permission"
 import { Worktree } from "@opencode/schema/worktree"
 import { Duration, Effect, Layer, Option, Predicate, Schema } from "effect"
-import { HttpRouter, HttpServer, HttpServerResponse } from "effect/unstable/http"
-import { HttpApiBuilder, HttpApiSchema } from "effect/unstable/httpapi"
+import { HttpRouter, HttpServer, HttpServerResponse } from "effect/http"
+import { HttpApiBuilder, HttpApiSchema } from "effect/http-api"
 import { SERVER } from "./app"
 import {
   MockApi,
   MockBadRequest,
   MockInternal,
   MockNotFound,
+  MockPtyNotFound,
   MockShellNotFound,
   MockUnauthorized,
   MockUnsupported,
@@ -149,7 +150,14 @@ export type MockPtyInfo = {
   pid: number
 }
 
-export type MockPtySocket = { id: string; url: URL; input: string[]; closed: boolean; send(data: string): void }
+export type MockPtySocket = {
+  id: string
+  url: URL
+  input: string[]
+  closed: boolean
+  send(data: string): void
+  close(code: number, reason: string): Promise<void>
+}
 
 export type MockPty = {
   list: MockPtyInfo[]
@@ -447,6 +455,7 @@ export async function mockOpenCodeServer(page: Page, config: MockServerConfig) {
           input: [],
           closed: false,
           send: (data) => ws.send(data),
+          close: (code, reason) => ws.close({ code, reason }),
         }
 
         ws.onMessage((message) => socket.input.push(message.toString()))
@@ -697,7 +706,9 @@ function mockHandlers(
           const directory = requestDirectory(config, request)
           const found = state.pty.find(id, directory)
 
-          return found ? Effect.succeed(found) : Effect.fail(new MockNotFound({ message: "PTY not found" }))
+          return found
+            ? Effect.succeed(found)
+            : Effect.fail(new MockPtyNotFound({ ptyID: id, message: `PTY not found: ${id}` }))
         }),
       ),
     )
