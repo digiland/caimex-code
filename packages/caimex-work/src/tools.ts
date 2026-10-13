@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process"
-import { existsSync, readFileSync, statSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { extname, join, resolve } from "node:path"
 import { promisify } from "node:util"
@@ -10,8 +10,9 @@ import { extractText, getDocumentProxy } from "unpdf"
 // so each tool is safe on its own terms: reading and notifying only read or notify, and
 // http_request writes only to hosts listed in http-allow.json.
 
-// What each tool needs to run; `directory` resolves relative paths.
-type ToolContext = { directory: string }
+// What each tool needs to run; `directory` resolves relative paths, and `reloadSkills`
+// rebuilds the skill catalogue so a skill written now is offered to the next task.
+type ToolContext = { directory: string; reloadSkills: () => Promise<void> }
 type ToolSpec = {
   description: string
   parameters: Record<string, unknown>
@@ -288,10 +289,65 @@ const notify: ToolSpec = {
   },
 }
 
+
+// ---------------------------------------------------------------------------
+// save_skill: the learning loop. A mode that had to work something out writes it down,
+// and the next task starts with it in its catalogue instead of working it out again.
+//
+// 2.x gives plugin tools no permission prompt, so this one is safe on its own terms:
+// it writes one Markdown file, only ever inside the learned-skills folder, under a name
+// that cannot contain a path separator. Learned skills live in the work folder rather
+// than in the plugin so they belong to the person — visible, editable, deletable — and
+// they are filed under their own id, so one can never quietly replace a shipped skill.
+
+/** Where skills the agent writes are kept, alongside the work they came from. */
+export function learnedSkillsDir() {
+  return join(process.env.CAIMEX_WORK_ROOT || join(homedir(), "Caimex Work"), ".skills")
+}
+
+const SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+
+const saveSkill: ToolSpec = {
+  description:
+    "Write down a way of working you had to figure out, so later tasks start with it instead of working it out again. Use it after finishing something non-obvious that will come up again: a format that worked, how to judge a kind of source, a sequence of steps. Write it as instructions for next time, not as a record of this task. Do not use it for findings or results; those belong in the task's own files.",
+  parameters: {
+    type: "object",
+    properties: {
+      name: { type: "string", description: 'Short kebab-case name, e.g. "tender-comparison"' },
+      description: {
+        type: "string",
+        description: "One line saying when to load this. It is all the routing has to go on, so be concrete.",
+      },
+      body: { type: "string", description: "The procedure in Markdown: when it applies, then the steps." },
+    },
+    required: ["name", "description", "body"],
+    additionalProperties: false,
+  },
+  execute: async (input, context) => {
+    const name = (str(input?.name) ?? "").trim()
+    // One line only: a newline here would end the front matter early.
+    const description = (str(input?.description) ?? "").replace(/\s+/g, " ").trim()
+    const body = (str(input?.body) ?? "").trim()
+    if (!SKILL_NAME.test(name))
+      throw new Error(`"${name}" isn't a usable skill name. Use lowercase words joined by hyphens, like "tender-comparison".`)
+    if (!description) throw new Error("A skill needs a one-line description; it decides when the skill gets loaded.")
+    if (!body) throw new Error("A skill needs a body: the steps to follow when it applies.")
+
+    const directory = learnedSkillsDir()
+    mkdirSync(directory, { recursive: true })
+    const path = join(directory, `${name}.md`)
+    const existed = existsSync(path)
+    writeFileSync(path, `---\nname: ${name}\ndescription: ${description}\n---\n\n${body}\n`)
+    await context.reloadSkills()
+    return `${existed ? "Updated" : "Saved"} the skill "${name}" (${path}). It is in the catalogue for the next task.`
+  },
+}
+
 const TOOLS: Record<string, ToolSpec> = {
   read_document: readDocument,
   http_request: httpRequest,
   notify,
+  save_skill: saveSkill,
 }
 
 export async function registerTools(ctx: Plugin.Context) {
@@ -304,7 +360,12 @@ export async function registerTools(ctx: Plugin.Context) {
         options: { codemode: false },
         execute: async (input) => {
           try {
-            return { content: await spec.execute(input, { directory: ctx.location.directory }) }
+            return {
+              content: await spec.execute(input, {
+                directory: ctx.location.directory,
+                reloadSkills: () => ctx.skill.reload(),
+              }),
+            }
           } catch (error) {
             return { content: `Failed: ${error instanceof Error ? error.message : String(error)}` }
           }

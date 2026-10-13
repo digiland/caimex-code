@@ -1,8 +1,8 @@
-import { readdirSync, readFileSync } from "node:fs"
+import { existsSync, readdirSync, readFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { Plugin } from "@opencode/plugin"
-import { registerTools } from "./tools"
+import { learnedSkillsDir, registerTools } from "./tools"
 
 // Work modes for Caimex Desktop: four agents (Research, Analyst, Writer, Ops), the
 // slash commands that start common jobs with them, the skills they load for house
@@ -54,6 +54,7 @@ Working rules:
 - Save deliverables as Markdown in the folder: reports/ for reports and analyses, drafts/ for things someone will send, analysis/ for scripts and working files, notes/ for scratch notes. Create the folder if needed.
 - Never invent facts, figures, quotes, sources or URLs. Say what you could not verify.
 - Never send, publish, delete or change anything outside this folder. The user sends and publishes.
+- If you had to work out a way of doing something that will come up again — a format that worked, how to judge a kind of source, a sequence of steps — save it with save_skill so the next task starts with it. Write it as instructions for next time, not as a record of this task. Findings and results are not skills; they belong in the folder.
 - Finish with a short summary: what you did, the file paths you wrote, and anything that needs the user's decision.
 `.trim()
 
@@ -187,8 +188,8 @@ function expand(template: string, args: string) {
 type SkillFile = { name: string; description?: string; path: string; content: string }
 
 // Skills are Markdown with a small front matter block (name, description).
-function readSkills(): SkillFile[] {
-  const directory = join(root, "skills")
+function readSkills(directory: string): SkillFile[] {
+  if (!existsSync(directory)) return []
   return readdirSync(directory)
     .filter((file) => file.endsWith(".md"))
     .map((file) => {
@@ -244,10 +245,16 @@ export default Plugin.define({
           },
         })
     })
-    const skills = readSkills()
+    // Read inside the transform, not once beforehand: a reload replays every transform
+    // from an empty catalogue, so reading here is what lets a skill saved mid-session
+    // (save_skill) show up for the next task without restarting anything.
     await ctx.skill.transform((editor) => {
-      for (const skill of skills)
+      for (const skill of readSkills(join(root, "skills")))
         editor.add({ id: `caimex-work/${skill.name}`, ...skill } as never)
+      // Learned skills get their own id, so one can sit beside a shipped skill of the
+      // same name but never replace it — the house formats stay what they were.
+      for (const skill of readSkills(learnedSkillsDir()))
+        editor.add({ id: `caimex-work/learned/${skill.name}`, ...skill } as never)
     })
     await registerTools(ctx)
   },
