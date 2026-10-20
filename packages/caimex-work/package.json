@@ -10,7 +10,7 @@
   },
   "scripts": {
     "build": "bun build src/index.ts --target bun --outfile dist/index.js",
-    "typecheck": "tsgo --noEmit"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "unpdf": "1.8.1"
@@ -18,7 +18,7 @@
   "devDependencies": {
     "@opencode/plugin": "workspace:*",
     "@types/node": "catalog:",
-    "@typescript/native-preview": "catalog:",
+    "typescript": "catalog:",
     "@tsconfig/bun": "catalog:"
   }
 }

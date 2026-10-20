@@ -9,7 +9,7 @@
     "./rpc": "./rpc.ts"
   },
   "scripts": {
-    "typecheck": "tsgo --noEmit"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "zod": "catalog:"
@@ -18,6 +18,6 @@
     "@opencode/plugin": "workspace:*",
     "@tsconfig/bun": "catalog:",
     "@types/node": "catalog:",
-    "@typescript/native-preview": "catalog:"
+    "typescript": "catalog:"
   }
 }
