@@ -44,9 +44,13 @@ const connect = Effect.fn("BackgroundService.connect")(function* (mode: "initial
   const ensure = () =>
     client.Service.ensure({
       file:
-        isolated && process.env.OPENCODE_DESKTOP_SERVER_CHANNEL === "local"
-          ? // Caimex Desktop: the CLI names this folder after its app id (util/src/global.ts).
-            path.join(app.getPath("userData"), "caimex", "service-local.json")
+        process.env.OPENCODE_DESKTOP_SERVER_CHANNEL === "local"
+          ? path.join(
+              process.env.XDG_STATE_HOME ?? path.join(app.getPath("home"), ".local", "state"),
+              // Caimex Desktop: the CLI names this folder after its app id (util/src/global.ts).
+              "caimex",
+              "service-local.json",
+            )
           : undefined,
       version,
       // A fixed port makes a second contender fail to bind and back off; port 0 never collides, so two
