@@ -1,24 +1,24 @@
-// Caimex: the "CAIMEx" wordmark. Capitals drawn with heavy box-drawing strokes (square
-// corners, open terminals), and a lowercase x that sits on the baseline, built from the same
-// strokes and drawn in the accent colour. `left` is "CAIME", `right` the x; rows line up.
+// Caimex: the "CAIMEx" wordmark. Capitals drawn as thin circuit traces (rounded corners,
+// open ends), and a lowercase x of 45° wedges sitting on the baseline, drawn in the accent
+// colour. `left` is "CAIME", `right` the x; rows line up.
 export const logo = {
   left: [
-    "┏━━━╸ ┏━━━┓ ╻ ┏━━┳━━┓ ┏━━━╸",
-    "┃     ┣━━━┫ ┃ ┃  ┃  ┃ ┣━━╸ ",
-    "┃     ┃   ┃ ┃ ┃  ┃  ┃ ┃    ",
-    "┗━━━╸ ╹   ╹ ╹ ╹  ╹  ╹ ┗━━━╸",
+    "╭───╴ ╭───╮ ╷ ╭─┬─╮ ╭───╴",
+    "│     ├───┤ │ │ │ │ ├──╴ ",
+    "│     │   │ │ │ │ │ │    ",
+    "╰───╴ ╵   ╵ ╵ ╵ ╵ ╵ ╰───╴",
   ],
-  right: ["   ", "   ", "┗┳┛", "┏┻┓"],
+  right: ["    ", "    ", "◥◣◢◤", "◢◤◥◣"],
 }
 
 /** The same wordmark one row shorter, for narrower terminals. */
 export const compact = {
-  left: ["┏━━╸ ┏━━┓ ╻ ┏━┳━┓ ┏━━╸", "┃    ┣━━┫ ┃ ┃ ┃ ┃ ┣━╸ ", "┗━━╸ ╹  ╹ ╹ ╹ ╹ ╹ ┗━━╸"],
-  right: ["   ", "┗┳┛", "┏┻┓"],
+  left: ["╭──╴ ╭──╮ ╷ ╭─┬─╮ ╭──╴", "│    ├──┤ │ │ │ │ ├─╴ ", "╰──╴ ╵  ╵ ╵ ╵ ╵ ╵ ╰──╴"],
+  right: ["    ", "◥◣◢◤", "◢◤◥◣"],
 }
 
 /** Caimex: the "Cx" monogram, where there is no room for the word. */
-export const mark = ["┏━━╸    ", "┃    ┗┳┛", "┗━━╸ ┏┻┓"]
+export const mark = ["╭──╴     ", "│    ◥◣◢◤", "╰──╴ ◢◤◥◣"]
 
 // Upstream's "GO" letters, drawn only by the OpenCode Go upsell art (go-upsell-art.ts).
 export const go = {

@@ -33,44 +33,52 @@ export const Splash = (props: Pick<ComponentProps<"svg">, "ref" | "class">) => {
 
 // Caimex Desktop: the "CAIMEx" wordmark, matching the terminal one (packages/tui/src/logo.ts).
 /**
- * Capitals drawn as one heavy 5-unit stroke with square corners and open terminals, on a
- * 36-unit cap height, letters 8 apart. The lowercase x sits on the baseline (x-height 20) and is
- * built from the same strokes; it takes the interactive (accent) colour. Same glyphs as
- * typography/wordmark/wordmark.tsx.
+ * Capitals are thin circuit traces: one 3-unit stroke along a centreline, rounded corners
+ * (radius 4.5), open ends, on a 36-unit cap height. The lowercase x is two solid 45° wedges
+ * crossing on the baseline (x-height 20). Each glyph is drawn from its own left edge; letters
+ * sit 8 apart, so the word spans 163 units.
  */
+export const glyphs = {
+  C: { width: 22, trace: "M22 1.5H6A4.5 4.5 0 0 0 1.5 6V30A4.5 4.5 0 0 0 6 34.5H22" },
+  A: { width: 22, trace: "M1.5 36V6A4.5 4.5 0 0 1 6 1.5H16A4.5 4.5 0 0 1 20.5 6V36M1.5 18H20.5" },
+  I: { width: 3, trace: "M1.5 0V36" },
+  M: { width: 34, trace: "M1.5 36V6A4.5 4.5 0 0 1 6 1.5H28A4.5 4.5 0 0 1 32.5 6V36M17 1.5V36" },
+  E: { width: 22, trace: "M22 1.5H6A4.5 4.5 0 0 0 1.5 6V30A4.5 4.5 0 0 0 6 34.5H22M1.5 18H17" },
+  x: { width: 20, solid: "M0 16H6L20 36H14L0 16ZM14 16H20L6 36H0L14 16Z" },
+} as const satisfies Record<string, { width: number; trace?: string; solid?: string }>
+
+export type Glyph = keyof typeof glyphs
+export const word: Glyph[] = ["C", "A", "I", "M", "E", "x"]
+/** Where each letter of `word` starts. */
+export const offsets = word.reduce<number[]>(
+  (xs, _, index) => [...xs, index === 0 ? 0 : xs[index - 1] + glyphs[word[index - 1]].width + 8],
+  [],
+)
+export const stroke = 3
+
 export const Logo = (props: { class?: string }) => {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 165 36"
+      viewBox="0 0 163 36"
       fill="none"
       role="img"
       aria-label="CAIMEx"
       classList={{ [props.class ?? ""]: !!props.class }}
     >
-      {/* C */}
-      <path d="M22 5H5V31H22V36H0V0H22V5Z" fill="var(--icon-strong-base)" fill-rule="evenodd" />
-      {/* A */}
-      <path
-        d="M30 36V0H52V36H47V19.5H35V36H30ZM35 5V14.5H47V5H35Z"
-        fill="var(--icon-strong-base)"
-        fill-rule="evenodd"
-      />
-      {/* I */}
-      <path d="M60 0H65V36H60V0Z" fill="var(--icon-strong-base)" fill-rule="evenodd" />
-      {/* M */}
-      <path d="M73 36V0H107V36H102V5H92.5V36H87.5V5H78V36H73Z" fill="var(--icon-strong-base)" fill-rule="evenodd" />
-      {/* E */}
-      <path
-        d="M137 5H120V14.5H132V19.5H120V31H137V36H115V0H137V5Z"
-        fill="var(--icon-strong-base)"
-        fill-rule="evenodd"
-      />
-      {/* x */}
-      <path
-        d="M145 16H150V20H160V16H165V25H157.5V27H165V36H160V32H150V36H145V27H152.5V25H145V16Z"
-        fill="var(--icon-interactive-base)"
-      />
+      {word.map((letter, index) => {
+        const glyph = glyphs[letter]
+        return "trace" in glyph ? (
+          <path
+            d={glyph.trace}
+            transform={`translate(${offsets[index]} 0)`}
+            stroke="var(--icon-strong-base)"
+            stroke-width={stroke}
+          />
+        ) : (
+          <path d={glyph.solid} transform={`translate(${offsets[index]} 0)`} fill="var(--icon-interactive-base)" />
+        )
+      })}
     </svg>
   )
 }

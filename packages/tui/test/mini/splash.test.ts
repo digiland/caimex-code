@@ -183,11 +183,11 @@ test.each(
     .join("")
   expect(reconstructed).toBe(command)
   if (input.width >= 80) {
-    expect(result.rows[1].startsWith(input.mono ? "[Cx]" : "┏━━╸")).toBe(true)
+    expect(result.rows[1].startsWith(input.mono ? "[Cx]" : "╭──╴")).toBe(true)
     expect(result.rows[1].includes("Session  Review mini layout")).toBe(input.showSession)
     expect(result.rows[2]).toContain("Continue " + command)
   } else {
-    expect(result.rows.join("\n")).not.toMatch(/Session|Continue|Review mini layout|┏|\[Cx\]/)
+    expect(result.rows.join("\n")).not.toMatch(/Session|Continue|Review mini layout|╭|\[Cx\]/)
     expect(result.rows).toHaveLength(1 + Math.ceil(command.length / input.width))
   }
   if (input.mono) expect(result.rows.join("")).not.toMatch(/[^\x20-\x7e]/)
