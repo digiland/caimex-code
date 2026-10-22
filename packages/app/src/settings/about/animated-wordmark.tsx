@@ -51,13 +51,13 @@ export function AnimatedWordmark(props: { active: boolean }) {
   onCleanup(() => timers.forEach(clearTimeout))
 
   return (
-    <svg class="settings-about-wordmark" viewBox="0 0 163 36" aria-hidden="true">
+    <svg class="settings-about-wordmark" viewBox="0 0 159 36" aria-hidden="true">
       <For each={state.letters}>
         {(letter, index) => {
           const glyph = glyphs[letter]
           // Centred in its slot while it scrambles; a settled letter fills the slot exactly.
           const x = offsets[index()] + (glyphs[target[index()]].width - glyph.width) / 2
-          return "trace" in glyph ? (
+          return (
             <path
               d={glyph.trace}
               transform={`translate(${x} 0)`}
@@ -65,8 +65,6 @@ export function AnimatedWordmark(props: { active: boolean }) {
               stroke="currentColor"
               stroke-width={stroke}
             />
-          ) : (
-            <path d={glyph.solid} transform={`translate(${x} 0)`} />
           )
         }}
       </For>

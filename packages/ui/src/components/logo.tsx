@@ -34,9 +34,9 @@ export const Splash = (props: Pick<ComponentProps<"svg">, "ref" | "class">) => {
 // Caimex Desktop: the "CAIMEx" wordmark, matching the terminal one (packages/tui/src/logo.ts).
 /**
  * Capitals are thin circuit traces: one 3-unit stroke along a centreline, rounded corners
- * (radius 4.5), open ends, on a 36-unit cap height. The lowercase x is two solid 45° wedges
- * crossing on the baseline (x-height 20). Each glyph is drawn from its own left edge; letters
- * sit 8 apart, so the word spans 163 units.
+ * (radius 4.5), open ends, on a 36-unit cap height. The lowercase x is two traces crossing
+ * on the baseline, half the cap height. Each glyph is drawn from its own left edge; letters
+ * sit 8 apart, so the word spans 159 units.
  */
 export const glyphs = {
   C: { width: 22, trace: "M22 1.5H6A4.5 4.5 0 0 0 1.5 6V30A4.5 4.5 0 0 0 6 34.5H22" },
@@ -44,8 +44,8 @@ export const glyphs = {
   I: { width: 3, trace: "M1.5 0V36" },
   M: { width: 34, trace: "M1.5 36V6A4.5 4.5 0 0 1 6 1.5H28A4.5 4.5 0 0 1 32.5 6V36M17 1.5V36" },
   E: { width: 22, trace: "M22 1.5H6A4.5 4.5 0 0 0 1.5 6V30A4.5 4.5 0 0 0 6 34.5H22M1.5 18H17" },
-  x: { width: 20, solid: "M0 16H6L20 36H14L0 16ZM14 16H20L6 36H0L14 16Z" },
-} as const satisfies Record<string, { width: number; trace?: string; solid?: string }>
+  x: { width: 16, trace: "M0 18L16 36M16 18L0 36" },
+} as const satisfies Record<string, { width: number; trace: string }>
 
 export type Glyph = keyof typeof glyphs
 export const word: Glyph[] = ["C", "A", "I", "M", "E", "x"]
@@ -60,25 +60,21 @@ export const Logo = (props: { class?: string }) => {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 163 36"
+      viewBox="0 0 159 36"
       fill="none"
       role="img"
       aria-label="CAIMEx"
       classList={{ [props.class ?? ""]: !!props.class }}
     >
-      {word.map((letter, index) => {
-        const glyph = glyphs[letter]
-        return "trace" in glyph ? (
-          <path
-            d={glyph.trace}
-            transform={`translate(${offsets[index]} 0)`}
-            stroke="var(--icon-strong-base)"
-            stroke-width={stroke}
-          />
-        ) : (
-          <path d={glyph.solid} transform={`translate(${offsets[index]} 0)`} fill="var(--icon-interactive-base)" />
-        )
-      })}
+      {word.map((letter, index) => (
+        <path
+          d={glyphs[letter].trace}
+          transform={`translate(${offsets[index]} 0)`}
+          // The x takes the accent colour.
+          stroke={letter === "x" ? "var(--icon-interactive-base)" : "var(--icon-strong-base)"}
+          stroke-width={stroke}
+        />
+      ))}
     </svg>
   )
 }
