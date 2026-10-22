@@ -65,9 +65,7 @@ export function Logo() {
   return (
     <box>
       {dimensions().height < 12 ? null : dimensions().width < 30 ? (
-        <For each={mark}>
-          {(line) => <box flexDirection="row">{renderLine(line, theme.text.base, true)}</box>}
-        </For>
+        <For each={mark}>{(line) => <box flexDirection="row">{renderLine(line, theme.text.base, true)}</box>}</For>
       ) : dimensions().width < 50 ? (
         word(compact)
       ) : (

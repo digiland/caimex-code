@@ -51,15 +51,26 @@ export const Logo = (props: { class?: string }) => {
       {/* C */}
       <path d="M22 5H5V31H22V36H0V0H22V5Z" fill="var(--icon-strong-base)" fill-rule="evenodd" />
       {/* A */}
-      <path d="M30 36V0H52V36H47V19.5H35V36H30ZM35 5V14.5H47V5H35Z" fill="var(--icon-strong-base)" fill-rule="evenodd" />
+      <path
+        d="M30 36V0H52V36H47V19.5H35V36H30ZM35 5V14.5H47V5H35Z"
+        fill="var(--icon-strong-base)"
+        fill-rule="evenodd"
+      />
       {/* I */}
       <path d="M60 0H65V36H60V0Z" fill="var(--icon-strong-base)" fill-rule="evenodd" />
       {/* M */}
       <path d="M73 36V0H107V36H102V5H92.5V36H87.5V5H78V36H73Z" fill="var(--icon-strong-base)" fill-rule="evenodd" />
       {/* E */}
-      <path d="M137 5H120V14.5H132V19.5H120V31H137V36H115V0H137V5Z" fill="var(--icon-strong-base)" fill-rule="evenodd" />
+      <path
+        d="M137 5H120V14.5H132V19.5H120V31H137V36H115V0H137V5Z"
+        fill="var(--icon-strong-base)"
+        fill-rule="evenodd"
+      />
       {/* x */}
-      <path d="M145 16H150V20H160V16H165V25H157.5V27H165V36H160V32H150V36H145V27H152.5V25H145V16Z" fill="var(--icon-interactive-base)" />
+      <path
+        d="M145 16H150V20H160V16H165V25H157.5V27H165V36H160V32H150V36H145V27H152.5V25H145V16Z"
+        fill="var(--icon-interactive-base)"
+      />
     </svg>
   )
 }

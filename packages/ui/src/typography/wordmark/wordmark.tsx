@@ -26,11 +26,27 @@ export function Wordmark(
             stroke-width={props.outline ? 1 : undefined}
           >
             <path pathLength={props.outline ? 1 : undefined} fill-rule="evenodd" d="M22 5H5V31H22V36H0V0H22V5Z" />
-            <path pathLength={props.outline ? 1 : undefined} fill-rule="evenodd" d="M30 36V0H52V36H47V19.5H35V36H30ZM35 5V14.5H47V5H35Z" />
+            <path
+              pathLength={props.outline ? 1 : undefined}
+              fill-rule="evenodd"
+              d="M30 36V0H52V36H47V19.5H35V36H30ZM35 5V14.5H47V5H35Z"
+            />
             <path pathLength={props.outline ? 1 : undefined} fill-rule="evenodd" d="M60 0H65V36H60V0Z" />
-            <path pathLength={props.outline ? 1 : undefined} fill-rule="evenodd" d="M73 36V0H107V36H102V5H92.5V36H87.5V5H78V36H73Z" />
-            <path pathLength={props.outline ? 1 : undefined} fill-rule="evenodd" d="M137 5H120V14.5H132V19.5H120V31H137V36H115V0H137V5Z" />
-            <path pathLength={props.outline ? 1 : undefined} fill-rule="evenodd" d="M145 16H150V20H160V16H165V25H157.5V27H165V36H160V32H150V36H145V27H152.5V25H145V16Z" />
+            <path
+              pathLength={props.outline ? 1 : undefined}
+              fill-rule="evenodd"
+              d="M73 36V0H107V36H102V5H92.5V36H87.5V5H78V36H73Z"
+            />
+            <path
+              pathLength={props.outline ? 1 : undefined}
+              fill-rule="evenodd"
+              d="M137 5H120V14.5H132V19.5H120V31H137V36H115V0H137V5Z"
+            />
+            <path
+              pathLength={props.outline ? 1 : undefined}
+              fill-rule="evenodd"
+              d="M145 16H150V20H160V16H165V25H157.5V27H165V36H160V32H150V36H145V27H152.5V25H145V16Z"
+            />
           </g>
         </g>
       </g>
