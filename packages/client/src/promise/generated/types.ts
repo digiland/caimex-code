@@ -2349,6 +2349,7 @@ export type ConfigEntry =
         experimental?: {
           portable_shell_scanner?: boolean
           todo?: boolean
+          precompute_compaction?: boolean
           subagent_depth?: number
           location_idle_timeout?: string | false
           policies?: Array<{
