@@ -83,6 +83,7 @@ export const faces = {
   wink: ["●   ─", " ╰─╯ "],
   thinking: ["  ● ●", "  ~  "],
   surprised: ["◉   ◉", "  o  "],
+  sad: ["●   ●", " ╭─╮ "],
 } as const
 
 export type Face = keyof typeof faces

@@ -319,8 +319,8 @@ export const dict = {
   "error.page.action.checkUpdates": "Проверете за актуализации",
   "error.page.action.updateTo": "Актуализиране до {{version}}",
   "error.page.circular": "[Кръгло]",
-  "error.page.report.prefix": "Моля, докладвайте тази грешка на екипа на OpenCode",
-  "error.page.report.discord": "на Discord",
+  "error.page.report.prefix": "Моля, докладвайте тази грешка на екипа на Caimex",
+  "error.page.report.discord": "на GitHub",
   "error.page.version": "Версия: {{version}}",
   "error.dev.rootNotFound":
     "Основният елемент не е намерен. Забравихте ли да го добавите към вашия index.html? Или може би атрибутът id е изписан неправилно?",

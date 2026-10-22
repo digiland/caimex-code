@@ -326,8 +326,8 @@ export const dict = {
   "error.page.action.checkUpdates": "ກວດສອບການອັບເດດ",
   "error.page.action.updateTo": "ອັບເດດເປັນ {{version}}",
   "error.page.circular": "[Circular]",
-  "error.page.report.prefix": "ກະລຸນາລາຍງານຄວາມຜິດພາດນີ້ໃຫ້ທີມງານ OpenCode",
-  "error.page.report.discord": "ໃນ Discord",
+  "error.page.report.prefix": "ກະລຸນາລາຍງານຄວາມຜິດພາດນີ້ໃຫ້ທີມງານ Caimex",
+  "error.page.report.discord": "ໃນ GitHub",
   "error.page.version": "ລຸ້ນ: {{version}}",
   "error.dev.rootNotFound":
     "ບໍ່ພົບອົງປະກອບຮາກ. ທ່ານລືມເພີ່ມມັນໃສ່ index.html ຂອງທ່ານບໍ? ຫຼືບາງທີຄຸນສົມບັດ id ມີການສະກົດຜິດ?",

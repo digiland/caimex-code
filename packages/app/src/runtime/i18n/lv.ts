@@ -318,8 +318,8 @@ export const dict = {
   "error.page.action.checkUpdates": "Pārbaudīt atjauninājumus",
   "error.page.action.updateTo": "Atjaunināt uz {{version}}",
   "error.page.circular": "[Ciklisks]",
-  "error.page.report.prefix": "Lūdzu, ziņojiet par šo kļūdu OpenCode komandai",
-  "error.page.report.discord": "Discord",
+  "error.page.report.prefix": "Lūdzu, ziņojiet par šo kļūdu Caimex komandai",
+  "error.page.report.discord": "GitHub",
   "error.page.version": "Versija: {{version}}",
   "error.dev.rootNotFound":
     "Saknes elements nav atrasts. Vai aizmirsāt to pievienot index.html? Vai arī id atribūts ir kļūdaini uzrakstīts?",

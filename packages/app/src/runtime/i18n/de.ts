@@ -475,8 +475,8 @@ export const dict = {
   "error.page.action.checking": "Prüfen…",
   "error.page.action.checkUpdates": "Nach Updates suchen",
   "error.page.action.updateTo": "Auf {{version}} aktualisieren",
-  "error.page.report.prefix": "Bitte melden Sie diesen Fehler dem OpenCode-Team",
-  "error.page.report.discord": "auf Discord",
+  "error.page.report.prefix": "Bitte melden Sie diesen Fehler dem Caimex-Team",
+  "error.page.report.discord": "auf GitHub",
   "error.page.version": "Version: {{version}}",
   "error.dev.rootNotFound":
     "Wurzelelement nicht gefunden. Haben Sie vergessen, es in Ihre index.html aufzunehmen? Oder wurde das ID-Attribut falsch geschrieben?",

@@ -543,8 +543,8 @@ export const dict = {
   "error.page.action.checking": "Sjekker…",
   "error.page.action.checkUpdates": "Se etter oppdateringer",
   "error.page.action.updateTo": "Oppdater til {{version}}",
-  "error.page.report.prefix": "Vennligst rapporter denne feilen til OpenCode-teamet",
-  "error.page.report.discord": "på Discord",
+  "error.page.report.prefix": "Vennligst rapporter denne feilen til Caimex-teamet",
+  "error.page.report.discord": "på GitHub",
   "error.page.version": "Versjon: {{version}}",
 
   "error.dev.rootNotFound":

@@ -318,7 +318,7 @@ export const dict = {
   "error.page.action.checkUpdates": "Täzelenmeleri barlaň",
   "error.page.action.updateTo": "{{version}} täzeläň",
   "error.page.circular": "[Tegelek]",
-  "error.page.report.prefix": "Bu ýalňyşlygy OpenCode toparyna habar bermegiňizi haýyş edýäris",
+  "error.page.report.prefix": "Bu ýalňyşlygy Caimex toparyna habar bermegiňizi haýyş edýäris",
   "error.page.report.discord": "Diskord",
   "error.page.version": "Wersiýa: {{version}}",
   "error.dev.rootNotFound":

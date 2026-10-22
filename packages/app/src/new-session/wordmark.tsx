@@ -1,12 +1,16 @@
-import { createSignal, onCleanup } from "solid-js"
+import { createEffect, createSignal, on, onCleanup } from "solid-js"
 import { Logo, Robot, type RobotFace } from "@opencode/ui/logo"
 import "./wordmark.css"
 
+/** A one-off look; each new `at` plays it again. */
+export type RobotReaction = { face: RobotFace; at: number; ms?: number }
+
 /**
  * Caimex Desktop: the robot's face. It rests on `mood` (what the screen around it is doing) and
- * now and then blinks, smiles, winks or glances aside; `poke` surprises it.
+ * now and then blinks, smiles, winks or glances aside; each `reaction` plays once, and `poke`
+ * surprises it.
  */
-function useRobotFace(mood: () => RobotFace) {
+export function useRobotFace(mood: () => RobotFace, reaction?: () => RobotReaction | undefined) {
   const [passing, setPassing] = createSignal<RobotFace>()
   const timers = new Set<ReturnType<typeof setTimeout>>()
   const show = (face: RobotFace, ms: number) => {
@@ -26,6 +30,7 @@ function useRobotFace(mood: () => RobotFace) {
     if (tick % 13 === 0) return show("thinking", 1600)
     show("blink", 150)
   }, 3200)
+  if (reaction) createEffect(on(reaction, (next) => next && show(next.face, next.ms ?? 2500), { defer: true }))
   onCleanup(() => {
     clearInterval(loop)
     timers.forEach(clearTimeout)

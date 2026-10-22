@@ -331,8 +331,8 @@ export const dict = {
   "error.page.action.checkUpdates": "Проверите да ли постоје ажурирања",
   "error.page.action.updateTo": "ажурирање на {{version}}",
   "error.page.circular": "[Цирцулар]",
-  "error.page.report.prefix": "пријавите ову грешку OpenCode тиму",
-  "error.page.report.discord": "дана Discord",
+  "error.page.report.prefix": "пријавите ову грешку Caimex тиму",
+  "error.page.report.discord": "дана GitHub",
   "error.page.version": "Верзија: {{version}}",
   "error.dev.rootNotFound":
     "Основни елемент није пронађен. Да ли сте заборавили да га додате у свој index.html? Или је можда атрибут ид погрешно написан?",

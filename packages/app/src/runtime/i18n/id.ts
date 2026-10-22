@@ -365,8 +365,8 @@ export const dict = {
   "error.page.action.checkUpdates": "Periksa pembaruan",
   "error.page.action.updateTo": "Perbarui ke {{version}}",
   "error.page.circular": "[Sirkular]",
-  "error.page.report.prefix": "Harap laporkan kesalahan ini ke tim OpenCode",
-  "error.page.report.discord": "di Discord",
+  "error.page.report.prefix": "Harap laporkan kesalahan ini ke tim Caimex",
+  "error.page.report.discord": "di GitHub",
   "error.page.version": "Versi: {{version}}",
 
   "error.dev.rootNotFound":

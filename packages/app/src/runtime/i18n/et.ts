@@ -317,8 +317,8 @@ export const dict = {
   "error.page.action.checkUpdates": "Kontrollige värskendusi",
   "error.page.action.updateTo": "Värskenda väärtusele {{version}}",
   "error.page.circular": "[Ringkiri]",
-  "error.page.report.prefix": "Teatage sellest veast OpenCode meeskonnale",
-  "error.page.report.discord": "kuupäeval Discord",
+  "error.page.report.prefix": "Teatage sellest veast Caimex meeskonnale",
+  "error.page.report.discord": "kuupäeval GitHub",
   "error.page.version": "Versioon: {{version}}",
   "error.dev.rootNotFound":
     "Juurelementi ei leitud. Kas unustasite selle lisada oma loendisse index.html? Või äkki on id-atribuut valesti kirjutatud?",

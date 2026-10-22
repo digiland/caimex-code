@@ -327,8 +327,8 @@ export const dict = {
   "error.page.action.checkUpdates": "अद्यतन के लिए जाँच",
   "error.page.action.updateTo": "{{version}} पर अपडेट करें",
   "error.page.circular": "[Circular]",
-  "error.page.report.prefix": "कृपया इस त्रुटि की रिपोर्ट OpenCode टीम को करें",
-  "error.page.report.discord": "Discord पर",
+  "error.page.report.prefix": "कृपया इस त्रुटि की रिपोर्ट Caimex टीम को करें",
+  "error.page.report.discord": "GitHub पर",
   "error.page.version": "संस्करण: {{version}}",
   "error.dev.rootNotFound":
     "मूल तत्व नहीं मिला. क्या आप इसे अपने index.html में जोड़ना भूल गए? या हो सकता है कि आईडी विशेषता गलत वर्तनी हो गई हो?",

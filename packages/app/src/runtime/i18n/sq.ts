@@ -318,7 +318,7 @@ export const dict = {
   "error.page.action.checkUpdates": "Kontrolloni për përditësime",
   "error.page.action.updateTo": "Përditëso në {{version}}",
   "error.page.circular": "[Rrethore]",
-  "error.page.report.prefix": "Ju lutemi raportoni këtë gabim te ekipi i OpenCode",
+  "error.page.report.prefix": "Ju lutemi raportoni këtë gabim te ekipi i Caimex",
   "error.page.report.discord": "mbi Mosmarrëveshjen",
   "error.page.version": "Versioni: {{version}}",
   "error.dev.rootNotFound":

@@ -2772,14 +2772,14 @@ test.each([44, 100])(
   15_000,
 )
 
-test("restarting after an update tells the user to start OpenCode again", async () => {
+test("restarting after an update tells the user to start Caimex again", async () => {
   await using state = await tmpdir()
   const setup = await createTestRenderer({ width: 80, height: 24 })
   await setup.renderer.setupTerminal()
   const started = Promise.withResolvers<void>()
   const setTitle = setup.renderer.setTerminalTitle.bind(setup.renderer)
   setup.renderer.setTerminalTitle = (title) => {
-    if (title === "OpenCode") started.resolve()
+    if (title === "Caimex") started.resolve()
     setTitle(title)
   }
   const events = createEventStream()
@@ -2815,13 +2815,13 @@ test("restarting after an update tells the user to start OpenCode again", async 
     await started.promise
     await setup.waitForFrame((frame) => frame.includes("commands"))
     await setup.mockInput.typeText("/update")
-    await setup.waitForFrame((frame) => frame.includes("Update OpenCode"))
+    await setup.waitForFrame((frame) => frame.includes("Update Caimex"))
     setup.mockInput.pressEnter()
     await setup.waitForFrame((frame) => frame.includes("Update successful") && frame.includes("Restart"))
     setup.mockInput.pressEnter()
     await task
 
-    expect(Bun.stripANSI(stdout)).toContain("  Run opencode to use 2.0.0\n")
+    expect(Bun.stripANSI(stdout)).toContain("  Run caimex to use 2.0.0\n")
   } finally {
     process.stdout.write = originalWrite
     if (!setup.renderer.isDestroyed) setup.renderer.destroy()
@@ -2829,14 +2829,14 @@ test("restarting after an update tells the user to start OpenCode again", async 
   }
 })
 
-test("quitting after a background update tells the user to start OpenCode again", async () => {
+test("quitting after a background update tells the user to start Caimex again", async () => {
   await using state = await tmpdir()
   const setup = await createTestRenderer({ width: 80, height: 24 })
   await setup.renderer.setupTerminal()
   const started = Promise.withResolvers<void>()
   const setTitle = setup.renderer.setTerminalTitle.bind(setup.renderer)
   setup.renderer.setTerminalTitle = (title) => {
-    if (title === "OpenCode") started.resolve()
+    if (title === "Caimex") started.resolve()
     setTitle(title)
   }
   const events = createEventStream()
@@ -2880,7 +2880,7 @@ test("quitting after a background update tells the user to start OpenCode again"
     setup.mockInput.pressEnter()
     await task
 
-    expect(Bun.stripANSI(stdout)).toContain("  Run opencode to use 2.0.0\n")
+    expect(Bun.stripANSI(stdout)).toContain("  Run caimex to use 2.0.0\n")
   } finally {
     process.stdout.write = originalWrite
     if (!setup.renderer.isDestroyed) setup.renderer.destroy()

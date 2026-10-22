@@ -330,8 +330,8 @@ export const dict = {
   "error.page.action.checkUpdates": "Provjerite ima li ažuriranja",
   "error.page.action.updateTo": "Ažurirajte na {{version}}",
   "error.page.circular": "[Kružni]",
-  "error.page.report.prefix": "Prijavite ovu grešku OpenCode timu",
-  "error.page.report.discord": "na Discord",
+  "error.page.report.prefix": "Prijavite ovu grešku Caimex timu",
+  "error.page.report.discord": "na GitHub",
   "error.page.version": "Verzija: {{version}}",
   "error.dev.rootNotFound":
     "Korijenski element nije pronađen. Jeste li ga zaboravili dodati u svoj index.html? Ili je možda atribut id-a pogrešno napisan?",

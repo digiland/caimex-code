@@ -141,7 +141,7 @@ export const Logo = (props: { class?: string }) => {
 }
 
 /** The robot's faces, as in the terminal. */
-export type RobotFace = "idle" | "blink" | "happy" | "wink" | "thinking" | "surprised"
+export type RobotFace = "idle" | "blink" | "happy" | "wink" | "thinking" | "surprised" | "sad"
 
 const eye = {
   open: (x: number) => <circle cx={x} cy="21" r="2.6" />,
@@ -165,6 +165,7 @@ const faceParts: Record<RobotFace, { eyes: [keyof typeof eye, keyof typeof eye];
   wink: { eyes: ["open", "shut"], mouth: "M17 27q5 3.5 10 0" },
   thinking: { eyes: ["glance", "glance"], mouth: "M18 28q2-1.5 4 0t4 0" },
   surprised: { eyes: ["wide", "wide"], mouth: "M22 26.2a1.9 1.9 0 1 0 .01 0" },
+  sad: { eyes: ["open", "open"], mouth: "M17 29q5-3.5 10 0" },
 }
 
 /**

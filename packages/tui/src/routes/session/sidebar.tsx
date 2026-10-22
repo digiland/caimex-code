@@ -1,5 +1,7 @@
 import { useData } from "../../context/data"
-import { createMemo, Show } from "solid-js"
+import { createEffect, createMemo, createSignal, on, Show } from "solid-js"
+import { type Reaction, Robot } from "../../component/logo"
+import type { Face } from "../../logo"
 import { useTheme } from "../../context/theme"
 import { useConfig } from "../../config"
 import { Slot } from "../../plugin/render"
@@ -9,6 +11,37 @@ import "../../component/title-shimmer"
 
 import { getScrollAcceleration } from "../../util/scroll"
 import { SESSION_SIDEBAR_WIDTH } from "../../ui/layout"
+
+// Caimex: the robot keeps the session company. It thinks while a turn runs, looks up when the
+// session needs an answer, smiles when a turn finishes and is sad when one fails.
+function SessionRobot(props: { sessionID: string }) {
+  const data = useData()
+  const theme = useTheme()
+  const running = () => data.session.status(props.sessionID) === "running"
+  const waiting = () =>
+    (data.session.permission.list(props.sessionID) ?? []).length > 0 ||
+    (data.session.form.list(props.sessionID) ?? []).length > 0
+  const outcome = () => {
+    const last = data.session.message.list(props.sessionID).findLast((message) => message.type === "idle")
+    return last?.type === "idle" ? last.outcome : undefined
+  }
+  const mood = (): Face => (waiting() ? "surprised" : running() ? "thinking" : outcome() === "failed" ? "sad" : "idle")
+  const [reaction, setReaction] = createSignal<Reaction>()
+  createEffect(
+    on(running, (now, before) => {
+      if (before && !now && outcome() === "succeeded") setReaction({ face: "happy", at: Date.now() })
+    }),
+  )
+  const caption = () =>
+    waiting() ? "Needs you" : running() ? "Working…" : outcome() === "failed" ? "That didn't work" : "Ready"
+
+  return (
+    <box flexDirection="row" gap={2} alignItems="center">
+      <Robot mood={mood()} reaction={reaction()} />
+      <text fg={waiting() ? theme.text.feedback.warning.base : theme.text.muted}>{caption()}</text>
+    </box>
+  )
+}
 
 export function Sidebar(props: { sessionID: string }) {
   const data = useData()
@@ -72,6 +105,7 @@ export function Sidebar(props: { sessionID: string }) {
         </scrollbox>
 
         <box flexShrink={0} gap={1} paddingTop={1}>
+          <SessionRobot sessionID={props.sessionID} />
           <Slot path="sidebar.footer" input={{ sessionID: props.sessionID }} />
         </box>
       </box>

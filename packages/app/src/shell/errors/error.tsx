@@ -413,10 +413,11 @@ export const ErrorPage: Component<ErrorPageProps> = (props) => {
             <button
               type="button"
               class="flex items-center text-text-interactive-base gap-1"
-              onClick={() => platform.openExternal("https://opencode.ai/desktop-feedback")}
+              // Caimex Desktop: reports go to our issue tracker, not OpenCode's Discord.
+              onClick={() => platform.openExternal("https://github.com/digiland/caimex-code/issues")}
             >
               <div>{language.t("error.page.report.discord")}</div>
-              <Icon name="discord" class="text-text-interactive-base" />
+              <Icon name="github" class="text-text-interactive-base" />
             </button>
           </div>
           <Show when={platform.version}>
