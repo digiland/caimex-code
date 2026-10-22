@@ -17,8 +17,9 @@ function wordmark(pad = "") {
       .join("")
 
   return logo.left.map((line, index) => {
-    const left = draw(line, dim, "\x1b[38;5;235m", "\x1b[48;5;235m")
-    const right = draw(logo.right[index] ?? "", reset, "\x1b[38;5;238m", "\x1b[48;5;238m")
+    // Caimex: "CAIME" bold, the lowercase x in blue.
+    const left = draw(line, bold, "\x1b[38;5;235m", "\x1b[48;5;235m")
+    const right = draw(logo.right[index] ?? "", "\x1b[38;5;75m", "\x1b[38;5;238m", "\x1b[48;5;238m")
     return `${pad}${left} ${right}`
   })
 }

@@ -5,6 +5,7 @@
   .wordmark-shimmer {
     --icon-base: white;
     --icon-strong-base: white;
+    --icon-interactive-base: white;
     --icon-weak-base: transparent;
 
     /* Blend above the base logo's opacity so the sweep only adds light in either theme. */

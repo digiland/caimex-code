@@ -1,6 +1,6 @@
 import { createUniqueId, type ComponentProps } from "solid-js"
 
-// Caimex Desktop: the "caimex code" wordmark (glyphs from the Caimex CLI fork's Logo).
+// Caimex Desktop: the "CAIMEx" wordmark (same glyphs as components/logo.tsx).
 export function Wordmark(
   props: Pick<ComponentProps<"svg">, "class"> & { fade?: boolean; muted?: boolean; outline?: boolean },
 ) {
@@ -10,7 +10,7 @@ export function Wordmark(
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 294 36"
+      viewBox="0 0 165 36"
       fill="none"
       classList={{
         [props.class ?? ""]: !!props.class,
@@ -25,24 +25,20 @@ export function Wordmark(
             stroke={props.outline ? "currentColor" : undefined}
             stroke-width={props.outline ? 1 : undefined}
           >
-            <path pathLength={props.outline ? 1 : undefined} d="M24 12H6V30H24V36H0V6H24V12Z" />
-            <path pathLength={props.outline ? 1 : undefined} d="M48 24H36V30H48V24ZM30 6H54V36H30V18H48V12H30V6Z" />
-            <path pathLength={props.outline ? 1 : undefined} d="M66 6H60V0H66V6ZM66 36H60V12H66V36Z" />
-            <path pathLength={props.outline ? 1 : undefined} d="M96 12H78V36H72V6H96V12ZM90 36H84V12H90V36ZM102 36H96V12H102V36Z" />
-            <path pathLength={props.outline ? 1 : undefined} d="M132 24H114V30H132V36H108V6H132V24ZM114 18H126V12H114V18Z" />
-            <path pathLength={props.outline ? 1 : undefined} d="M138 6H144L162 36H156ZM156 6H162L144 36H138Z" />
-            <path pathLength={props.outline ? 1 : undefined} d="M204 12H186V30H204V36H180V6H204V12Z" />
-            <path pathLength={props.outline ? 1 : undefined} d="M228 12H216V30H228V12ZM234 36H210V6H234V36Z" />
-            <path pathLength={props.outline ? 1 : undefined} d="M258 12H246V30H258V12ZM264 36H240V6H258V0H264V36Z" />
-            <path pathLength={props.outline ? 1 : undefined} d="M294 24H276V30H294V36H270V6H294V24ZM276 18H288V12H276V18Z" />
+            <path pathLength={props.outline ? 1 : undefined} fill-rule="evenodd" d="M22 5H5V31H22V36H0V0H22V5Z" />
+            <path pathLength={props.outline ? 1 : undefined} fill-rule="evenodd" d="M30 36V0H52V36H47V19.5H35V36H30ZM35 5V14.5H47V5H35Z" />
+            <path pathLength={props.outline ? 1 : undefined} fill-rule="evenodd" d="M60 0H65V36H60V0Z" />
+            <path pathLength={props.outline ? 1 : undefined} fill-rule="evenodd" d="M73 36V0H107V36H102V5H92.5V36H87.5V5H78V36H73Z" />
+            <path pathLength={props.outline ? 1 : undefined} fill-rule="evenodd" d="M137 5H120V14.5H132V19.5H120V31H137V36H115V0H137V5Z" />
+            <path pathLength={props.outline ? 1 : undefined} fill-rule="evenodd" d="M145 16H150V20H160V16H165V25H157.5V27H165V36H160V32H150V36H145V27H152.5V25H145V16Z" />
           </g>
         </g>
       </g>
       <defs>
-        <mask id={mask} style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="294" height="36">
-          <rect width="294" height="36" fill={`url(#${maskGradient})`} />
+        <mask id={mask} style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="165" height="36">
+          <rect width="165" height="36" fill={`url(#${maskGradient})`} />
         </mask>
-        <linearGradient id={maskGradient} x1="147" y1="18" x2="147" y2="36" gradientUnits="userSpaceOnUse">
+        <linearGradient id={maskGradient} x1="82.5" y1="18" x2="82.5" y2="36" gradientUnits="userSpaceOnUse">
           <stop stop-color="white" stop-opacity="0.7" />
           <stop offset="1" stop-color="white" stop-opacity="0" />
         </linearGradient>

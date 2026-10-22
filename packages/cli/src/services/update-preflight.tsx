@@ -6,7 +6,7 @@ import { render, useTerminalDimensions } from "@opentui/solid"
 import { OPENCODE_VERSION } from "../version"
 import "@opencode/tui/component/spinner-renderable"
 import { SPINNER_FRAMES } from "@opencode/tui/component/spinner"
-import { go } from "@opencode/tui/logo"
+import { mark } from "@opencode/tui/logo"
 import { setTimeout } from "node:timers/promises"
 import {
   batch,
@@ -187,7 +187,7 @@ const colors = {
   text: RGBA.fromHex("#eeeeee"),
 }
 
-const monogram = go.right.slice(1)
+const monogram = mark
 const sweepBlend = 8
 const textDim = RGBA.fromHex("#4c4c4c")
 const rampSteps = 32

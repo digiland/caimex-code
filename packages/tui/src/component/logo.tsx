@@ -3,7 +3,7 @@ import { For, type JSX } from "solid-js"
 import { useTerminalDimensions } from "@opentui/solid"
 import { useTheme } from "../context/theme"
 import { tint } from "../theme/color"
-import { go, logo } from "../logo"
+import { compact, logo, mark } from "../logo"
 
 export function Logo() {
   const theme = useTheme()
@@ -49,30 +49,29 @@ export function Logo() {
     })
   }
 
+  // Caimex: "CAIME" in the text colour, the lowercase x in the accent; the wordmark loses a row
+  // when the terminal is narrower, and becomes the "Cx" monogram when the word doesn't fit.
+  const word = (mark: { left: string[]; right: string[] }) => (
+    <For each={mark.left}>
+      {(line, index) => (
+        <box flexDirection="row" gap={1}>
+          <box flexDirection="row">{renderLine(line, theme.text.base, true)}</box>
+          <box flexDirection="row">{renderLine(mark.right[index()] ?? "", theme.text.action.primary.base, true)}</box>
+        </box>
+      )}
+    </For>
+  )
+
   return (
     <box>
-      {dimensions().height < 12 ? null : dimensions().width < 30 ? /* Caimex: the wordmark is wider */ (
-        <For each={go.right.slice(1)}>
+      {dimensions().height < 12 ? null : dimensions().width < 30 ? (
+        <For each={mark}>
           {(line) => <box flexDirection="row">{renderLine(line, theme.text.base, true)}</box>}
         </For>
       ) : dimensions().width < 50 ? (
-        <>
-          <For each={logo.left.slice(1)}>
-            {(line) => <box flexDirection="row">{renderLine(line, theme.text.muted, false)}</box>}
-          </For>
-          <For each={logo.right}>
-            {(line) => <box flexDirection="row">{renderLine(line, theme.text.base, true)}</box>}
-          </For>
-        </>
+        word(compact)
       ) : (
-        <For each={logo.left}>
-          {(line, index) => (
-            <box flexDirection="row" gap={1}>
-              <box flexDirection="row">{renderLine(line, theme.text.muted, false)}</box>
-              <box flexDirection="row">{renderLine(logo.right[index()], theme.text.base, true)}</box>
-            </box>
-          )}
-        </For>
+        word(logo)
       )}
     </box>
   )
