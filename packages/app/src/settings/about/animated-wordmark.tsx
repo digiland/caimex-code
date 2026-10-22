@@ -1,14 +1,12 @@
 import { createEffect, For, on, onCleanup } from "solid-js"
 import { createStore } from "solid-js/store"
-import { type Glyph, glyphs, offsets, stroke, word } from "@opencode/ui/logo"
+import { glyphPath, glyphWidth, offsets, word, wordWidth } from "@opencode/ui/logo"
 
 // Caimex Desktop: "CAIMEx", in the glyphs of @opencode/ui's Logo.
 const target = word
 
 // A slot only cycles through letters no wider than its own, so the scramble never overlaps a neighbour.
-const choices = target.map((letter) =>
-  (Object.keys(glyphs) as Glyph[]).filter((other) => glyphs[other].width <= glyphs[letter].width),
-)
+const choices = target.map((letter) => word.filter((other) => glyphWidth(other) <= glyphWidth(letter)))
 const pick = (index: number) => choices[index][Math.floor(Math.random() * choices[index].length)]
 
 export function AnimatedWordmark(props: { active: boolean }) {
@@ -51,22 +49,17 @@ export function AnimatedWordmark(props: { active: boolean }) {
   onCleanup(() => timers.forEach(clearTimeout))
 
   return (
-    <svg class="settings-about-wordmark" viewBox="0 0 159 36" aria-hidden="true">
+    <svg
+      class="settings-about-wordmark"
+      viewBox={`0 0 ${wordWidth} 10`}
+      shape-rendering="crispEdges"
+      aria-hidden="true"
+    >
       <For each={state.letters}>
-        {(letter, index) => {
-          const glyph = glyphs[letter]
+        {(letter, index) => (
           // Centred in its slot while it scrambles; a settled letter fills the slot exactly.
-          const x = offsets[index()] + (glyphs[target[index()]].width - glyph.width) / 2
-          return (
-            <path
-              d={glyph.trace}
-              transform={`translate(${x} 0)`}
-              fill="none"
-              stroke="currentColor"
-              stroke-width={stroke}
-            />
-          )
-        }}
+          <path d={glyphPath(letter, offsets[index()] + (glyphWidth(target[index()]) - glyphWidth(letter)) / 2)} />
+        )}
       </For>
     </svg>
   )

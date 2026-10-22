@@ -45,6 +45,13 @@ export function NewSessionView(props: {
     { used: false },
   )
 
+  // Caimex Desktop: the robot beside the wordmark watches the composer.
+  const mood = () => {
+    if (props.composer.state.drag === "active") return "surprised" as const
+    if (props.composer.value().trim() || props.composer.attachments().length > 0) return "thinking" as const
+    return "idle" as const
+  }
+
   const select = (value: string) => {
     props.workspace.selection.set(value)
 
@@ -63,7 +70,7 @@ export function NewSessionView(props: {
         />
         <div class="absolute inset-x-0 top-[25.375%] flex justify-center px-6">
           <div class={NEW_SESSION_CONTENT_WIDTH}>
-            <NewSessionWordmark />
+            <NewSessionWordmark mood={mood()} />
             <div class="mt-8 flex flex-col gap-8">
               <Composer model={props.composer} />
               <Show when={props.project.empty()}>

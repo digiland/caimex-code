@@ -1,6 +1,7 @@
 import { Prompt, type PromptRef } from "../component/prompt"
 import { createEffect, createMemo, createSignal, onMount, Show, untrack } from "solid-js"
 import { Logo } from "../component/logo"
+import type { Face } from "../logo"
 import { useArgs } from "../context/args"
 import { useRouteData } from "../context/route"
 import { usePromptRef } from "../context/prompt"
@@ -33,6 +34,13 @@ export function Home() {
   const location = useLocation()
   const dimensions = useTerminalDimensions()
   const [logoWidth, setLogoWidth] = createSignal(0)
+  // Caimex: the robot beside the logo watches the prompt.
+  const mood = (): Face => {
+    if (forms().length > 0) return "surprised"
+    const prompt = ref()
+    if (prompt?.mode === "shell") return "wink"
+    return prompt?.current.text.trim() ? "thinking" : "idle"
+  }
   // Global MCP elicitations can arrive without a session route, so keep them reachable from Home.
   const currentLocation = () => route.location ?? data.location.default()
   const forms = createMemo(() => data.session.form.list("global", currentLocation()) ?? [])
@@ -94,7 +102,7 @@ export function Home() {
             setLogoWidth(this.width)
           }}
         >
-          <Logo />
+          <Logo mood={mood()} />
         </box>
         <box height={1} flexShrink={0} />
         <UpdateNotification width={logoWidth()} />

@@ -9,21 +9,27 @@ import { type Face, logo, robot } from "../logo"
 const visor = RGBA.fromHex("#0c1222")
 const glow = RGBA.fromHex("#50dcff")
 
-/** Now and then the robot blinks, smiles, winks or glances aside; a click surprises it. */
-function useFace() {
-  const [face, setFace] = createSignal<Face>("idle")
+/**
+ * Now and then the robot blinks, smiles, winks or glances aside; a click surprises it. `mood` is the
+ * face it rests on (what the screen around it is doing), and every passing look returns to it.
+ */
+function useFace(mood: () => Face) {
+  const [passing, setPassing] = createSignal<Face>()
+  const face = () => passing() ?? mood()
   const timers = new Set<ReturnType<typeof setTimeout>>()
   const show = (next: Face, ms: number) => {
-    setFace(next)
+    setPassing(next)
     const timer = setTimeout(() => {
       timers.delete(timer)
-      setFace("idle")
+      setPassing(undefined)
     }, ms)
     timers.add(timer)
   }
   let tick = 0
   const loop = setInterval(() => {
     tick += 1
+    // Busy looking at something: just blink.
+    if (mood() !== "idle") return show("blink", 150)
     if (tick % 7 === 0) return show("happy", 1400)
     if (tick % 11 === 0) return show("wink", 700)
     if (tick % 13 === 0) return show("thinking", 1600)
@@ -36,10 +42,10 @@ function useFace() {
   return { face, poke: () => show("surprised", 900) }
 }
 
-export function Logo() {
+export function Logo(props: { mood?: Face }) {
   const theme = useTheme()
   const dimensions = useTerminalDimensions()
-  const { face, poke } = useFace()
+  const { face, poke } = useFace(() => props.mood ?? "idle")
 
   // Brushed metal: the text colour at the top, fading toward muted at the bottom.
   const metal = (row: number) => tint(theme.text.muted, theme.text.base, 1 - row * 0.18)
