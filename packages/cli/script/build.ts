@@ -209,7 +209,8 @@ export default { path: file, version: ${JSON.stringify(opencodePty.version)}, sh
     process.exit(1)
   }
   verifySimulationGraph(simulationInputs)
-  await NativeArch.verify(path.join(outdir, name, "bin", item.os === "win32" ? `${binary}.exe` : binary), item.arch)
+  // Caimex: the binary is written as `command` (see outfile above), not upstream's `opencode`.
+  await NativeArch.verify(path.join(outdir, name, "bin", item.os === "win32" ? `${command}.exe` : command), item.arch)
 
   await Bun.write(
     path.join(outdir, name, "package.json"),
