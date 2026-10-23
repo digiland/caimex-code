@@ -1,0 +1,5 @@
+# Staged by scripts/stage.ts for packaging.
+resources/caimex-cli-*
+resources/plugins/
+dist/
+out/

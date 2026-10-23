@@ -3,7 +3,12 @@
 # releases/latest/download/install.sh), then publishes the `caimex` npm package
 # with trusted publishing (no token). Built from packages/cli, the 2.x CLI.
 #
-# Trigger: push a tag like v1.0.0, or run manually with a version input.
+# The same release carries Caimex Code, the Mac app (packages/caimex-code-app): see
+# the desktop job. Installed copies update themselves from it.
+#
+# Trigger: push a tag like v1.0.0, or run manually with a version input. A manual run
+# with desktop_only builds just the Mac app and keeps it as a workflow artifact — a dry
+# run that publishes nothing.
 #
 # Upstream OpenCode workflows are parked in .github/workflows-upstream/ — they
 # assume upstream's secrets, bots, and npm packages and must not run here.
@@ -17,6 +22,10 @@ on:
       version:
         description: "Version to release, without the v prefix (e.g. 1.0.0)"
         required: true
+      desktop_only:
+        description: "Only build the Mac app, as a workflow artifact (publishes nothing)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -25,6 +34,7 @@ concurrency: release-caimex
 
 jobs:
   release:
+    if: ${{ !inputs.desktop_only }}
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -119,3 +129,83 @@ jobs:
           else
             npm publish --access public
           fi
+
+  # Caimex Code for Macs (Apple silicon and Intel). It carries its own copy of the CLI,
+  # built here from the same commit and version, so the app and the CLI in a release
+  # always match.
+  #
+  # Signing comes from the repo's Apple settings: secrets APPLE_CERTIFICATE (a
+  # base64 Developer ID .p12), APPLE_CERTIFICATE_PASSWORD and APPLE_APP_SPECIFIC_PASSWORD;
+  # variables APPLE_ID and APPLE_TEAM_ID. With all of them the app is signed and
+  # notarized. Without them it still builds, unsigned: it opens on the Mac that
+  # built it, but other Macs warn before opening it, and it can't update itself.
+  desktop:
+    needs: release
+    # Runs after a release, or alone on a desktop_only dry run (when release is skipped).
+    if: ${{ always() && (needs.release.result == 'success' || needs.release.result == 'skipped') }}
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.2"
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - run: bun install
+
+      # One build per architecture, each in its own folder: build.ts clears its output.
+      - name: Build the CLI for both Macs
+        working-directory: packages/cli
+        env:
+          OPENCODE_VERSION: ${{ steps.version.outputs.version }}
+          OPENCODE_CHANNEL: latest
+        run: |
+          bun run script/build.ts --target=opencode-darwin-arm64 --outdir=dist-mac-arm64
+          bun run script/build.ts --target=opencode-darwin-x64 --outdir=dist-mac-x64 --skip-install
+
+      # The app's version is what installed copies compare against when updating.
+      - name: Stage and build the app
+        working-directory: packages/caimex-code-app
+        run: |
+          npm pkg set version="${{ steps.version.outputs.version }}"
+          bun run stage
+          bun run build
+
+      - name: Package
+        working-directory: packages/caimex-code-app
+        timeout-minutes: 60
+        env:
+          CSC_LINK: ${{ secrets.APPLE_CERTIFICATE }}
+          CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ vars.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: npx electron-builder --mac --arm64 --x64 --config electron-builder.config.ts --publish never
+
+      # latest-mac.yml is the update feed: installed copies read it from the latest release.
+      - name: Attach to the release
+        if: ${{ !inputs.desktop_only }}
+        working-directory: packages/caimex-code-app/dist
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "v${{ steps.version.outputs.version }}" *.dmg *.zip *.blockmap latest-mac.yml --clobber
+
+      - name: Keep the build (dry run)
+        if: ${{ inputs.desktop_only }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: caimex-code-mac-${{ steps.version.outputs.version }}
+          path: |
+            packages/caimex-code-app/dist/*.dmg
+            packages/caimex-code-app/dist/*.zip
+            packages/caimex-code-app/dist/latest-mac.yml
+          if-no-files-found: error

@@ -1,0 +1,62 @@
+import { execFile } from "node:child_process"
+import { existsSync } from "node:fs"
+import { homedir } from "node:os"
+import { join } from "node:path"
+import { promisify } from "node:util"
+import { app } from "electron"
+
+const exec = promisify(execFile)
+
+export type Connection =
+  | { ok: true; url: string; username: string; password: string }
+  | { ok: false; error: string }
+
+// The daemon is the v2 CLI built from this repo (packages/cli). A packaged app carries
+// its own copy, built from the same release (see electron-builder.config.ts); a dev run
+// uses the installed CLI. Either way `service start` reaches the one background daemon,
+// so the app, the CLI and Caimex Desktop share its sessions.
+function binary() {
+  const override = process.env.CAIMEX_CLI_PATH
+  if (override) return override
+  if (app.isPackaged) return join(process.resourcesPath, "caimex-cli")
+  return join(homedir(), ".local", "bin", "caimex")
+}
+
+async function run(path: string, args: string[]) {
+  const { stdout } = await exec(path, args, { windowsHide: true, timeout: 30_000 })
+  return stdout.trim()
+}
+
+// This fork's CLI spells it `service password`; upstream's published one groups it
+// under `service get`.
+async function password(path: string) {
+  for (const args of [["service", "password"], ["service", "get", "password"]]) {
+    const value = await run(path, args).catch(() => "")
+    if (value) return value
+  }
+  throw new Error("The daemon did not return a password")
+}
+
+// Stops the daemon so it rereads its config (plugins) on the next start. Every client's
+// running work stops with it. The caller reconnects, which starts it again.
+export async function stop() {
+  const path = binary()
+  const { stdout } = await exec(path, ["service", "stop"], { windowsHide: true, timeout: 90_000 })
+  return stdout.trim()
+}
+
+export async function connect(): Promise<Connection> {
+  const path = binary()
+  if (!existsSync(path))
+    return {
+      ok: false,
+      error: `Daemon binary not found at ${path}. Install the Caimex CLI, or set CAIMEX_CLI_PATH to it.`,
+    }
+  try {
+    const url = (await run(path, ["service", "start"])).split(/\s+/).find((part) => part.startsWith("http"))
+    if (!url) throw new Error("`service start` did not print a URL")
+    return { ok: true, url: url.replace(/\/$/, ""), username: "opencode", password: await password(path) }
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+  }
+}

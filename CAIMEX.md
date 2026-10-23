@@ -117,6 +117,33 @@ Tag `vX.Y.Z` on this branch and push it. The workflow builds every target, creat
 release (archives, `SHA256SUMS`, `install.sh`) and publishes `npm/caimex` at that version.
 Both must ship together: the npm package downloads its binary from the release.
 
+The same run builds Caimex Code, the Mac app (`packages/caimex-code-app`), for Apple
+silicon and Intel, and attaches `caimex-code-mac-{arm64,x64}.{dmg,zip}` and
+`latest-mac.yml` to that release. The app carries a CLI built from the same commit, plus
+the work-modes and voice plugins, which it registers on first launch. Installed copies
+update themselves from the latest release's `latest-mac.yml`.
+
+Signing needs these repo settings. Without them the app still builds, but unsigned: other
+Macs warn before opening it, and it can't update itself.
+
+| Setting | Kind | What |
+| --- | --- | --- |
+| `APPLE_CERTIFICATE` | secret | Developer ID Application certificate, `.p12`, base64 |
+| `APPLE_CERTIFICATE_PASSWORD` | secret | that `.p12`'s password |
+| `APPLE_APP_SPECIFIC_PASSWORD` | secret | for notarization |
+| `APPLE_ID`, `APPLE_TEAM_ID` | variables | the Apple account that notarizes |
+
+To try the app build without releasing anything, run the workflow by hand with
+`desktop_only` checked: the installers come back as a workflow artifact. Locally:
+
+```bash
+cd packages/cli    # one CLI per architecture, each in its own folder
+bun run script/build.ts --target=opencode-darwin-arm64 --outdir=dist-mac-arm64
+bun run script/build.ts --target=opencode-darwin-x64 --outdir=dist-mac-x64 --skip-install
+cd ../caimex-code-app
+bun run package    # stages the CLI and plugins, then builds unsigned installers in dist/
+```
+
 ## Syncing with upstream
 
 `git fetch upstream && git merge upstream/dev` onto `caimex-v2`, then the checklist in

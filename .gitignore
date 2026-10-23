@@ -12,6 +12,7 @@ playground
 tmp
 dist
 dist-node
+dist-mac-*
 ts-dist
 .turbo
 .typecheck-profiles

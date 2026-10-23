@@ -9,6 +9,7 @@
     "./rpc": "./rpc.ts"
   },
   "scripts": {
+    "build": "bun build server.ts --target bun --outfile dist/index.js",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

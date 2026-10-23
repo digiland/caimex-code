@@ -1,0 +1,36 @@
+{
+  "name": "@caimex/code-app",
+  "private": true,
+  "version": "0.1.0",
+  "productName": "Caimex Code",
+  "description": "Caimex Code desktop app, a client for the Caimex Code v2 daemon",
+  "type": "module",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "typecheck": "tsc -b",
+    "stage": "bun ./scripts/stage.ts",
+    "package": "bun run stage && electron-vite build && electron-builder --mac --arm64 --x64 --config electron-builder.config.ts --publish never"
+  },
+  "devDependencies": {
+    "@opencode/ui": "workspace:*",
+    "@tailwindcss/vite": "catalog:",
+    "typescript": "catalog:",
+    "app-builder-lib": "26.15.7",
+    "devtools-protocol": "0.0.1687809",
+    "dompurify": "catalog:",
+    "electron": "44.4.5",
+    "electron-builder": "26.15.7",
+    "electron-updater": "6.8.9",
+    "electron-vite": "^5",
+    "ghostty-web": "github:anomalyco/ghostty-web#83c0a07b8628b748aed073b232cb4b52a6ca11c1",
+    "jsonc-parser": "3.3.1",
+    "marked": "catalog:",
+    "shiki": "catalog:",
+    "solid-js": "catalog:",
+    "tailwindcss": "catalog:",
+    "vite": "catalog:",
+    "vite-plugin-solid": "catalog:"
+  }
+}
