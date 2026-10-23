@@ -340,6 +340,15 @@ it.effect("auto compaction estimates current content against the buffered prompt
     expect(yield* due(input(83_999, outputLimited))).toBe(false)
     expect(yield* due(input(84_000, outputLimited))).toBe(true)
 
+    // A buffer that leaves the model no room, such as one set for a larger model, falls back to the default reserve.
+    yield* Effect.scoped(
+      Effect.gen(function* () {
+        yield* compaction.transform((editor) => editor.configure({ buffer: 100_000 }))
+        expect(yield* due(input(60_000, contextLimited))).toBe(false)
+        expect(yield* due(input(84_000, contextLimited))).toBe(true)
+      }),
+    )
+
     const assistant = input(89_000, contextLimited).messages[0]
     const tool = SessionMessage.AssistantTool.make({
       type: "tool",
@@ -722,14 +731,17 @@ it.effect("compaction lowers the output limit when it sends a request it could n
   Effect.gen(function* () {
     requests = []
     const session = yield* insertSession(Session.ID.make("ses_unshrinkable_compaction"))
-    // One exchange estimated at 250k tokens, past the 200k window, so no older exchange can be dropped.
+    // A previous summary estimated at 250k tokens, past the 200k window; it always stays whole.
     const messages = [
-      SessionMessage.User.make({
+      SessionMessage.CompactionCompleted.make({
         id: SessionMessage.ID.create(),
-        type: "user",
-        text: "x".repeat(1_000_000),
+        type: "compaction",
+        status: "completed",
+        reason: "manual",
+        summary: "x".repeat(1_000_000),
         time: { created: DateTime.makeUnsafe(0) },
       }),
+      textUser("Next question"),
     ]
 
     expect(yield* compactManually(session, messages)).toEqual({ status: "completed" })
