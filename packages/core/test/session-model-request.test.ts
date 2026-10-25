@@ -205,17 +205,34 @@ describe("SessionModelRequest.boundImages", () => {
 
   test("keeps the replaced prefix stable as new images arrive, so the prompt cache survives", () => {
     const image = (name: string) =>
-      Message.user({ type: "media", media: Media.base64("a".repeat(3 * 1024 * 1024), "image/png"), filename: name })
+      Message.user({ type: "media", media: Media.base64("a".repeat(1024 * 1024), "image/png"), filename: name })
     const removed = (messages: ReturnType<typeof boundImages>) =>
       messages.filter((message) => message.content[0]?.type === "text").length
-    const history = Array.from({ length: 9 }, (_, i) => image(`${i}.png`))
+    const history = Array.from({ length: 10 }, (_, i) => image(`${i}.png`))
 
-    // 27 MiB passes the 25 MiB trigger: the oldest four go, leaving 15 MiB.
-    expect(removed(boundImages(history))).toBe(4)
+    // Caimex: 1 MiB images against a 6 MiB trigger and 4 MiB target. Ten images: six go, four stay.
+    expect(removed(boundImages(history))).toBe(6)
     // Each later image used to move the cut by one; now the cut holds until the kept payload passes the trigger again.
-    expect(removed(boundImages([...history, image("9.png")]))).toBe(4)
-    expect(removed(boundImages([...history, image("9.png"), image("10.png"), image("11.png")]))).toBe(4)
-    expect(removed(boundImages([...history, ...Array.from({ length: 4 }, (_, i) => image(`${9 + i}.png`))]))).toBe(8)
+    expect(removed(boundImages([...history, image("10.png")]))).toBe(6)
+    expect(removed(boundImages([...history, image("10.png"), image("11.png")]))).toBe(6)
+    expect(removed(boundImages([...history, image("10.png"), image("11.png"), image("12.png")]))).toBe(9)
+  })
+
+  // Caimex: twelve ~0.9 MB screenshots from a browsing session sent 10.5 MB of images on every turn,
+  // over the gateway's 10 MB limit (HTTP 413). Now the oldest go and the rest stay well under it.
+  test("keeps a session of screenshots under the gateway's request limit", () => {
+    const shots = Array.from({ length: 12 }, (_, i) =>
+      Message.user({ type: "media", media: Media.base64("a".repeat(900 * 1024), "image/png"), filename: `${i}.png` }),
+    )
+    const result = boundImages(shots)
+    const kept = result.filter((message) => message.content[0]?.type === "media").length
+    expect(kept * 900 * 1024).toBeLessThanOrEqual(6 * 1024 * 1024)
+    expect(result.at(-1)).toBe(shots.at(-1))
+  })
+
+  test("still sends a single image larger than the budget", () => {
+    const big = Message.user({ type: "media", media: Media.base64("a".repeat(8 * 1024 * 1024), "image/png") })
+    expect(boundImages([big])).toEqual([big])
   })
 
   test("replaces images nested in tool results", () => {

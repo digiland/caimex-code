@@ -73,6 +73,11 @@ const signInMessage = (connected: boolean) =>
     ? `Your Caimex sign-in has expired or was revoked. Run \`${LOGIN_COMMAND}\` to sign in again (in the desktop app: ${DESKTOP_SIGN_IN}), then retry.`
     : `You're not signed in to Caimex. Run \`${LOGIN_COMMAND}\` to sign in (in the desktop app: ${DESKTOP_SIGN_IN}), then retry.`
 
+// What a too-large request (HTTP 413) says instead of a proxy's HTML page. Every request re-sends
+// the whole conversation, so it fails every turn until the conversation shrinks.
+const TOO_LARGE_MESSAGE =
+  "This conversation is too large to send to Caimex. Run /compact (in the desktop app: Compact) to summarise it, or start a new session."
+
 const Device = Schema.Struct({
   device_code: Schema.String,
   user_code: Schema.String,
@@ -272,11 +277,19 @@ export const CaimexPlugin = define<HttpClient.HttpClient | Bus.Service | Scope.S
     )
 
     // A refused request (401: no key, or one the gateway no longer accepts) reads as
-    // "Invalid authorization header"; say how to sign in instead.
+    // "Invalid authorization header"; say how to sign in instead. A request too large for
+    // the gateway's front door (413) arrives as an nginx HTML page; say how to shrink it.
     yield* ctx.session.hook(
       "http.response",
       (event) =>
         Effect.gen(function* () {
+          if (event.response.status === 413) {
+            event.response = Response.json(
+              { error: { message: TOO_LARGE_MESSAGE, type: "invalid_request_error", code: "request_too_large" } },
+              { status: 413, statusText: event.response.statusText },
+            )
+            return
+          }
           if (event.response.status !== 401) return
           const connected = (yield* ctx.integration.connection.active(INTEGRATION_ID)) !== undefined
           event.response = Response.json(

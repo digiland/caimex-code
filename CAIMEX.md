@@ -27,6 +27,8 @@ upstream merges stay easy.
   - **Errors:** a 401 from the gateway (signed out, or a revoked key) is replaced in an
     `http.response` hook with "You're not signed in to Caimex. Run `caimex auth login`… (in the
     desktop app: Settings → Providers)".
+  - **Too large:** a 413 (the gateway's front door refuses requests over 10 MB) is replaced
+    with "This conversation is too large to send… Run /compact…" instead of nginx's HTML page.
   - **Tool support:** a model the gateway doesn't tag `tools` (`capability_tags`) stays
     out of the picker: every agent request carries tools and the gateway refuses such a
     model. Explicit `tool_call`/`supports_tools` win; no tags at all means capable.
@@ -35,6 +37,9 @@ upstream merges stay easy.
     prompt doesn't fail with "Model unavailable".
   - `cli/src/commands/handlers/models.ts` waits up to 5s for Caimex models on a service
     that has just started.
+- `packages/core/src/session/model-request.ts`: images re-sent with the history are capped at
+  6 MiB (cut back to 4) instead of upstream's 25 (15), and the newest is never dropped. Every
+  turn re-sends the whole history, so a session of screenshots passed the gateway's 10 MB limit.
 - `packages/core/src/plugin/provider/opencode.ts`: OpenCode Zen's free tier stays hidden
   (no parked "public" key, every opencode model disabled without one). Its tests in
   `test/plugin/provider-opencode.test.ts` assert that instead of upstream's behaviour.

@@ -39,8 +39,11 @@ import { SessionSystemPrompt } from "./system-prompt.js"
 import { toLLMMessages } from "./runner/to-llm-message.js"
 import type { SessionMessage } from "./message.js"
 
-const IMAGE_BYTES_TRIGGER = 25 * 1024 * 1024 // 25 MiB
-const IMAGE_BYTES_TARGET = 15 * 1024 * 1024 // 15 MiB
+// Caimex: upstream allows 25 MiB of images (cut back to 15). The Caimex gateway's front door refuses
+// requests over 10 MB, and every request re-sends the whole history, so a session of screenshots
+// failed every turn with HTTP 413. Images stay under 6 MiB, cut back to 4, leaving room for the text.
+const IMAGE_BYTES_TRIGGER = 6 * 1024 * 1024 // 6 MiB
+const IMAGE_BYTES_TARGET = 4 * 1024 * 1024 // 4 MiB
 const IMAGE_REMOVED =
   "[This image was removed to reduce the request size and is no longer visible. Do not make claims about its contents from memory. If needed, retrieve it again with an available tool or ask the user to attach it again.]"
 const GENERATION_KEYS = new Set(Object.keys(GenerationOptions.fields))
@@ -194,10 +197,11 @@ export const boundImages = (messages: LLMRequest["messages"]) => {
   // prefix, and with it the provider's prompt cache, stays the same between cuts.
   let cut = 0
   let kept = 0
-  for (const size of sizes) {
+  for (const [index, size] of sizes.entries()) {
     kept += size
     if (kept <= IMAGE_BYTES_TRIGGER) continue
-    while (kept > IMAGE_BYTES_TARGET) kept -= sizes[cut++]!
+    // Caimex: never the image just added, so one large screenshot still reaches the model.
+    while (kept > IMAGE_BYTES_TARGET && cut < index) kept -= sizes[cut++]!
   }
   if (cut === 0) return messages
 
