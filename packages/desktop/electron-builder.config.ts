@@ -1,28 +1,12 @@
-import { execFile } from "node:child_process"
 import { readdir, stat } from "node:fs/promises"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
-import { promisify } from "node:util"
 
-import type { CustomMacSignOptions } from "app-builder-lib"
 import { Arch, type Configuration } from "electron-builder"
 import { NativeArch } from "../../script/native-arch"
-import { CLI_BINARIES, getCurrentCli, nodePtyPackage } from "./scripts/utils"
-
-const execFileAsync = promisify(execFile)
+import { CLI_BINARIES, getCurrentCli, nodePtyPackage } from "./script/utils"
 
 const packageDir = path.dirname(fileURLToPath(import.meta.url))
-
-const rootDir = path.resolve(packageDir, "../..")
-
-const signScript = path.join(rootDir, "script", "sign-windows.ps1")
-
-// The Electron 42 packaging update briefly installed Linux launchers/icons under
-// "opencode-desktop". Keep that hidden desktop entry around so existing GNOME/KDE
-// pins still resolve after the canonical app id changes back to ai.opencode.desktop.
-const legacyDesktopEntry = path.join(packageDir, "resources", "linux", "opencode-desktop.desktop")
-
-const legacyDesktopEntryFpm = `${legacyDesktopEntry}=/usr/share/applications/opencode-desktop.desktop`
 
 // rpmbuild adds /usr/lib/.build-id links for every ELF file. The bundled Electron
 // binaries are byte-identical across apps on the same Electron version, so those
@@ -34,31 +18,9 @@ const rpmNoBuildIdLinksFpm = "--rpm-rpmbuild-define=_build_id_links none"
 const metainfoFpm = (appId: string) =>
   `${path.join(packageDir, "resources", `${appId}.metainfo.xml`)}=/usr/share/metainfo/${appId}.metainfo.xml`
 
-async function signWindows(configuration: { path: string }) {
-  if (process.platform !== "win32") return
-
-  if (process.env.GITHUB_ACTIONS !== "true") return
-
-  await execFileAsync(
-    "pwsh",
-    ["-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", signScript, configuration.path],
-    { cwd: rootDir, windowsHide: true },
-  )
-}
-
-function macSignOptions(options: CustomMacSignOptions): CustomMacSignOptions {
-  return {
-    ...options,
-    optionsForFile: (file) => {
-      const defaults = options.optionsForFile?.(file)
-
-      if (file !== path.join(options.app, "Contents/Resources/opencode-cli")) return defaults ?? {}
-
-      // The Bun CLI loads bun-pty's native library; Electron and its helpers do not need this exception.
-      return { ...defaults, entitlements: path.join(packageDir, "resources/entitlements.cli.plist") }
-    },
-  }
-}
+// Dev and beta package every commit, so they trade about 5% (deb) and 17% (rpm) larger files for xz -1, which
+// compresses the payload about 3x faster than the deb default (-3) and 5x faster than the rpm default (-9).
+const previewCompressionFpm = (target: "deb" | "rpm") => [`--${target}-compression-level`, "1"]
 
 function resolveChannel() {
   const raw = process.env.OPENCODE_CHANNEL
@@ -92,6 +54,7 @@ function linuxExecutableName(appId: string): string {
 
 const getBase = (appId: string): Configuration => {
   const target = getCurrentCli()
+  const desktopName = `${appId}.desktop`
 
   return {
     artifactName: "caimex-desktop-${os}-${arch}.${ext}",
@@ -104,9 +67,10 @@ const getBase = (appId: string): Configuration => {
     // "ai.opencode.desktop.desktop".
     // https://developer.gnome.org/documentation/guidelines/maintainer/integrating.html
     // https://www.electron.build/docs/linux/
-    extraMetadata: {
-      desktopName: `${appId}.desktop`,
-    },
+    // Release builds take their version from OPENCODE_VERSION instead of rewriting package.json.
+    extraMetadata: process.env.OPENCODE_VERSION
+      ? { desktopName, version: process.env.OPENCODE_VERSION }
+      : { desktopName },
     files: [
       "out/**/*",
       "resources/**/*",
@@ -140,7 +104,7 @@ const getBase = (appId: string): Configuration => {
     afterPack: async (context) => {
       const arch = Arch[context.arch]
 
-      // The --arm64 flag picks Electron while OPENCODE_CLI_TARGET picks the CLI and node-pty, so they can disagree.
+      // The --arm64 flag picks Electron while OPENCODE_TARGET picks the CLI and node-pty, so they can disagree.
       if (arch !== "x64" && arch !== "arm64") throw new Error(`Unsupported desktop architecture: ${arch}`)
 
       if (arch !== target.cpu) throw new Error(`Packaging ${arch} Electron with the ${target.target} CLI`)
@@ -188,14 +152,6 @@ const getBase = (appId: string): Configuration => {
         // Caimex Desktop: voice.
         NSMicrophoneUsageDescription: "Caimex Desktop listens when you turn on voice, to hear what you say to your session.",
       },
-      hardenedRuntime: true,
-      gatekeeperAssess: false,
-      entitlements: "resources/entitlements.plist",
-      entitlementsInherit: "resources/entitlements.plist",
-      sign: async (options) => {
-        const { sign } = await import("app-builder-lib/out/codeSign/macCodeSign")
-        await sign(macSignOptions(options))
-      },
       // Caimex Desktop: unsigned until signing is set up.
       notarize: false,
       target: ["dmg", "zip"],
@@ -203,9 +159,6 @@ const getBase = (appId: string): Configuration => {
     // Caimex Desktop: no URL scheme (opencode:// is OpenCode's).
     win: {
       icon: `resources/icons/icon.ico`,
-      signtoolOptions: {
-        sign: signWindows,
-      },
       target: ["nsis"],
       verifyUpdateCodeSignature: false,
     },
@@ -246,8 +199,12 @@ export function getConfig() {
     ...base,
     appId,
     productName: names[channel],
-    deb: { fpm: [metainfoFpm(appId)] },
-    rpm: { packageName: packages[channel], fpm: [rpmNoBuildIdLinksFpm, metainfoFpm(appId)] },
+    // Dev and beta trade some size for faster packaging (see previewCompressionFpm).
+    deb: { fpm: [...(channel === "prod" ? [] : previewCompressionFpm("deb")), metainfoFpm(appId)] },
+    rpm: {
+      packageName: packages[channel],
+      fpm: [rpmNoBuildIdLinksFpm, ...(channel === "prod" ? [] : previewCompressionFpm("rpm")), metainfoFpm(appId)],
+    },
   }
 }
 

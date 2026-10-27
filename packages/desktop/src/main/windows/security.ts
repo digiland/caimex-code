@@ -14,6 +14,19 @@ const isMicrophoneOnly = (permission: string, details: { mediaTypes?: readonly s
 export function allowRendererPermissions(win: BrowserWindow) {
   const webContentsId = win.webContents.id
   win.webContents.session.setPermissionRequestHandler((webContents, permission, callback, details) => {
+    if (permission === "media") {
+      callback(
+        webContents.id === webContentsId &&
+          isRendererUrl(details.requestingUrl) &&
+          details.isMainFrame &&
+          "mediaTypes" in details &&
+          !!details.mediaTypes?.length &&
+          details.mediaTypes.every((type) => type === "audio"),
+      )
+
+      return
+    }
+
     callback(
       (rendererPermissions.has(permission) || isMicrophoneOnly(permission, details as never)) &&
         isRendererUrl(details.requestingUrl) &&
@@ -21,7 +34,17 @@ export function allowRendererPermissions(win: BrowserWindow) {
     )
   })
   win.webContents.session.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
+    if (permission === "media") {
+      return (
+        webContents?.id === webContentsId &&
+        isRendererUrl(details.requestingUrl) &&
+        details.isMainFrame &&
+        details.mediaType === "audio"
+      )
+    }
+
     if (!rendererPermissions.has(permission) && !isMicrophoneOnly(permission, details as never)) return false
+
     if (webContents && webContents.id !== webContentsId) return false
 
     return isRendererUrl(details.requestingUrl) || isRendererUrl(requestingOrigin)
