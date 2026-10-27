@@ -3,7 +3,7 @@ import type { Plugin } from "@opencode/plugin"
 // Speech through the Caimex gateway, with the Caimex sign-in the daemon already holds; the
 // key never leaves the daemon. Same endpoints as the CAIMEx mobile apps
 // (caimex-mobile/PROTOCOL.md): /v1/audio/transcriptions and /v1/audio/speech.
-const DEFAULT_API_BASE_URL = "https://caimex.econetai.co.zw:2052/v1"
+const DEFAULT_API_BASE_URL = "https://api.caimex.ai/v1"
 const apiBase = () => (process.env["CAIMEX_API_BASE_URL"] ?? DEFAULT_API_BASE_URL).replace(/\/+$/, "")
 // The gateway identifies Caimex Code clients by this User-Agent.
 const USER_AGENT = "caimex-code"

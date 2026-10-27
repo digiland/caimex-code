@@ -6,7 +6,7 @@ Guidance for Claude Code (and other agents) working on **Caimex Code 2.x**.
 
 A fork of [OpenCode](https://github.com/anomalyco/opencode) (MIT) on its **2.x line**,
 routing every model call through the **Caimex gateway** (OpenAI-compatible, default
-`https://caimex.econetai.co.zw:2052/v1`). One branch builds both:
+`https://api.caimex.ai/v1`; sign-in on `https://caimex.ai`). One branch builds both:
 
 - the **`caimex` CLI** (`packages/cli`, TUI in `packages/tui`), released to GitHub
   Releases and npm as `caimex`;

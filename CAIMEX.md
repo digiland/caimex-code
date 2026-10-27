@@ -14,6 +14,11 @@ upstream merges stay easy.
 - `packages/core/src/plugin/provider/caimex.ts` (+ registration in `provider.ts`): the
   gateway provider: device sign-in, key and env methods, model discovery. It is
   activated without a connection, so Caimex is listed (and can be signed in to) first.
+  - **Addresses:** the API and device sign-in are `https://api.caimex.ai` (`/v1` for models
+    and chat); people approve the sign-in code on `https://caimex.ai/activate`. The gateway
+    still advertises `caimex.econetai.co.zw` in `verification_uri`, so that link is rewritten
+    (`normalizeLoginUrl`, tests in `core/test/plugin/provider-caimex.test.ts`). The voice
+    plugin (`caimex-voice/src/gateway.ts`) uses the same API address.
   - **Model list:** the User-Agent is `caimex-code/<version>`. The gateway needs the
     slash to treat the caller as the CLI (`_is_cli_user_agent` in the gateway's
     `app/gateway/model_access.py`). It then lists only the models an admin enabled

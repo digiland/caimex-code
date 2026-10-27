@@ -16,8 +16,8 @@ import type { PluginInternal } from "../internal.js"
 // (digiland/caimex-code, packages/core/src/plugin/provider/caimex.ts); the gateway
 // behaviour it encodes (URLs, the login origin fix, the User-Agent the model list is
 // filtered on, the key names the token comes back under) must stay the same in both.
-const DEFAULT_GATEWAY_URL = "https://caimex.econetai.co.zw:2052"
-const DEFAULT_API_BASE_URL = "https://caimex.econetai.co.zw:2052/v1"
+const DEFAULT_GATEWAY_URL = "https://api.caimex.ai"
+const DEFAULT_API_BASE_URL = "https://api.caimex.ai/v1"
 const CLIENT_ID = "caimex-code"
 const SCOPE = "gateway"
 const DEVICE_CODE_GRANT_TYPE = "urn:ietf:params:oauth:grant-type:device_code"
@@ -26,11 +26,11 @@ export const PROVIDER_ID = "caimex"
 const INTEGRATION_ID = Integration.ID.make("caimex")
 const METHOD_ID = Integration.MethodID.make("device")
 
-// The sign-in page serves on the canonical origin (443) while the gateway still
-// advertises the retired :2082 in `verification_uri`; the browser URL is pinned to this
-// origin, keeping the gateway's path and query. CAIMEX_LOGIN_URL overrides it.
-const DEFAULT_LOGIN_URL = "https://caimex.econetai.co.zw"
-const DEFAULT_LOGIN_HOSTNAME = "caimex.econetai.co.zw"
+// Sign-in happens on caimex.ai, but the gateway still advertises its old host in
+// `verification_uri`; the browser URL is pinned to this origin, keeping the gateway's path
+// and query (`/activate?code=…`). CAIMEX_LOGIN_URL overrides it.
+const DEFAULT_LOGIN_URL = "https://caimex.ai"
+const ADVERTISED_LOGIN_HOSTNAMES = new Set(["caimex.econetai.co.zw", "caimex.ai"])
 
 const stripSlash = (value: string) => value.replace(/\/+$/, "")
 const gatewayBase = () => stripSlash(process.env["CAIMEX_GATEWAY_URL"] ?? DEFAULT_GATEWAY_URL)
@@ -38,11 +38,11 @@ export const apiBase = () => stripSlash(process.env["CAIMEX_API_BASE_URL"] ?? DE
 const deviceCodeUrl = () => process.env["CAIMEX_DEVICE_CODE_URL"] ?? `${gatewayBase()}/api/auth/device/code`
 const deviceTokenUrl = () => process.env["CAIMEX_DEVICE_TOKEN_URL"] ?? `${gatewayBase()}/api/auth/device/token`
 
-const normalizeLoginUrl = (uri: string) => {
+export const normalizeLoginUrl = (uri: string) => {
   const override = process.env["CAIMEX_LOGIN_URL"]
   try {
     const url = new URL(uri)
-    if (!override && url.hostname !== DEFAULT_LOGIN_HOSTNAME) return uri
+    if (!override && !ADVERTISED_LOGIN_HOSTNAMES.has(url.hostname)) return uri
     const base = new URL(stripSlash(override ?? DEFAULT_LOGIN_URL))
     url.protocol = base.protocol
     url.hostname = base.hostname

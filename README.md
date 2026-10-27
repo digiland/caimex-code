@@ -54,11 +54,12 @@ left as they were.
 
 ### Gateway settings
 
-| Variable              | Default                                 |
-| --------------------- | --------------------------------------- |
-| `CAIMEX_API_BASE_URL` | `https://caimex.econetai.co.zw:2052/v1` |
-| `CAIMEX_GATEWAY_URL`  | the gateway origin (device sign-in)     |
-| `CAIMEX_API_KEY`      | a key, instead of `caimex auth login`   |
+| Variable              | Default                                         |
+| --------------------- | ----------------------------------------------- |
+| `CAIMEX_API_BASE_URL` | `https://api.caimex.ai/v1`                      |
+| `CAIMEX_GATEWAY_URL`  | `https://api.caimex.ai` (device sign-in)        |
+| `CAIMEX_LOGIN_URL`    | `https://caimex.ai` (the page you approve on)   |
+| `CAIMEX_API_KEY`      | a key, instead of `caimex auth login`           |
 
 ## Development
 
