@@ -1,11 +1,12 @@
 import { resolveChannel } from "./utils"
+import { APP_IDS, APP_NAMES, GITHUB_OWNER, GITHUB_REPO, HOMEPAGE } from "../src/branding"
 
 const arg = process.argv[2]
 const channel = arg === "dev" || arg === "beta" || arg === "prod" ? arg : resolveChannel()
 
-const appId = channel === "prod" ? "ai.opencode.desktop" : `ai.opencode.desktop.${channel}`
-const productName = channel === "prod" ? "OpenCode" : `OpenCode ${channel.charAt(0).toUpperCase() + channel.slice(1)}`
-const summary = `Open source AI coding agent${channel !== "prod" ? ` (${channel})` : ""}`
+const appId = APP_IDS[channel]
+const productName = APP_NAMES[channel]
+const summary = `AI coding agent for the Caimex gateway${channel !== "prod" ? ` (${channel})` : ""}`
 
 const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
@@ -17,13 +18,14 @@ const xml = `<?xml version="1.0" encoding="UTF-8"?>
   <name>${productName}</name>
   <summary>${summary}</summary>
 
-  <developer id="ly.anoma">
-    <name>Anomaly Innovations Inc.</name>
+  <developer id="${GITHUB_OWNER}">
+    <name>${GITHUB_OWNER}</name>
   </developer>
 
   <description>
     <p>
-      OpenCode is an open source agent that helps you write and run code with any AI model.
+      Caimex Code is an AI agent that helps you write and run code, with every model served through the Caimex gateway.
+      It is a fork of OpenCode and is not affiliated with the OpenCode team.
     </p>
   </description>
 
@@ -31,15 +33,9 @@ const xml = `<?xml version="1.0" encoding="UTF-8"?>
 
   <content_rating type="oars-1.1" />
 
-  <url type="bugtracker">https://github.com/anomalyco/opencode/issues</url>
-  <url type="homepage">https://opencode.ai</url>
-  <url type="vcs-browser">https://github.com/anomalyco/opencode</url>
-
-  <screenshots>
-    <screenshot type="default">
-      <image>https://raw.githubusercontent.com/anomalyco/opencode/b75d4d1c5ec449585d515c756fc81f080a157a9a/packages/web/src/assets/lander/screenshot.png</image>
-    </screenshot>
-  </screenshots>
+  <url type="bugtracker">https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/issues</url>
+  <url type="homepage">${HOMEPAGE}</url>
+  <url type="vcs-browser">https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}</url>
 </component>
 `
 

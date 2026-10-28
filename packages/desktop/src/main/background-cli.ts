@@ -5,11 +5,12 @@ import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { promisify } from "node:util"
 import { app } from "electron"
+import { APP_IDS } from "../branding"
 
 const execFileAsync = promisify(execFile)
 const root = dirname(fileURLToPath(import.meta.url))
 const stateHome = process.env.XDG_STATE_HOME
-const desktopStateNames = ["ai.opencode.desktop.dev", "ai.opencode.desktop.beta", "ai.opencode.desktop"]
+const desktopStateNames = [APP_IDS.dev, APP_IDS.beta, APP_IDS.prod]
 
 type Logger = {
   log(message: string, meta?: Record<string, unknown>): void

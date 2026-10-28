@@ -63,10 +63,19 @@ The ones that matter for this fork:
 - **`packages/llm`** — provider abstraction over the Vercel AI SDK, including
   first-class custom OpenAI-compatible provider support.
 - **`packages/tui`** — terminal UI.
+- **`packages/desktop`** — the **Caimex Code desktop app** (Electron). Its
+  backend is this repo's own server: `src/main/sidecar.ts` imports
+  `virtual:opencode-server`, which `electron.vite.config.ts` points at
+  `packages/opencode/dist/node` — so the gateway defaults, provider narrowing
+  and caimex plugin all carry over. Its identity (app ids, product names,
+  `caimex://` scheme, updater repo, WSL install) lives in
+  **`src/branding.ts`**; change it there, not inline.
+- **`packages/app`** — the SolidJS UI the desktop app renders. Its locale strings
+  are already rebranded; its code otherwise tracks upstream.
 - **`sdks/vscode`** — VS Code extension. **Not rebranded yet** — leave it unless
   explicitly asked.
-- `web`, `app`, `desktop`, `console`, `docs`, `storybook` — marketing site /
-  desktop app / web UI. **Not used by the CLI; do not rebrand these.**
+- `web`, `console`, `docs`, `storybook` — marketing site / hosted console.
+  **Not used by the CLI or desktop app; do not rebrand these.**
 
 ## ⚠️ Critical gotcha: there are TWO config systems
 
@@ -143,6 +152,8 @@ The intentional touch points, grouped by what they do:
   named `opencode` and `private` — see **Distribution**)
 - `packages/tui/src/attention.ts` — default title `caimex`
 - `packages/opencode/src/config/config.ts` — `caimex.json*` config names
+- `packages/desktop/src/branding.ts` — desktop app ids, names, `caimex://`
+  scheme, updater repo, WSL install (see **Desktop app** under Distribution)
 - Various `packages/tui/src/**` and `packages/opencode/src/cli/**` user-facing
   strings, plus `src/session/prompt/*.txt`
 
@@ -209,8 +220,6 @@ its committed value stays `0.0.0`).
   `install.sh`), then publishes `npm/caimex/` with provenance.
 - **No `NPM_TOKEN`.** Publishing uses npm **trusted publishing** over OIDC,
   configured on npmjs.com against `digiland/caimex-code` + `release-caimex.yml`.
-  The workflow's own header comment still says "when an NPM_TOKEN secret is
-  configured" — that is stale; the job uses no token.
 - **The npm package ships no binary.** It carries a placeholder at
   `bin/caimex.exe` and an `install.mjs` postinstall that downloads
   `caimex-<target>.<ext>` from the **GitHub Release of the same version** and
@@ -220,6 +229,27 @@ its committed value stays `0.0.0`).
   suffix and Unix does not care about the name, so one bin entry serves all.
 - Archive naming is duplicated in three places that must agree —
   `build-caimex.ts`, `install.sh`, and `npm/caimex/install.mjs`.
+
+### Desktop app
+
+The same tag also builds the desktop app (`desktop` + `desktop-publish` jobs in
+`release-caimex.yml`): `caimex-desktop-<os>-<arch>.{dmg,zip,exe,AppImage,deb,rpm}`
+plus the `latest*.yml` files electron-updater reads, all attached to that release.
+
+- **Only prod auto-updates**, from `digiland/caimex-code` releases. Dev and beta
+  publish no update metadata and have the updater off (`src/main/constants.ts`).
+- **Unsigned until signing secrets exist.** `electron-builder.config.ts` signs
+  and notarizes only when `CSC_LINK`/`CSC_KEYCHAIN` + `APPLE_API_KEY` (macOS) or
+  `AZURE_TRUSTED_SIGNING_ACCOUNT_NAME` (Windows) are set. Unsigned macOS builds
+  cannot auto-update (Squirrel.Mac requires a signature).
+- **Deep links:** the OS registers `caimex://`; `src/main/index.ts` rewrites it to
+  `opencode://` before the renderer parses it, so `packages/app` stays upstream's.
+- **WSL servers** install the CLI with this repo's `install.sh` pinned to the
+  app's version (`v<version>`), at `~/.local/bin/caimex`.
+- **Icons** (`packages/desktop/icons/{dev,beta,prod}`) are still upstream's
+  OpenCode artwork — replace them before a public desktop release.
+- Upstream's Tauri-era settings migration (`src/main/migrate.ts`) and internal
+  store names (`opencode.settings`, …) are deliberately left as upstream's.
 
 ## Licensing
 

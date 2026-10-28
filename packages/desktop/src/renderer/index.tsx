@@ -255,9 +255,9 @@ const createPlatform = (windowState: DesktopWindowState): Platform => {
       const focused = await window.api.getWindowFocused().catch(() => document.hasFocus())
       if (focused) return
 
+      // No remote icon: the OS falls back to the app's own icon.
       const notification = new Notification(title, {
         body: description ?? "",
-        icon: "https://opencode.ai/favicon-96x96-v3.png",
       })
       notification.onclick = () => {
         void window.api.showWindow()
