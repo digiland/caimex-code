@@ -61,9 +61,11 @@ upstream merges stay easy.
 - CLI and TUI strings (`packages/cli/src`, `packages/tui/src`), the TUI wordmark
   (`tui/src/logo.ts`, wider breakpoints in `component/logo.tsx`), crash reports go to
   our repo.
-- Desktop: names, app ids, icons, no URL scheme, microphone allowed (`packages/desktop`);
+- Desktop: names, app ids, icons (no Icon Composer `icon.icon`: upstream's is OpenCode's
+  artwork, so macOS uses the ICNS on every channel), no URL scheme, the folder-access
+  descriptions spelled out in `electron-builder.config.ts` (`packages/desktop`);
   the web wordmark (`packages/ui`, `packages/app/src/new-session`). The updater is off in
-  `packages/gui-extensions/src/updater/main.ts` (upstream's would install stock OpenCode).
+  `packages/gui-plugins/src/updater/main.ts` (upstream's would install stock OpenCode).
 
 **Coming from 1.x**
 - `packages/cli/src/database-path.ts` `adoptV1Database`, called from `server-process.ts`:
@@ -104,10 +106,10 @@ upstream merges stay easy.
 
 ## Running
 
-2.x needs Bun 1.4.2:
+2.x needs Bun 1.4.4:
 
 ```bash
-export PATH="$HOME/.bun-1.4.2/bin:$PATH"
+export PATH="$HOME/.bun-1.4.4/bin:$PATH"
 bun install
 bun run --cwd packages/cli dev              # CLI from source (channel "local")
 cd packages/desktop && bun run dev          # desktop, isolated local service

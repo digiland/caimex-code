@@ -437,6 +437,7 @@ const make = Effect.gen(function* () {
         "npm",
         "install",
         "--global",
+        `--allow-scripts=${packageName}`,
         ...((OPENCODE_ARTIFACT === "cli" && !installedPackage?.endsWith("/cli-node")) ||
         (installedPackage && packageName !== installedPackage)
           ? ["--force"]

@@ -1,4 +1,4 @@
-import { readdir, stat } from "node:fs/promises"
+import { copyFile, readdir, stat } from "node:fs/promises"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -119,6 +119,11 @@ const getBase = (appId: string): Configuration => {
 
       if ((await stat(version)).size === 0) throw new Error(`Bundled CLI version must be a non-empty file: ${version}`)
 
+      // With an Icon Composer mac.icon, electron-builder bundles the ICNS that actool generates as the pre-macOS 26
+      // fallback. That one tops out at 256px and draws a light ring around the squircle, so ship ours instead.
+      if (context.electronPlatformName === "darwin")
+        await copyFile(path.join(packageDir, "resources/icons/icon.icns"), path.join(resources, "icon.icns"))
+
       if (context.electronPlatformName !== "win32") return
 
       const prebuilds = path.join(
@@ -148,6 +153,19 @@ const getBase = (appId: string): Configuration => {
       category: "public.app-category.developer-tools",
       icon: `resources/icons/icon.icns`,
       extendInfo: {
+        // The CLI server and its terminals run as children of the app, so macOS asks for their access to
+        // these protected locations in the app's name. The prompt shows the description (#56479).
+        // Caimex Desktop: spelled out here, as upstream's table says OpenCode.
+        NSDocumentsFolderUsageDescription:
+          "Caimex Desktop uses files in your Documents folder for projects you open and commands you run there.",
+        NSDesktopFolderUsageDescription:
+          "Caimex Desktop uses files on your Desktop for projects you open and commands you run there.",
+        NSDownloadsFolderUsageDescription:
+          "Caimex Desktop uses files in your Downloads folder for projects you open and commands you run there.",
+        NSNetworkVolumesUsageDescription:
+          "Caimex Desktop uses files on network volumes for projects you open and commands you run there.",
+        NSRemovableVolumesUsageDescription:
+          "Caimex Desktop uses files on removable volumes for projects you open and commands you run there.",
         NSAutoFillRequiresTextContentTypeForOneTimeCodeOnMac: true,
         // Caimex Desktop: voice.
         NSMicrophoneUsageDescription: "Caimex Desktop listens when you turn on voice, to hear what you say to your session.",

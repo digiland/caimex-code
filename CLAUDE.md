@@ -38,14 +38,14 @@ Three docs, each with one job:
   in every clone.
 - Branch names: short, hyphenated, no `feat/` prefix (as `AGENTS.md`).
 
-## Runtime: Bun 1.4.2
+## Runtime: Bun 1.4.4
 
-The 2.x line needs Bun 1.4.2 exactly (`packageManager` in `package.json`; scripts
+The 2.x line needs Bun 1.4.4 exactly (`packageManager` in `package.json`; scripts
 refuse other versions). It is installed beside the system Bun, which stays 1.3.x for
 the 1.x repo:
 
 ```bash
-export PATH="$HOME/.bun-1.4.2/bin:$PATH"
+export PATH="$HOME/.bun-1.4.4/bin:$PATH"
 bun install
 ```
 

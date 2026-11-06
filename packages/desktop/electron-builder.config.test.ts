@@ -88,6 +88,25 @@ test("legacy Linux launcher stays hidden", async () => {
   expect(desktop).toContain("NoDisplay=true")
 })
 
+test.each(channels)("macOS bundle for $channel", ({ channel }) => {
+  const config = load(channel)
+  // Caimex Desktop: no Icon Composer package (upstream's is OpenCode's artwork), so every channel uses the ICNS.
+  expect(config.mac?.icon).toBe("resources/icons/icon.icns")
+  expect(config.dmg?.icon).toBeUndefined()
+  // The prod override must keep the rest of the shared macOS settings.
+  expect(config.mac?.target).toEqual(["dmg", "zip"])
+
+  for (const key of [
+    "NSMicrophoneUsageDescription",
+    "NSDocumentsFolderUsageDescription",
+    "NSDesktopFolderUsageDescription",
+    "NSDownloadsFolderUsageDescription",
+    "NSNetworkVolumesUsageDescription",
+    "NSRemovableVolumesUsageDescription",
+  ])
+    expect(config.mac?.extendInfo?.[key], key).toMatch(/\S/)
+})
+
 test("shared packaging defaults", async () => {
   const config = load("dev")
   // Packaging runs in secretless build jobs; the release workflow signs and notarizes afterwards.
