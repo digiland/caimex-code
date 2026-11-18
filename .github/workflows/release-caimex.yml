@@ -8,7 +8,7 @@
 #
 # Trigger: push a tag like v1.0.0, or run manually with a version input. A manual run
 # with desktop_only builds just the Mac app and keeps it as a workflow artifact — a dry
-# run that publishes nothing.
+# run that publishes nothing; cli_only releases the CLI and npm package without the Mac app.
 #
 # Upstream OpenCode workflows are parked in .github/workflows-upstream/ — they
 # assume upstream's secrets, bots, and npm packages and must not run here.
@@ -24,6 +24,10 @@ on:
         required: true
       desktop_only:
         description: "Only build the Mac app, as a workflow artifact (publishes nothing)"
+        type: boolean
+        default: false
+      cli_only:
+        description: "Release only the CLI (GitHub Release + npm), without the Mac app"
         type: boolean
         default: false
 
@@ -81,7 +85,8 @@ jobs:
             FLAGS="--latest"
             NOTES="Install: \`curl -fsSL https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/install.sh | bash\` or \`npm i -g caimex\`"
           fi
-          gh release create "$TAG" $FLAGS \
+          # --target: a manual run has no tag yet, and gh would otherwise tag the default branch.
+          gh release create "$TAG" $FLAGS --target "$GITHUB_SHA" \
             --title "Caimex Code $TAG" \
             --notes "$NOTES" \
             || echo "release $TAG already exists, uploading assets"
@@ -142,7 +147,7 @@ jobs:
   desktop:
     needs: release
     # Runs after a release, or alone on a desktop_only dry run (when release is skipped).
-    if: ${{ always() && (needs.release.result == 'success' || needs.release.result == 'skipped') }}
+    if: ${{ always() && !inputs.cli_only && (needs.release.result == 'success' || needs.release.result == 'skipped') }}
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
