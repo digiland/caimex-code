@@ -5,6 +5,7 @@ import { EOL } from "node:os"
 import { Commands } from "../commands"
 import { Runtime } from "../../framework/runtime"
 import { ServerConnection } from "../../services/server-connection"
+import { waitForPlugins } from "../../services/plugin-startup"
 
 export default Runtime.handler(
   Commands.commands.models,
@@ -14,12 +15,12 @@ export default Runtime.handler(
       baseUrl: server.endpoint.url,
       headers: Service.headers(server.endpoint),
     })
+    yield* waitForPlugins(client, process.cwd())
     const list = () => Effect.promise(() => client.model.list({ location: { directory: process.cwd() } }))
     let response = yield* list()
-    // Caimex: a service that just started answers before its provider plugins have
-    // loaded and before the gateway's catalog arrives, so a list without Caimex models is
-    // asked again for a few seconds before it's believed (a local Ollama alone used to
-    // end the wait early).
+    // Caimex: plugins have loaded by now, but the gateway's catalog can still be on its
+    // way, so a list without Caimex models is asked again for a few seconds before it's
+    // believed (a local Ollama alone used to end the wait early).
     const ready = () => response.data.some((model) => model.providerID === "caimex")
     for (let attempt = 0; attempt < 10 && !ready(); attempt++) {
       yield* Effect.sleep("500 millis")

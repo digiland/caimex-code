@@ -26,6 +26,7 @@ describe("acp session lifecycle over the wire", () => {
       },
       // Caimex: rebranded agent and login method (the method id stays upstream's).
       agentInfo: { name: "Caimex" },
+      _meta: { steering: { supported: true } },
     })
     expect(plain.authMethods).toEqual([
       { id: "opencode-login", name: "Login with Caimex", description: "Run `caimex auth login` in the terminal" },
