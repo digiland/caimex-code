@@ -1,6 +1,5 @@
 import { app } from "electron"
-
-type Channel = "local" | "dev" | "beta" | "prod"
+import { resolveIdentity, type Channel } from "./identity"
 
 const raw = import.meta.env.OPENCODE_CHANNEL
 
@@ -8,21 +7,13 @@ export const CHANNEL: Channel = raw === "local" || raw === "dev" || raw === "bet
 
 export const VERSION = app.isPackaged ? app.getVersion() : (process.env.OPENCODE_VERSION ?? app.getVersion())
 
-// Caimex Desktop: its own names and ids, so it never shares state, the single-instance
-// lock or a Dock entry with OpenCode or with the Caimex CLI fork's apps. (The updater is
-// switched off in gui-extensions/src/updater/main.ts.)
-const appNames: Record<string, string> = {
-  dev: "Caimex Desktop Dev",
-  beta: "Caimex Desktop Beta",
-  prod: "Caimex Desktop",
-}
+// Caimex Desktop: its own names and ids live in ./identity, so it never shares state, the
+// single-instance lock or a Dock entry with OpenCode or with the Caimex CLI fork's apps.
+// (The updater is switched off in gui-plugins/src/updater/main.ts.)
+const identity = resolveIdentity(CHANNEL, app.isPackaged)
 
-const appIDs: Record<string, string> = {
-  dev: "zw.co.econetai.caimexdesktop.dev",
-  beta: "zw.co.econetai.caimexdesktop.beta",
-  prod: "zw.co.econetai.caimexdesktop",
-}
+export const APP_NAME = identity.appName
 
-// Local renderer/server mode keeps the dev application identity.
-export const APP_NAME = app.isPackaged ? appNames[CHANNEL] : "Caimex Desktop Dev"
-export const APP_ID = app.isPackaged ? appIDs[CHANNEL] : "zw.co.econetai.caimexdesktop.dev"
+export const APP_ID = identity.appID
+
+export const APP_USER_MODEL_ID = identity.appUserModelID

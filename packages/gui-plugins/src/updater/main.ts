@@ -11,12 +11,14 @@ const setup: Plugin.MainSetup = async (ctx) => {
   const build = ctx.app
   const lifecycle = builtin.lifecycle
   // Caimex Desktop: no update server yet, and upstream's would replace this build with
-  // stock OpenCode. Upstream: `build.packaged`.
+  // stock OpenCode. Upstream: `build.packaged && existsSync(join(process.resourcesPath, "app-update.yml"))`.
   const enabled = false as boolean
   // Holds no resources, so it needs no cleanup.
   const context = logContext(ctx.log.write)
   const runPromise = Effect.runPromiseWith(context)
   const runFork = Effect.runForkWith(context)
+
+  if (build.packaged && !enabled) runFork(Effect.logInfo("auto updater disabled, app-update.yml is missing"))
 
   // The update main staged for the next start; stored before in the updater's settings file.
   const ready = builtin.storage.store("ready", {
@@ -25,7 +27,7 @@ const setup: Plugin.MainSetup = async (ctx) => {
     from: { settings: "ready", file: "opencode.updater" },
   })
 
-  // electron-updater loads only in packaged builds, after the first window is up.
+  // electron-updater loads only in packaged builds with a feed, after the first window is up.
   const platform = enabled
     ? await import("./platform").then((module) => runPromise(module.make(build.channel)))
     : undefined
